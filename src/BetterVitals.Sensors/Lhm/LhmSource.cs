@@ -29,6 +29,9 @@ public sealed class LhmSource : ISensorSource
 
     private static readonly TimeSpan ChangeDebounce = TimeSpan.FromSeconds(2);
 
+    /// <summary>DiskInfoToolkit's removable-media poll (its default: 1 s).</summary>
+    internal static readonly TimeSpan MediaWatchDelay = TimeSpan.FromSeconds(30);
+
     private readonly Debouncer _debouncer;
     private readonly Dictionary<IHardware, LhmNode> _nodesByHardware = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<ISensor> _knownSensors = new(ReferenceEqualityComparer.Instance);
@@ -289,11 +292,15 @@ public sealed class LhmSource : ISensorSource
             IsPsuEnabled = true,
             IsPowerMonitorEnabled = true,
         };
+        // DiskInfoToolkit (LHM's storage backend) polls removable media every second on its own thread; card-reader media
+        // also raises WM_DEVICECHANGE (→ NotifyDeviceChange), so a slow poll only stays as a safety net
+        DiskInfoToolkit.Storage.MediaWatchLoopDelay = MediaWatchDelay;
         _suppressEvents = true;
         try
         {
             computer.Open();
             if (paused) LastPauseClosedModules = LhmDriverRelease.ClosePawnIoModules(computer.Hardware);
+            LhmGpuTweaks.StopNvidiaPolling(computer);
         }
         catch (Exception ex)
         {
@@ -315,6 +322,7 @@ public sealed class LhmSource : ISensorSource
         }
 
         LhmGpuTweaks.InstallPcieGate();
+        LhmGpuTweaks.InstallPowerTopologyGate();
         computer.HardwareAdded += _onHardwareChanged;
         computer.HardwareRemoved += _onHardwareChanged;
         _computer = computer;
@@ -322,6 +330,7 @@ public sealed class LhmSource : ISensorSource
         _pausedApplied = paused;
         _unpauseSignaled = false;
         _deviceOpens = !paused && IsElevated && _pawnIoVersion is not null ? LhmDriverStatus.CanOpenDevice() : null;
+        UpdateStatus(); // _driverWorks decides how the discovery warm-up updates CPU nodes
     }
 
     /// <summary>Fast part of the pause (safe inside Update): drop the driver groups and close every remaining PawnIO handle.</summary>
@@ -383,6 +392,7 @@ public sealed class LhmSource : ISensorSource
             c.IsPsuEnabled = true;
             c.IsPowerMonitorEnabled = false;
             c.IsPowerMonitorEnabled = true;
+            LhmGpuTweaks.RefreshNvidiaGroups(c); // GPU added / removed, driver restarted (instead of LHM's 1 s poll)
         }
         catch (Exception ex)
         {
@@ -759,7 +769,11 @@ public sealed class LhmSource : ISensorSource
 
         // SMART only when a SMART-backed sensor of this drive is requested (LHM otherwise reads it on every update).
         if (node.IsStorage) LhmStorageDevice.SmartUpdateCycleCount = (needs & LhmSensorFlags.NeedsSmart) != 0 ? 1u : uint.MaxValue;
-        if (node.Type == HardwareType.GpuNvidia) LhmGpuTweaks.PcieWanted = (needs & LhmSensorFlags.NeedsPcie) != 0;
+        if (node.Type == HardwareType.GpuNvidia)
+        {
+            LhmGpuTweaks.PcieWanted = (needs & LhmSensorFlags.NeedsPcie) != 0;
+            LhmGpuTweaks.PowerTopologyWanted = (needs & LhmSensorFlags.NeedsPowerTopology) != 0;
+        }
         var skipD3d = node.D3dField is not null && (needs & LhmSensorFlags.NeedsD3d) == 0;
 
         var a0 = GC.GetAllocatedBytesForCurrentThread();
@@ -767,7 +781,8 @@ public sealed class LhmSource : ISensorSource
         try
         {
             if (skipD3d) node.D3dField!.SetValue(hw, null);
-            hw.Update();
+            // without a working driver only the CPU loads are real (the rest reads NaN): skip LHM's per-core MSR walk
+            if (!(node.Type == HardwareType.Cpu && !_driverWorks && LhmCpuTweaks.UpdateLoadsOnly(hw))) hw.Update();
             if (node.Dit is { } dit) node.SmartMissing = dit.SmartAttributes is not { Count: > 0 };
             return true;
         }

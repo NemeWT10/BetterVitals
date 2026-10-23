@@ -29,8 +29,11 @@ internal enum LhmSensorFlags : byte
     /// </summary>
     SmartCounter = 64,
 
+    /// <summary>NVIDIA "GPU Power" / "GPU Board Power" loads (NVAPI power topology: ~6 ms CPU per update).</summary>
+    NeedsPowerTopology = 128,
+
     /// <summary>Everything a node update can be asked for (discovery warm-up).</summary>
-    AllNeeds = NeedsSmart | NeedsPcie | NeedsD3d,
+    AllNeeds = NeedsSmart | NeedsPcie | NeedsD3d | NeedsPowerTopology,
 }
 
 /// <summary>Pure mapping and classification rules for LibreHardwareMonitor objects (no hardware access).</summary>
@@ -112,6 +115,8 @@ internal static class LhmClassifier
         }
         if (hardwareType == HardwareType.GpuNvidia && sensorType == SensorType.Throughput && sensorName.StartsWith("GPU PCIe ", StringComparison.Ordinal))
             flags |= LhmSensorFlags.NeedsPcie;
+        if (hardwareType == HardwareType.GpuNvidia && sensorType == SensorType.Load && sensorName is "GPU Power" or "GPU Board Power")
+            flags |= LhmSensorFlags.NeedsPowerTopology;
         if (isGpu && sensorName.StartsWith("D3D ", StringComparison.Ordinal))
             flags |= LhmSensorFlags.NeedsD3d;
         return flags;
