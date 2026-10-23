@@ -81,7 +81,6 @@ internal static class ShellStrings
         ["kind.FrameTime"] = ("Czas klatki", "Frame time"),
 
         // ── sensor notes (SensorDescriptor.NoteKey) ──
-        ["sensor.note.unofficialHotSpot"] = ("Odczyt nieoficjalny, ok. ±1 °C", "Unofficial reading, about ±1 °C"),
 
         // ── panel: navigation and page headers ──
         ["nav.overview"] = ("Przegląd", "Overview"),

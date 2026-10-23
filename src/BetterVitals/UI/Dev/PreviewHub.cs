@@ -49,7 +49,7 @@ internal sealed class PreviewHub : ISensorHub, IDisposable
         S(cpu, SensorKind.Power, "Package", 68, 25, 140, 0.20f, 2.5f);
         S(cpu, SensorKind.Voltage, "Core #1 VID", 1.21f, 0.95f, 1.35f, 0.20f, 0.01f);
         S(gpu, SensorKind.Temperature, "GPU Core", 61, 34, 84, 0.08f, 0.5f);
-        S(gpu, SensorKind.Temperature, "GPU Hot Spot", 72, 40, 98, 0.08f, 0.6f, "sensor.note.unofficialHotSpot");
+        S(gpu, SensorKind.Temperature, "GPU Hot Spot", 72, 40, 98, 0.08f, 0.6f, "sensor.note.unofficialHotspot");
         S(gpu, SensorKind.Temperature, "GPU Memory Junction", 66, 40, 96, 0.06f, 0.4f);
         S(gpu, SensorKind.Load, "GPU Core", 78, 0, 100, 0.25f, 4f);
         S(gpu, SensorKind.Clock, "GPU Core", 2640, 210, 2860, 0.25f, 25f);

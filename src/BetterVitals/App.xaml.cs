@@ -115,10 +115,21 @@ public partial class App : Application
     /// Fresh download: the first-run guide (full mode with one UAC prompt, or basic). Until the guide lands, the panel
     /// opens on the Settings page so the choice is reachable.
     /// </summary>
-    private void ShowFirstRun()
+    private async void ShowFirstRun()
     {
         Log.Info("first run");
-        _shell?.OpenPanel(UI.Panel.PageIds.Settings);
+        try
+        {
+            var r = await UI.Onboarding.FirstRun.RunAsync();
+            Log.Info($"first run: {r.Outcome} (mode {r.Mode}, recording {r.Recording}, autostart {r.Autostart})");
+            // full mode: PlatformService already handed over to the elevated copy and quits this one
+            if (r.Outcome != UI.Onboarding.FirstRunOutcome.FullModeStarting) TrayRest.Settle();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("first run failed", ex);
+            TrayRest.Settle();
+        }
     }
 
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e)

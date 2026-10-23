@@ -61,7 +61,18 @@ internal sealed class PlatformService : IPlatformService, IDisposable
 
     public SecurityInfo Security => new(SecurityState.MemoryIntegrity, SecurityState.SecureBoot, SecurityState.Vbs);
 
-    public string? AntiCheatPauseReason { get; set; }
+    public string? AntiCheatPauseReason
+    {
+        get => _antiCheatReason;
+        set
+        {
+            if (_antiCheatReason == value) return;
+            _antiCheatReason = value;
+            Raise();
+        }
+    }
+
+    private string? _antiCheatReason;
 
     public bool AutostartEnabled => SettingsStore.I.Current.General.Autostart;
 
@@ -102,6 +113,7 @@ internal sealed class PlatformService : IPlatformService, IDisposable
             s.General.Autostart = autostart;
             s.FirstRunDone = true;
         });
+        UserAutostart.Set(false, Environment.ProcessPath!); // the elevated task starts it now; never both
         SettingsStore.I.Flush();
         if (code == PlatformCommands.OkRestartNeeded) Notify?.Invoke(Localization.Loc.T("tip.restart.title"), Localization.Loc.T("tip.restart.pawnio"));
         // hand over to the elevated, installed copy
@@ -140,9 +152,10 @@ internal sealed class PlatformService : IPlatformService, IDisposable
     {
         var sid = Elevation.CurrentUserSid;
         bool ok;
-        if (!Installer.IsInstalled)
+        if (!Installer.IsInstalled || SettingsStore.I.Current.Driver.Mode == ReadMode.Basic)
         {
-            ok = false; // autostart is the installed copy's task; basic / portable mode has none
+            // basic mode / a copy that is not installed: an unelevated per-user start, never a UAC prompt
+            ok = UserAutostart.Set(enabled, Environment.ProcessPath!);
         }
         else if (Elevation.IsElevated)
         {

@@ -164,7 +164,7 @@ internal static partial class SnapshotMode
             var content = sensor is not null && ExplainService.Resolve(SensorProbe(sensor)) is { } fromGlossary
                 ? fromGlossary
                 : new ExplainContent(sensor?.Name ?? "GPU Hot Spot", Loc.T("settings.explanations.info"), Loc.T("settings.explanations.desc"),
-                    Loc.T("sensor.note.unofficialHotSpot"));
+                    Loc.T("sensor.note.unofficialHotspot"));
             var card = new ExplainCard();
             card.SetContent(content);
             card.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 18, ShadowDepth = 4, Direction = 270, Opacity = 0.35, Color = ThemeManager.ShadowColor };

@@ -326,7 +326,7 @@ public sealed class ExplainTests
     public void Sensor_bubble_shows_the_verbatim_name_and_the_note() => Sta.Run(() =>
     {
         var (s, p) = NewService();
-        var sensor = Sensor("GPU Hot Spot", SensorKind.Temperature, HardwareKind.Gpu, "sensor.note.unofficialHotSpot");
+        var sensor = Sensor("GPU Hot Spot", SensorKind.Temperature, HardwareKind.Gpu, "sensor.note.unofficialHotspot");
         var el = new Border();
         ExplainProps.SetSensor(el, sensor);
         Enter(el);
@@ -342,7 +342,7 @@ public sealed class ExplainTests
         Assert.True(Sta.PumpUntil(() => s.IsOpen));
         Assert.Equal("GPU Hot Spot", p.Last!.Title);
         Assert.Equal(glossary.What, p.Last.What);
-        Assert.Equal(Loc.T("sensor.note.unofficialHotSpot"), p.Last.Note);
+        Assert.Equal(Loc.T("sensor.note.unofficialHotspot"), p.Last.Note);
     });
 
     [Fact]
