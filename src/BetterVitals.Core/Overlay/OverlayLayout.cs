@@ -209,6 +209,9 @@ public sealed class OverlayLayout
     /// <summary>The editor is in Advanced mode (Simple keeps everything at defaults except items and corner).</summary>
     public bool Advanced { get; set; }
 
+    /// <summary>The default items (FPS, CPU and GPU temperature) were filled in once; an emptied list stays empty.</summary>
+    public bool DefaultsApplied { get; set; }
+
     /// <summary>Refresh interval of the overlay's values, 250–2000 ms.</summary>
     public int RefreshMs { get; set; } = 1000;
 

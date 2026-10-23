@@ -99,6 +99,27 @@ internal sealed unsafe class TrayIcon : IDisposable
         _added = true;
     }
 
+    /// <summary>
+    /// A quiet Windows notification from the tray icon (tips, "update ready"). Respects Focus assist / quiet time, so it
+    /// never pops up over a game; no sound.
+    /// </summary>
+    public void Notify(string title, string text)
+    {
+        if (_disposed || !_added) return;
+        const uint NIF_INFO = 0x10;
+        const uint NIIF_INFO = 0x1, NIIF_NOSOUND = 0x10, NIIF_RESPECT_QUIET_TIME = 0x80;
+        var data = NewData();
+        data.uFlags = NIF_INFO;
+        var t = title.AsSpan(0, Math.Min(title.Length, 63));
+        t.CopyTo(new Span<char>(data.szInfoTitle, 64));
+        data.szInfoTitle[t.Length] = '\0';
+        var body = text.AsSpan(0, Math.Min(text.Length, 255));
+        body.CopyTo(new Span<char>(data.szInfo, 256));
+        data.szInfo[body.Length] = '\0';
+        data.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND | NIIF_RESPECT_QUIET_TIME;
+        Shell_NotifyIconW(NIM_MODIFY, &data);
+    }
+
     private void RemoveIcon()
     {
         if (!_added) return;

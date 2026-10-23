@@ -78,6 +78,9 @@ public sealed class RecordingSettings
 
     /// <summary>The "Key" preset was applied (also adds key sensors of hardware that shows up later, e.g. a new GPU).</summary>
     public bool KeyPresetApplied { get; set; }
+
+    /// <summary>Key-preset sensors the user switched off on purpose: the preset never adds them back.</summary>
+    public HashSet<string> RemovedSensorIds { get; set; } = new(StringComparer.Ordinal);
 }
 
 public sealed class FlyoutSettings
@@ -101,6 +104,9 @@ public sealed class UpdateSettings
 
     /// <summary>A version the user chose to skip.</summary>
     public string? SkippedVersion { get; set; }
+
+    /// <summary>ETag of the last GitHub answer (an unchanged answer then costs ~200 bytes).</summary>
+    public string? ETag { get; set; }
 }
 
 public enum ReadMode : byte

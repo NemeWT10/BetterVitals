@@ -138,6 +138,12 @@ public sealed class AppShell
     /// <summary>"open:&lt;page&gt;" from a second launch (or anything else: open the panel).</summary>
     internal void HandleCommand(string command)
     {
+        // the uninstaller / an update asks the running copy to exit
+        if (command == "quit")
+        {
+            Quit();
+            return;
+        }
         var page = command.StartsWith("open:", StringComparison.Ordinal) ? command[5..] : null;
         OpenPanel(string.IsNullOrWhiteSpace(page) ? null : page);
     }

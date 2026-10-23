@@ -41,6 +41,11 @@ public partial class App : Application
 
     internal StartupOptions Options => _options;
 
+    /// <summary>Show the first-run guide (fresh download, nothing chosen yet).</summary>
+    internal bool NeedsFirstRun { get; init; }
+
+    private AppHost? _host;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -51,9 +56,9 @@ public partial class App : Application
         ExplainService.I.Enabled = g.Explanations;
         SettingsStore.I.Changed += OnSettingsChanged;
 
-        // until the engine is integrated: the preview hub in test / snapshot mode, nothing otherwise
-        if (AppEnv.TestMode && AppServices.Hub is NullSensorHub)
-            AppServices.Hub = new PreviewHub(start: _options.SnapshotDir is null);
+        // the sensors, history, overlay and Windows integration (test mode: a fake PC, no hardware access)
+        _host = AppHost.Start(Dispatcher, AppEnv.TestMode);
+        if (AppEnv.TestMode) _host.WarmUp(TimeSpan.FromSeconds(5));
 
         _messages = new MessageWindow();
         _messages.Message += OnSystemMessage;
@@ -67,12 +72,15 @@ public partial class App : Application
             _tray.MenuRequested += _shell.ShowTrayMenu;
             _tray.PanelRequested += () => _shell.OpenPanel();
             _shell.Tray = _tray;
+            _host.AttachTray(_tray);
         }
+        _host.Platform.QuitApp = Quit;
         _instance?.Listen(command => Dispatcher.BeginInvoke(() => _shell.HandleCommand(command)));
 
         if (_options.SnapshotDir is { } dir) SnapshotMode.Start(dir, _options.SnapshotLanguage, _options.SnapshotTheme);
         else if (_options.TrayProbe) TrayProbe.Start();
         else if (_options.OpenPage is { } page) _shell.OpenPanel(page);
+        else if (NeedsFirstRun) ShowFirstRun();
         else TrayRest.Settle(); // straight to the tray: give the start-up memory back
         Log.Info($"ui ready (test={AppEnv.TestMode}, tray={_tray is not null})");
     }
@@ -96,10 +104,21 @@ public partial class App : Application
         _tray?.Dispose();
         _tray = null;
         _messages?.Dispose();
-        (AppServices.Hub as IDisposable)?.Dispose();
+        _host?.Dispose();
+        _host = null;
         SettingsStore.I?.Flush();
         Log.Info($"exit {e.ApplicationExitCode}");
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// Fresh download: the first-run guide (full mode with one UAC prompt, or basic). Until the guide lands, the panel
+    /// opens on the Settings page so the choice is reachable.
+    /// </summary>
+    private void ShowFirstRun()
+    {
+        Log.Info("first run");
+        _shell?.OpenPanel(UI.Panel.PageIds.Settings);
     }
 
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e)

@@ -108,6 +108,7 @@ public sealed class SettingsStore
         s.Recording.SensorIds ??= new HashSet<string>(StringComparer.Ordinal);
         if (s.Recording.SensorIds.Comparer != StringComparer.Ordinal)
             s.Recording.SensorIds = new HashSet<string>(s.Recording.SensorIds, StringComparer.Ordinal);
+        s.Recording.RemovedSensorIds = new HashSet<string>(s.Recording.RemovedSensorIds ?? [], StringComparer.Ordinal);
         s.Overlay ??= new Overlay.OverlayLayout();
         s.Overlay.Normalize();
         s.Flyout ??= new FlyoutSettings();

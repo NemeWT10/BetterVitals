@@ -30,6 +30,8 @@ public sealed class SystemEvents : IDisposable
     private readonly Thread _thread;
     private readonly ManualResetEventSlim _ready = new();
     private readonly WndProc _proc; // kept alive: the window calls it
+    private readonly WinEventProc _winEvent; // kept alive: the hook calls it
+    private IntPtr _foregroundHook;
     private IntPtr _hwnd;
     private IntPtr _suspendRegistration;
     private bool _suspended;
@@ -52,9 +54,13 @@ public sealed class SystemEvents : IDisposable
     /// <summary>Sign-out / shutdown / restart: save everything now (the process may be killed right after).</summary>
     public event Action? SessionEnding;
 
+    /// <summary>Another window came to the foreground (game started, Alt+Tab…). Event-driven, no polling.</summary>
+    public event Action? ForegroundChanged;
+
     public SystemEvents()
     {
         _proc = WindowProc;
+        _winEvent = OnWinEvent;
         _thread = new Thread(Run) { IsBackground = true, Name = "BetterVitals system events" };
         _thread.SetApartmentState(ApartmentState.STA);
         _thread.Start();
@@ -82,6 +88,8 @@ public sealed class SystemEvents : IDisposable
                 _suspendRegistration = RegisterSuspendResumeNotification(_hwnd, 0 /* DEVICE_NOTIFY_WINDOW_HANDLE */);
                 WTSRegisterSessionNotification(_hwnd, 0 /* NOTIFY_FOR_THIS_SESSION */);
             }
+            // EVENT_SYSTEM_FOREGROUND, out of context: the callback runs on this thread's message loop
+            _foregroundHook = SetWinEventHook(0x0003, 0x0003, IntPtr.Zero, _winEvent, 0, 0, 0);
         }
         catch (Exception ex)
         {
@@ -139,6 +147,8 @@ public sealed class SystemEvents : IDisposable
                     SessionEnding?.Invoke();
                     return 0;
                 case WM_DESTROY:
+                    if (_foregroundHook != IntPtr.Zero) UnhookWinEvent(_foregroundHook);
+                    _foregroundHook = IntPtr.Zero;
                     PostQuitMessage(0);
                     return 0;
             }
@@ -148,6 +158,18 @@ public sealed class SystemEvents : IDisposable
             Core.Log.Error("system events: handler failed", ex);
         }
         return DefWindowProcW(hwnd, msg, wParam, lParam);
+    }
+
+    private void OnWinEvent(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
+    {
+        try
+        {
+            ForegroundChanged?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Core.Log.Error("system events: foreground handler failed", ex);
+        }
     }
 
     public void Dispose()
@@ -165,6 +187,14 @@ public sealed class SystemEvents : IDisposable
     // ───────────────────────── interop ─────────────────────────
 
     private delegate IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private delegate void WinEventProc(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, WinEventProc callback, uint processId, uint threadId, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool UnhookWinEvent(IntPtr hook);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WNDCLASSEXW

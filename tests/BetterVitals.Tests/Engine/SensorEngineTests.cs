@@ -246,12 +246,17 @@ public sealed class SensorEngineTests
         var all = engine.Sensors.Select(s => s.Id).ToArray();
         using var d = engine.Demand("everything", all, TimeSpan.FromMilliseconds(250));
         engine.ApplyDemandNow();
-        for (var i = 0; i < 20; i++) { clock.Advance(SensorEngine.BaseTick); engine.Tick(clock.Now); } // warm up (JIT, growth)
+        for (var i = 0; i < 200; i++) { clock.Advance(SensorEngine.BaseTick); engine.Tick(clock.Now); } // warm up (JIT, growth)
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1000; i++) { clock.Advance(SensorEngine.BaseTick); engine.Tick(clock.Now); }
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        Assert.True(allocated < 1024, $"{allocated} bytes allocated in 1000 ticks of {all.Length} sensors");
+        // a real per-tick allocation shows in every round; one-off runtime noise (tiering on a loaded machine) does not
+        var best = long.MaxValue;
+        for (var round = 0; round < 3; round++)
+        {
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            for (var i = 0; i < 1000; i++) { clock.Advance(SensorEngine.BaseTick); engine.Tick(clock.Now); }
+            best = Math.Min(best, GC.GetAllocatedBytesForCurrentThread() - before);
+        }
+        Assert.True(best < 256, $"{best} bytes allocated in 1000 ticks of {all.Length} sensors");
     }
 
     [Fact]

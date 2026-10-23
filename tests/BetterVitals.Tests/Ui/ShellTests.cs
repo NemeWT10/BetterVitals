@@ -201,7 +201,7 @@ public sealed class ShellTests
         {
             var icon = TrayIconArt.Create(size);
             Assert.NotEqual(0, icon);
-            Native.DestroyIcon(icon);
+            global::BetterVitals.UI.Native.DestroyIcon(icon);
         }
     });
 }

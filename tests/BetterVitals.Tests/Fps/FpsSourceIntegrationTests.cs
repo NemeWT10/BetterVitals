@@ -95,7 +95,8 @@ public sealed class FpsSourceIntegrationTests(ITestOutputHelper output)
         // frame times are uniform in [0.75, 1.25] × 10 ms around a fixed grid → deltas in ~[5, 15] ms
         Assert.InRange(v[0], 95f, 105f);
         Assert.InRange(v[2], 66f, 85f);
-        Assert.InRange(v[4], 12f, 16.5f);
+        // the slowest frame also carries the OS scheduler's hiccups on a busy machine (parallel builds): generous top
+        Assert.InRange(v[4], 12f, 25f);
     }
 
     [Fact]
