@@ -1,0 +1,34 @@
+# BetterVitals own sensors (not from LibreHardwareMonitor), one "Kind|Hw|Name" per line.
+# Kind of the app-side sensors is the planned one; adjust here if the app uses a different SensorType.
+
+# FPS group (ETW)
+Fps|Game|Framerate
+Fps|Game|1% Low
+Fps|Game|0.1% Low
+FrameTime|Game|Frametime
+FrameTime|Game|Frametime Max
+
+# Native Windows sensors
+Load|Gpu|GPU Engine 3D
+Load|Gpu|GPU Engine Copy
+Load|Gpu|GPU Engine Video Decode
+Load|Gpu|GPU Engine Video Encode
+Data|Gpu|Dedicated GPU Memory
+Data|Gpu|Shared GPU Memory
+Temperature|Storage|Disk Temperature
+Throughput|Storage|Read Rate
+Throughput|Storage|Write Rate
+Load|Storage|Active Time
+Throughput|Network|Download Speed
+Throughput|Network|Upload Speed
+Clock|Memory|Memory Speed
+
+# Derived sensors
+Temperature|Cpu|CPU Core Max
+Load|Cpu|CPU Core Max
+Temperature|Cpu|CPU Core Average
+Load|Cpu|CPU Core Average
+Clock|Cpu|CPU Clock Max
+Temperature|Memory|DIMM Max
+Throughput|Network|Total Throughput
+Throughput|Storage|Total Throughput

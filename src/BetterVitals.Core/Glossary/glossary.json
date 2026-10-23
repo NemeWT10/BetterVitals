@@ -1,0 +1,4398 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "CPU Package",
+      "what": {
+        "en": "Temperature of the whole processor chip (package), read from its built-in sensor. On Intel this is the usual \"CPU temperature\".",
+        "pl": "Temperatura całego procesora (pakietu) odczytana z jego wbudowanego czujnika. W procesorach Intel to zwykle właśnie „temperatura procesora”."
+      },
+      "watch": {
+        "en": "Most CPUs start lowering their clocks (throttling) at roughly 90–100 °C. Staying clearly below that under load is healthy.",
+        "pl": "Większość procesorów zaczyna obniżać taktowanie (throttling) przy ok. 90–100 °C. Wyraźnie niższa temperatura pod obciążeniem to dobry znak."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "Core Max",
+      "what": {
+        "en": "Temperature of the hottest CPU core right now. One handy number that shows the worst case among all cores.",
+        "pl": "Temperatura najgorętszego rdzenia procesora w tej chwili. Jedna wygodna liczba pokazująca najgorszy przypadek spośród wszystkich rdzeni."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "Core Average",
+      "what": {
+        "en": "Average temperature of all CPU cores. Calmer than a single core, which can jump up and down quickly.",
+        "pl": "Średnia temperatura wszystkich rdzeni procesora. Spokojniejsza niż pojedynczy rdzeń, który potrafi szybko skakać w górę i w dół."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "*Core #{n} Distance to TjMax",
+      "what": {
+        "en": "How many degrees this core is below TjMax, the highest temperature the CPU is built to run at. Smaller means hotter; 0 means the limit is reached.",
+        "pl": "O ile stopni ten rdzeń jest poniżej TjMax, czyli najwyższej temperatury, dla której zaprojektowano procesor. Mniej = goręcej; 0 oznacza osiągnięty limit."
+      },
+      "watch": {
+        "en": "At 0 °C the CPU lowers its clocks to cool down.",
+        "pl": "Przy 0 °C procesor obniża taktowanie, żeby się schłodzić."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "Core (Tctl/Tdie)",
+      "what": {
+        "en": "Main temperature of an AMD Ryzen CPU. Tctl/Tdie is the value the chip reports for its hottest area; on most newer Ryzen models Tctl and Tdie are the same number.",
+        "pl": "Główna temperatura procesora AMD Ryzen. Tctl/Tdie to wartość zgłaszana przez sam układ; w większości nowszych Ryzenów Tctl i Tdie są tą samą liczbą."
+      },
+      "watch": {
+        "en": "Many Ryzen chips are designed to boost until they reach about 90–95 °C, so high numbers under load are often normal.",
+        "pl": "Wiele Ryzenów jest zaprojektowanych tak, by zwiększać taktowanie aż do ok. 90–95 °C, więc wysoka temperatura pod obciążeniem bywa normalna."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "Core (Tctl)",
+      "what": {
+        "en": "Control temperature that Ryzen uses for fan logic. On some older Ryzen and Threadripper models it includes a built-in offset, so it reads higher than the real die temperature (Tdie).",
+        "pl": "Temperatura „sterująca”, której Ryzen używa do regulacji wentylatorów. W części starszych Ryzenów i Threadripperów ma wbudowane przesunięcie, więc jest wyższa niż prawdziwa temperatura układu (Tdie)."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "Core (Tdie)",
+      "what": {
+        "en": "True temperature of the CPU die (the silicon) on older Ryzen models: the Tctl value minus its built-in offset.",
+        "pl": "Prawdziwa temperatura układu krzemowego (die) w starszych Ryzenach: wartość Tctl pomniejszona o wbudowane przesunięcie."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "CCD{n} (Tdie)",
+      "what": {
+        "en": "Temperature of one core chiplet (CCD, Core Complex Die) inside a Ryzen CPU. Models such as Ryzen 9 have two of them, and they can heat differently.",
+        "pl": "Temperatura jednego układu z rdzeniami (CCD, Core Complex Die) w procesorze Ryzen. Modele takie jak Ryzen 9 mają dwa takie układy, które mogą nagrzewać się inaczej."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "CCDs Max (Tdie)",
+      "what": {
+        "en": "The hottest of the CPU's core chiplets (CCDs). Useful as one number when a Ryzen has more than one.",
+        "pl": "Temperatura najgorętszego z układów z rdzeniami (CCD) w procesorze. Wygodna jedna liczba, gdy Ryzen ma ich więcej niż jeden."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "CCDs Average (Tdie)",
+      "what": {
+        "en": "Average temperature of the CPU's core chiplets (CCDs).",
+        "pl": "Średnia temperatura układów z rdzeniami (CCD) w procesorze."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "P-Core #{n}",
+      "what": {
+        "en": "Temperature of one Performance core (P-core): the big, fast cores of hybrid Intel CPUs. They do the heavy work and usually run hotter than E-cores.",
+        "pl": "Temperatura jednego rdzenia wydajnego (P-core) – dużego, szybkiego rdzenia hybrydowych procesorów Intel. Wykonuje ciężką pracę i zwykle grzeje się bardziej niż E-core."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "E-Core #{n}",
+      "what": {
+        "en": "Temperature of one Efficiency core (E-core): the small, power-saving cores of hybrid Intel CPUs, used mostly for background work.",
+        "pl": "Temperatura jednego rdzenia energooszczędnego (E-core) – małego rdzenia hybrydowych procesorów Intel, używanego głównie do pracy w tle."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "*Core #{n}",
+      "what": {
+        "en": "Temperature of a single CPU core. Cores can differ by several degrees depending on their position on the chip and the work they do.",
+        "pl": "Temperatura pojedynczego rdzenia procesora. Rdzenie mogą się różnić o kilka stopni zależnie od położenia w układzie i wykonywanej pracy."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "CPU Core",
+      "what": {
+        "en": "Temperature of the CPU's only core (this processor has a single core).",
+        "pl": "Temperatura jedynego rdzenia procesora (ten procesor ma tylko jeden rdzeń)."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "CPU Cores",
+      "what": {
+        "en": "Temperature of the CPU cores, reported as one value by older AMD processors.",
+        "pl": "Temperatura rdzeni procesora raportowana jako jedna wartość przez starsze procesory AMD."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "Package",
+      "what": {
+        "en": "CPU package temperature taken from AMD's power-management data. A different source than Tctl/Tdie, so it is usually close to it.",
+        "pl": "Temperatura procesora z danych zarządzania energią AMD. To inne źródło niż Tctl/Tdie, więc zwykle jest bliska tej wartości."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "SoC",
+      "what": {
+        "en": "Temperature of the SoC part of the chip (memory controller, I/O and other blocks outside the cores), from AMD's power-management data.",
+        "pl": "Temperatura części SoC układu (kontroler pamięci, wejścia/wyjścia i inne bloki poza rdzeniami), z danych zarządzania energią AMD."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "GFX",
+      "what": {
+        "en": "Temperature of the integrated graphics inside an AMD processor (APU).",
+        "pl": "Temperatura zintegrowanej grafiki w procesorze AMD (APU)."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "IOD Hotspot",
+      "what": {
+        "en": "Hottest point of the I/O die (IOD): the Ryzen chiplet that holds the memory controller and the connections to the rest of the PC.",
+        "pl": "Najgorętszy punkt układu wejścia/wyjścia (IOD) – chipletu Ryzena z kontrolerem pamięci i połączeniami z resztą komputera."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "L3 (CCD{n})",
+      "what": {
+        "en": "Temperature near the L3 cache of one core chiplet (CCD) in a Ryzen CPU.",
+        "pl": "Temperatura w okolicy pamięci podręcznej L3 jednego układu z rdzeniami (CCD) w procesorze Ryzen."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "CPU Temperature Limit",
+      "what": {
+        "en": "A thermal limit configured in the Ryzen (a setting, not a live reading). The chip slows down when its temperature gets there.",
+        "pl": "Limit temperatury ustawiony w Ryzenie (ustawienie, a nie odczyt na żywo). Gdy temperatura do niego dojdzie, układ zwalnia."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "VDDCR VDD",
+      "what": {
+        "en": "Odd extra value from the Ryzen power-management table, labelled VDDCR VDD (core power rail) but listed as a temperature. It is undocumented and may not be a real temperature.",
+        "pl": "Dziwny dodatkowy odczyt z tablicy zarządzania energią Ryzena, opisany jako VDDCR VDD (szyna zasilania rdzeni), ale podany jako temperatura. Nie jest udokumentowany i może nie być prawdziwą temperaturą."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "VDDCR SoC",
+      "what": {
+        "en": "Odd extra value from the Ryzen power-management table, labelled VDDCR SoC (SoC power rail) but listed as a temperature. It is undocumented and may not be a real temperature.",
+        "pl": "Dziwny dodatkowy odczyt z tablicy zarządzania energią Ryzena, opisany jako VDDCR SoC (szyna zasilania SoC), ale podany jako temperatura. Nie jest udokumentowany i może nie być prawdziwą temperaturą."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "VDD Misc",
+      "what": {
+        "en": "Odd extra value from the Ryzen power-management table, labelled VDD Misc (a miscellaneous power rail) but listed as a temperature. It is undocumented and may not be a real temperature.",
+        "pl": "Dziwny dodatkowy odczyt z tablicy zarządzania energią Ryzena, opisany jako VDD Misc (pomocnicza szyna zasilania), ale podany jako temperatura. Nie jest udokumentowany i może nie być prawdziwą temperaturą."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "Bus Speed",
+      "what": {
+        "en": "Base clock (BCLK) of the CPU, on modern CPUs normally about 100 MHz. The real CPU clock is this number multiplied by a ratio (the multiplier).",
+        "pl": "Zegar bazowy (BCLK) procesora, w nowoczesnych procesorach zwykle ok. 100 MHz. Rzeczywiste taktowanie procesora to ta liczba pomnożona przez mnożnik."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "*Core #{n} (Effective)",
+      "what": {
+        "en": "Effective speed of this core: the clock it really averaged, counting the time it spent asleep. Lower than the plain core clock when the core is mostly idle.",
+        "pl": "Efektywna prędkość tego rdzenia – średnie taktowanie, z uwzględnieniem czasu uśpienia. Niższa niż zwykłe taktowanie rdzenia, gdy rdzeń jest głównie bezczynny."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "Cores (Average)",
+      "what": {
+        "en": "Average clock speed of all CPU cores right now.",
+        "pl": "Średnie taktowanie wszystkich rdzeni procesora w tej chwili."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "Cores (Average Effective)",
+      "what": {
+        "en": "Average effective clock of all cores, counting the time cores spent asleep. A truer picture of how much work the CPU is really doing.",
+        "pl": "Średnie efektywne taktowanie wszystkich rdzeni z uwzględnieniem czasu uśpienia. Lepiej pokazuje, ile pracy faktycznie wykonuje procesor."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "P-Core #{n}",
+      "what": {
+        "en": "Current speed of a Performance core (P-core): the big, fast cores of hybrid Intel CPUs. It changes constantly with load and power saving.",
+        "pl": "Aktualne taktowanie rdzenia wydajnego (P-core) – dużego, szybkiego rdzenia hybrydowych procesorów Intel. Zmienia się cały czas wraz z obciążeniem i oszczędzaniem energii."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "E-Core #{n}",
+      "what": {
+        "en": "Current speed of an Efficiency core (E-core): the small, power-saving cores of hybrid Intel CPUs, used mostly for background work.",
+        "pl": "Aktualne taktowanie rdzenia energooszczędnego (E-core) – małego rdzenia hybrydowych procesorów Intel, używanego głównie do pracy w tle."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "*Core #{n}",
+      "what": {
+        "en": "Current speed of this CPU core. It changes constantly: it boosts under load and drops when idle to save power.",
+        "pl": "Aktualne taktowanie tego rdzenia procesora. Zmienia się cały czas: rośnie pod obciążeniem i spada w spoczynku, żeby oszczędzać energię."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "CPU Core",
+      "what": {
+        "en": "Current speed of the CPU's only core. It rises under load and drops when idle.",
+        "pl": "Aktualne taktowanie jedynego rdzenia procesora. Rośnie pod obciążeniem i spada w spoczynku."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "Fabric",
+      "what": {
+        "en": "Speed of the Infinity Fabric (FCLK), the internal data highway of a Ryzen that links its chiplets, memory controller and I/O.",
+        "pl": "Taktowanie Infinity Fabric (FCLK) – wewnętrznej magistrali Ryzena łączącej jego układy, kontroler pamięci i wejścia/wyjścia."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "Uncore",
+      "what": {
+        "en": "Speed of the CPU's memory controller (UCLK). \"Uncore\" means everything on the chip except the cores.",
+        "pl": "Taktowanie kontrolera pamięci procesora (UCLK). „Uncore” to wszystko w układzie poza rdzeniami."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "Memory",
+      "what": {
+        "en": "Memory clock (MCLK) as seen by the CPU. For DDR RAM the transfer rate in MT/s is twice this number.",
+        "pl": "Zegar pamięci (MCLK) widziany przez procesor. Dla pamięci DDR szybkość transferu w MT/s jest dwa razy większa od tej liczby."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "GFX",
+      "what": {
+        "en": "Current speed of the integrated graphics inside an AMD processor (APU).",
+        "pl": "Aktualne taktowanie zintegrowanej grafiki w procesorze AMD (APU)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "CPU Core",
+      "what": {
+        "en": "Voltage currently supplied to the CPU cores (Vcore). It rises with clock speed and drops at idle.",
+        "pl": "Napięcie, którym aktualnie zasilane są rdzenie procesora (Vcore). Rośnie wraz z taktowaniem i spada w spoczynku."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "*Core #{n} VID",
+      "what": {
+        "en": "VID is the voltage this core asks the power circuitry to deliver. It is a request, not a measurement, and can differ slightly from the real voltage (Vcore).",
+        "pl": "VID to napięcie, o które dany rdzeń prosi układ zasilania. To prośba, a nie pomiar, i może się nieco różnić od rzeczywistego napięcia (Vcore)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "P-Core #{n}",
+      "what": {
+        "en": "VID of a Performance core (P-core): the voltage it requests from the power circuitry. A request, not a measurement.",
+        "pl": "VID rdzenia wydajnego (P-core) – napięcie, o które rdzeń prosi układ zasilania. To prośba, a nie pomiar."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "E-Core #{n}",
+      "what": {
+        "en": "VID of an Efficiency core (E-core): the voltage it requests from the power circuitry. A request, not a measurement.",
+        "pl": "VID rdzenia energooszczędnego (E-core) – napięcie, o które rdzeń prosi układ zasilania. To prośba, a nie pomiar."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "*Core #{n}",
+      "what": {
+        "en": "VID of this core: the voltage it requests from the power circuitry. A request, not a measurement, and it can differ slightly from the real voltage.",
+        "pl": "VID tego rdzenia – napięcie, o które rdzeń prosi układ zasilania. To prośba, a nie pomiar, i może się nieco różnić od rzeczywistego napięcia."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "Core VIDs",
+      "what": {
+        "en": "Average of the voltages (VID) requested by all CPU cores. A request, not a measurement.",
+        "pl": "Średnia z napięć (VID), o które proszą wszystkie rdzenie procesora. To prośba, a nie pomiar."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "Core (SVI2 TFN)",
+      "what": {
+        "en": "Core voltage (Vcore) read from the CPU's own power telemetry (SVI2). It is close to what the motherboard actually delivers to the cores.",
+        "pl": "Napięcie rdzeni (Vcore) odczytane z telemetrii zasilania procesora (SVI2). Jest bliskie temu, co płyta faktycznie dostarcza do rdzeni."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "SoC (SVI2 TFN)",
+      "what": {
+        "en": "SoC voltage from the CPU's power telemetry (SVI2). The SoC part powers the memory controller and I/O, and faster memory often needs more of it.",
+        "pl": "Napięcie SoC z telemetrii zasilania procesora (SVI2). Część SoC zasila kontroler pamięci i wejścia/wyjścia; szybsza pamięć często wymaga wyższego napięcia."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "CPU Cores",
+      "what": {
+        "en": "Core voltage of an older AMD processor.",
+        "pl": "Napięcie rdzeni starszego procesora AMD."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "Northbridge",
+      "what": {
+        "en": "Voltage of the northbridge part (memory controller area) of an older AMD processor.",
+        "pl": "Napięcie części northbridge (okolice kontrolera pamięci) starszego procesora AMD."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "GFX",
+      "what": {
+        "en": "Voltage supplied to the integrated graphics inside an AMD processor (APU).",
+        "pl": "Napięcie zasilające zintegrowaną grafikę w procesorze AMD (APU)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "VDDCR",
+      "what": {
+        "en": "Voltage of the CPU core power rail (VDDCR) from the Ryzen power-management table.",
+        "pl": "Napięcie szyny zasilania rdzeni (VDDCR) z tablicy zarządzania energią Ryzena."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "VDDCR SoC",
+      "what": {
+        "en": "Voltage of the SoC power rail (VDDCR SoC): it powers the memory controller and I/O parts of a Ryzen.",
+        "pl": "Napięcie szyny zasilania SoC (VDDCR SoC), która zasila kontroler pamięci i część wejścia/wyjścia Ryzena."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "SoC Voltage",
+      "what": {
+        "en": "SoC voltage from the Ryzen power-management table. It powers the memory controller and I/O parts of the chip.",
+        "pl": "Napięcie SoC z tablicy zarządzania energią Ryzena. Zasila kontroler pamięci i część wejścia/wyjścia układu."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "VDD Misc",
+      "what": {
+        "en": "Voltage of a miscellaneous power rail (VDD Misc) of a Ryzen, which feeds some I/O and memory-interface logic.",
+        "pl": "Napięcie pomocniczej szyny zasilania (VDD Misc) Ryzena, zasilającej część układów wejścia/wyjścia i interfejsu pamięci."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "LDO VDD",
+      "what": {
+        "en": "Output of an internal voltage regulator (LDO) of the Ryzen for its VDD rail. Reported by the chip itself.",
+        "pl": "Wyjście wewnętrznego stabilizatora napięcia (LDO) Ryzena dla szyny VDD. Raportowane przez sam układ."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "CLDO VDDG IOD",
+      "what": {
+        "en": "Voltage of the Infinity Fabric link (VDDG) on the I/O-die side, from an internal regulator. Matters mostly for memory/fabric overclocking.",
+        "pl": "Napięcie łącza Infinity Fabric (VDDG) po stronie układu I/O, z wewnętrznego stabilizatora. Ważne głównie przy podkręcaniu pamięci i magistrali."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "CLDO VDDG CCD",
+      "what": {
+        "en": "Voltage of the Infinity Fabric link (VDDG) on the core-chiplet (CCD) side, from an internal regulator. Matters mostly for memory/fabric overclocking.",
+        "pl": "Napięcie łącza Infinity Fabric (VDDG) po stronie układu z rdzeniami (CCD), z wewnętrznego stabilizatora. Ważne głównie przy podkręcaniu pamięci i magistrali."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Cpu",
+      "match": "CLDO VDDP",
+      "what": {
+        "en": "Voltage of the VDDP rail, which powers the memory interface (PHY) of a Ryzen, from an internal regulator.",
+        "pl": "Napięcie szyny VDDP, która zasila interfejs pamięci (PHY) Ryzena, z wewnętrznego stabilizatora."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "CPU Package",
+      "what": {
+        "en": "Total power the whole processor chip is drawing right now, in watts. It rises sharply under load.",
+        "pl": "Całkowita moc pobierana teraz przez cały procesor, w watach. Mocno rośnie pod obciążeniem."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "Package",
+      "what": {
+        "en": "Total power the whole processor chip is drawing right now, in watts. It rises sharply under load.",
+        "pl": "Całkowita moc pobierana teraz przez cały procesor, w watach. Mocno rośnie pod obciążeniem."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "CPU Cores",
+      "what": {
+        "en": "Power used by the CPU cores alone, in watts. The rest of the package power goes to cache, memory controller and other parts.",
+        "pl": "Moc pobierana tylko przez rdzenie procesora, w watach. Reszta mocy pakietu trafia do pamięci podręcznej, kontrolera pamięci i innych części."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "CPU Graphics",
+      "what": {
+        "en": "Power used by the integrated graphics inside the processor, in watts.",
+        "pl": "Moc pobierana przez zintegrowaną grafikę w procesorze, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "CPU Memory",
+      "what": {
+        "en": "Power used by the memory (DRAM) as measured by the processor, in watts. Many desktop CPUs do not report it.",
+        "pl": "Moc pobierana przez pamięć RAM, mierzona przez procesor, w watach. Wiele procesorów desktopowych tego nie raportuje."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "CPU Platform",
+      "what": {
+        "en": "Power of the whole platform around the processor, in watts. It is wider than the package power and the exact scope depends on the CPU.",
+        "pl": "Moc całej platformy wokół procesora, w watach. Obejmuje więcej niż moc pakietu, a dokładny zakres zależy od procesora."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "*Core #{n} (SMU)",
+      "what": {
+        "en": "Power used by one CPU core, estimated by the Ryzen's power-management unit (SMU).",
+        "pl": "Moc pobierana przez jeden rdzeń procesora, szacowana przez jednostkę zarządzania energią Ryzena (SMU)."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "CPU PPT",
+      "what": {
+        "en": "Current Package Power Tracking (PPT): the total power a Ryzen draws through the socket. The PPT limit is checked against this value.",
+        "pl": "Aktualny Package Power Tracking (PPT) – całkowita moc pobierana przez Ryzena przez gniazdo procesora. Z tą wartością porównywany jest limit PPT."
+      },
+      "watch": {
+        "en": "When it sits at the limit, the CPU is power-limited and may not boost any higher.",
+        "pl": "Gdy dobija do limitu, procesor jest ograniczony mocą i może nie podnieść taktowania wyżej."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "CPU PPT Limit",
+      "what": {
+        "en": "The most power (PPT) this Ryzen is currently allowed to draw. A limit set by the BIOS or CPU model, not a live reading.",
+        "pl": "Maksymalna moc (PPT), jaką ten Ryzen może teraz pobierać. Limit ustawiony przez BIOS lub model procesora, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "PPT Fast Limit",
+      "what": {
+        "en": "Short-term (fast) power limit of the Ryzen, which lets it boost harder for a few seconds. Used mostly in laptops and APUs.",
+        "pl": "Krótkoterminowy (szybki) limit mocy Ryzena, pozwalający podbić taktowanie na kilka sekund. Używany głównie w laptopach i APU."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "PPT Fast",
+      "what": {
+        "en": "Current value of the short-term (fast) power budget (PPT Fast) of the Ryzen. Used mostly in laptops and APUs.",
+        "pl": "Aktualna wartość krótkoterminowego (szybkiego) budżetu mocy (PPT Fast) Ryzena. Używana głównie w laptopach i APU."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "PPT Slow",
+      "what": {
+        "en": "Current value of the sustained (slow) power budget (PPT Slow) of the Ryzen. Used mostly in laptops and APUs.",
+        "pl": "Aktualna wartość długoterminowego (wolnego) budżetu mocy (PPT Slow) Ryzena. Używana głównie w laptopach i APU."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "Core Power",
+      "what": {
+        "en": "Power used by the CPU cores, in watts, from the Ryzen power-management table.",
+        "pl": "Moc pobierana przez rdzenie procesora, w watach, z tablicy zarządzania energią Ryzena."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "SOC Power",
+      "what": {
+        "en": "Power used by the SoC part of the chip (memory controller and I/O), in watts.",
+        "pl": "Moc pobierana przez część SoC układu (kontroler pamięci i wejścia/wyjścia), w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "SoC",
+      "what": {
+        "en": "Power used by the SoC part of the chip (memory controller and I/O), in watts.",
+        "pl": "Moc pobierana przez część SoC układu (kontroler pamięci i wejścia/wyjścia), w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "Misc Power",
+      "what": {
+        "en": "Power used by miscellaneous parts of the chip outside the cores and SoC, in watts.",
+        "pl": "Moc pobierana przez pozostałe części układu poza rdzeniami i SoC, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Cpu",
+      "match": "Total Power",
+      "what": {
+        "en": "Total power of the processor as summed by its power-management table, in watts.",
+        "pl": "Całkowita moc procesora zsumowana w jego tablicy zarządzania energią, w watach."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Cpu",
+      "match": "TDC",
+      "what": {
+        "en": "Thermal Design Current: the sustained current the CPU's power circuitry delivers to it, in amps. It is compared with the TDC limit.",
+        "pl": "Thermal Design Current (TDC) – ciągły prąd, jaki układ zasilania dostarcza do procesora, w amperach. Porównywany jest z limitem TDC."
+      },
+      "watch": {
+        "en": "When TDC reaches its limit the CPU may stop boosting.",
+        "pl": "Gdy TDC dojdzie do limitu, procesor może przestać zwiększać taktowanie."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Cpu",
+      "match": "EDC",
+      "what": {
+        "en": "Electrical Design Current: the short peak current the CPU's power circuitry can deliver, in amps. It is compared with the EDC limit.",
+        "pl": "Electrical Design Current (EDC) – krótkotrwały szczytowy prąd, jaki układ zasilania może dostarczyć do procesora, w amperach. Porównywany jest z limitem EDC."
+      },
+      "watch": {
+        "en": "When EDC reaches its limit the CPU may stop boosting.",
+        "pl": "Gdy EDC dojdzie do limitu, procesor może przestać zwiększać taktowanie."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Cpu",
+      "match": "TDC Limit",
+      "what": {
+        "en": "The most sustained current (TDC) the CPU is allowed to draw. A limit set by the BIOS or CPU model, not a live reading.",
+        "pl": "Maksymalny ciągły prąd (TDC), jaki procesor może pobierać. Limit ustawiony przez BIOS lub model procesora, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Cpu",
+      "match": "EDC Limit",
+      "what": {
+        "en": "The most peak current (EDC) the CPU is allowed to draw. A limit set by the BIOS or CPU model, not a live reading.",
+        "pl": "Maksymalny prąd szczytowy (EDC), jaki procesor może pobierać. Limit ustawiony przez BIOS lub model procesora, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Cpu",
+      "match": "SoC Current",
+      "what": {
+        "en": "Current drawn by the SoC part of the chip (memory controller and I/O), in amps.",
+        "pl": "Prąd pobierany przez część SoC układu (kontroler pamięci i wejścia/wyjścia), w amperach."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Cpu",
+      "match": "SoC",
+      "what": {
+        "en": "Current drawn by the SoC part of the chip (memory controller and I/O), in amps.",
+        "pl": "Prąd pobierany przez część SoC układu (kontroler pamięci i wejścia/wyjścia), w amperach."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Cpu",
+      "match": "CPU Total",
+      "what": {
+        "en": "How busy the whole processor is, as a percentage averaged over all cores and threads. 100% means it is fully used.",
+        "pl": "Jak bardzo obciążony jest cały procesor, w procentach, uśrednione dla wszystkich rdzeni i wątków. 100% oznacza pełne wykorzystanie."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Cpu",
+      "match": "CPU Core Max",
+      "what": {
+        "en": "Load of the busiest single core or thread. Games often max out one or two cores while the total stays low.",
+        "pl": "Obciążenie najbardziej zajętego rdzenia lub wątku. Gry często mocno obciążają jeden–dwa rdzenie, a obciążenie całkowite pozostaje niskie."
+      },
+      "watch": {
+        "en": "If this sits near 100% while FPS is low, a single thread is probably limiting the game.",
+        "pl": "Jeśli stoi blisko 100% przy niskim FPS, to prawdopodobnie jeden wątek ogranicza grę."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Cpu",
+      "match": "*Core #{n} Thread #{n}",
+      "what": {
+        "en": "Load of one hardware thread: half of a core on CPUs that run two threads per core (Hyper-Threading or SMT).",
+        "pl": "Obciążenie jednego wątku sprzętowego – połowy rdzenia w procesorach uruchamiających dwa wątki na rdzeń (Hyper-Threading lub SMT)."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Cpu",
+      "match": "*Core #{n}",
+      "what": {
+        "en": "How busy this CPU core is, in percent. 100% means the core is fully used.",
+        "pl": "Jak bardzo obciążony jest ten rdzeń procesora, w procentach. 100% oznacza pełne wykorzystanie rdzenia."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Cpu",
+      "match": "CPU Core",
+      "what": {
+        "en": "How busy the CPU's only core is, in percent.",
+        "pl": "Jak bardzo obciążony jest jedyny rdzeń procesora, w procentach."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Cpu",
+      "match": "GFX",
+      "what": {
+        "en": "How busy the integrated graphics inside an AMD processor (APU) is, in percent.",
+        "pl": "Jak bardzo obciążona jest zintegrowana grafika w procesorze AMD (APU), w procentach."
+      }
+    },
+    {
+      "kind": "Factor",
+      "hw": "Cpu",
+      "match": "*Core #{n}",
+      "what": {
+        "en": "Clock multiplier (ratio) of this core. Core clock is roughly this number times the Bus Speed (~100 MHz): 55 means about 5.5 GHz.",
+        "pl": "Mnożnik taktowania tego rdzenia. Taktowanie rdzenia to w przybliżeniu ta liczba razy Bus Speed (~100 MHz): 55 oznacza ok. 5,5 GHz."
+      }
+    },
+    {
+      "kind": "Factor",
+      "hw": "Cpu",
+      "match": "Displays",
+      "what": {
+        "en": "Number of displays active on the integrated graphics, as reported by the AMD power-management table.",
+        "pl": "Liczba monitorów aktywnych na zintegrowanej grafice, według tablicy zarządzania energią AMD."
+      }
+    },
+    {
+      "kind": "Level",
+      "hw": "Cpu",
+      "match": "CPU Package C{n}",
+      "what": {
+        "en": "Share of time the whole CPU package spent in a deep sleep state (C-state). Higher means more time saving power.",
+        "pl": "Jaką część czasu cały procesor spędził w głębokim stanie uśpienia (C-state). Im więcej, tym dłużej oszczędzał energię."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Core",
+      "what": {
+        "en": "Temperature of the graphics chip (GPU) itself. This is the main GPU temperature that most programs show.",
+        "pl": "Temperatura samego układu graficznego (GPU). To główna temperatura karty, jaką pokazuje większość programów."
+      },
+      "watch": {
+        "en": "Most GPUs begin lowering their clocks from the mid-80s °C upwards. Staying below that under load is healthy.",
+        "pl": "Większość kart zaczyna obniżać taktowanie od ok. 85 °C wzwyż. Poniżej tej wartości pod obciążeniem jest zdrowo."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Hot Spot #{n}",
+      "what": {
+        "en": "One of several hot-spot readings inside the GPU (GeForce RTX 50 cards); \"GPU Hot Spot\" shows the highest of them. Read from an undocumented sensor, so unofficial, roughly ±1 °C.",
+        "pl": "Jeden z kilku odczytów punktów gorących wewnątrz GPU (karty GeForce RTX 50); „GPU Hot Spot” pokazuje najwyższy z nich. Z nieudokumentowanego czujnika, więc nieoficjalny, z dokładnością ok. ±1 °C."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Hot Spot",
+      "what": {
+        "en": "Temperature of the hottest spot inside the GPU chip; normally a few to ~15 °C above GPU Core. On RTX 50 it is read from an undocumented sensor: unofficial, roughly ±1 °C.",
+        "pl": "Temperatura najgorętszego punktu wewnątrz układu GPU; zwykle o kilka do ok. 15 °C wyższa niż GPU Core. W RTX 50 pochodzi z nieudokumentowanego czujnika: nieoficjalna, z dokładnością ok. ±1 °C."
+      },
+      "watch": {
+        "en": "A very large gap above GPU Core can hint at weak cooler contact or dried-out thermal paste.",
+        "pl": "Bardzo duża różnica względem GPU Core może wskazywać na słaby kontakt chłodzenia lub zaschniętą pastę termoprzewodzącą."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Memory Junction",
+      "what": {
+        "en": "Temperature of the hottest point of the video memory (VRAM) chips. The memory often runs hotter than the GPU chip itself.",
+        "pl": "Temperatura najgorętszego punktu układów pamięci wideo (VRAM). Pamięć często jest cieplejsza niż sam układ GPU."
+      },
+      "watch": {
+        "en": "Values around 100 °C or more for long periods deserve attention (airflow, thermal pads).",
+        "pl": "Wartości ok. 100 °C lub więcej przez dłuższy czas warto sprawdzić (przepływ powietrza, podkładki termoprzewodzące)."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Memory #{n}",
+      "what": {
+        "en": "Temperature of one individual video-memory chip (the number is the chip index). Read through an undocumented route, so treat it as approximate.",
+        "pl": "Temperatura jednego układu pamięci wideo (liczba to numer układu). Odczytana nieudokumentowaną drogą, więc traktuj ją jako przybliżoną."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Memory",
+      "what": {
+        "en": "Temperature of the graphics card's video memory (VRAM).",
+        "pl": "Temperatura pamięci wideo (VRAM) karty graficznej."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Power Supply",
+      "what": {
+        "en": "Temperature near the card's power-delivery circuitry, the part that feeds the GPU with power.",
+        "pl": "Temperatura w pobliżu układów zasilania karty, czyli części dostarczającej energię do GPU."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Board",
+      "what": {
+        "en": "Temperature measured on the graphics card's circuit board.",
+        "pl": "Temperatura zmierzona na płytce drukowanej karty graficznej."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Visual Computing *",
+      "what": {
+        "en": "Temperature at a specific point (board, inlet or outlet) of professional NVIDIA Visual Computing hardware. The exact meaning depends on the product.",
+        "pl": "Temperatura w konkretnym miejscu (płytka, wlot lub wylot) profesjonalnego sprzętu NVIDIA Visual Computing. Dokładne znaczenie zależy od produktu."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU VR VDDC",
+      "what": {
+        "en": "Temperature of the voltage regulator (VR) that powers the GPU core (VDDC) on AMD cards.",
+        "pl": "Temperatura stabilizatora napięcia (VR), który zasila rdzeń GPU (VDDC) w kartach AMD."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU VR MVDD",
+      "what": {
+        "en": "Temperature of the voltage regulator (VR) that powers the video memory (MVDD) on AMD cards.",
+        "pl": "Temperatura stabilizatora napięcia (VR), który zasila pamięć wideo (MVDD) w kartach AMD."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU VR SoC",
+      "what": {
+        "en": "Temperature of the voltage regulator (VR) that powers the SoC part of an AMD GPU.",
+        "pl": "Temperatura stabilizatora napięcia (VR), który zasila część SoC układu graficznego AMD."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU Liquid",
+      "what": {
+        "en": "Temperature of the coolant on liquid-cooled graphics cards.",
+        "pl": "Temperatura płynu chłodzącego w kartach graficznych z chłodzeniem cieczą."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU PLX",
+      "what": {
+        "en": "Temperature of the PLX chip, a PCIe switch found on some cards that carry two GPUs.",
+        "pl": "Temperatura układu PLX – przełącznika PCIe stosowanego w niektórych kartach z dwoma GPU."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Gpu",
+      "match": "GPU",
+      "what": {
+        "en": "A temperature of the graphics card whose exact measuring point is not specified by the driver.",
+        "pl": "Temperatura karty graficznej, której dokładne miejsce pomiaru nie jest podane przez sterownik."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Gpu",
+      "match": "GPU Core",
+      "what": {
+        "en": "Current speed of the graphics chip. It rises under load (boost) and drops when idle to save power.",
+        "pl": "Aktualne taktowanie układu graficznego. Rośnie pod obciążeniem (boost) i spada w spoczynku, żeby oszczędzać energię."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Gpu",
+      "match": "GPU Memory",
+      "what": {
+        "en": "Current speed of the video memory (VRAM). The effective data rate is a multiple of this number, which depends on the memory type.",
+        "pl": "Aktualne taktowanie pamięci wideo (VRAM). Efektywna szybkość transferu jest wielokrotnością tej liczby, zależną od rodzaju pamięci."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Gpu",
+      "match": "GPU Shader",
+      "what": {
+        "en": "Current speed of the shader units, the part of the GPU that does most of the graphics math. On modern cards it usually follows the core clock.",
+        "pl": "Aktualne taktowanie jednostek cieniujących (shader), czyli części GPU wykonującej większość obliczeń graficznych. W nowych kartach zwykle podąża za taktowaniem rdzenia."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Gpu",
+      "match": "GPU Video",
+      "what": {
+        "en": "Current speed of the GPU's video engine, which encodes and decodes video.",
+        "pl": "Aktualne taktowanie silnika wideo GPU, który koduje i dekoduje wideo."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Gpu",
+      "match": "GPU SoC",
+      "what": {
+        "en": "Current speed of the SoC part of an AMD GPU (memory controller and data fabric).",
+        "pl": "Aktualne taktowanie części SoC układu graficznego AMD (kontroler pamięci i magistrala danych)."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Core",
+      "what": {
+        "en": "How busy the graphics chip is, in percent. 100% means it is fully used.",
+        "pl": "Jak bardzo obciążony jest układ graficzny, w procentach. 100% oznacza pełne wykorzystanie."
+      },
+      "watch": {
+        "en": "If it stays far below 100% while FPS is low, the CPU or a frame limit is probably the bottleneck.",
+        "pl": "Jeśli pozostaje daleko poniżej 100% przy niskim FPS, wąskim gardłem jest zapewne procesor lub limit klatek."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Memory Controller",
+      "what": {
+        "en": "How busy the video-memory controller is: the amount of traffic to and from VRAM, as a percentage of what it can handle.",
+        "pl": "Jak bardzo obciążony jest kontroler pamięci wideo – natężenie ruchu do i z VRAM, jako procent tego, co potrafi obsłużyć."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Video Engine",
+      "what": {
+        "en": "How busy the GPU's dedicated video engine is (video encoding and decoding, e.g. recording or streaming), in percent.",
+        "pl": "Jak bardzo obciążony jest dedykowany silnik wideo GPU (kodowanie i dekodowanie wideo, np. nagrywanie lub streaming), w procentach."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Bus",
+      "what": {
+        "en": "How busy the PCIe connection between the graphics card and the rest of the PC is, in percent.",
+        "pl": "Jak bardzo obciążone jest połączenie PCIe między kartą graficzną a resztą komputera, w procentach."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Memory",
+      "what": {
+        "en": "How much of the card's video memory (VRAM) is in use, in percent.",
+        "pl": "Jaka część pamięci wideo (VRAM) karty jest używana, w procentach."
+      },
+      "watch": {
+        "en": "Close to 100% can cause stutter, because data then spills over into slower system memory.",
+        "pl": "Blisko 100% może powodować przycięcia, bo dane trafiają wtedy do wolniejszej pamięci systemowej."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Power",
+      "what": {
+        "en": "How much of its allowed power budget the card is using, in percent (not watts). 100% means it is at its power limit.",
+        "pl": "Jaką część dozwolonego budżetu mocy wykorzystuje karta, w procentach (nie w watach). 100% oznacza, że karta jest na swoim limicie mocy."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Board Power",
+      "what": {
+        "en": "How much of the whole board's allowed power budget the card is using, in percent (not watts). 100% means it is at its power limit.",
+        "pl": "Jaką część dozwolonego budżetu mocy całej płytki wykorzystuje karta, w procentach (nie w watach). 100% oznacza, że karta jest na swoim limicie mocy."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Render/Compute",
+      "what": {
+        "en": "How busy the render and compute engines of an Intel Arc GPU are, in percent. This is the main 3D and compute work.",
+        "pl": "Jak bardzo obciążone są silniki renderowania i obliczeń układu Intel Arc, w procentach. To główna praca 3D i obliczeniowa."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Media",
+      "what": {
+        "en": "How busy the media engine of an Intel Arc GPU is (video encoding and decoding), in percent.",
+        "pl": "Jak bardzo obciążony jest silnik multimedialny układu Intel Arc (kodowanie i dekodowanie wideo), w procentach."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "D3D 3D",
+      "what": {
+        "en": "How busy the GPU's main 3D engine is, as measured by Windows. This is the engine that draws games.",
+        "pl": "Jak bardzo obciążony jest główny silnik 3D układu GPU, według pomiaru Windows. To silnik rysujący gry."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "D3D Copy",
+      "what": {
+        "en": "How busy the GPU's copy engine is: it moves data in and out of video memory, mostly while loading textures and levels.",
+        "pl": "Jak bardzo obciążony jest silnik kopiowania GPU, który przenosi dane do i z pamięci wideo, głównie podczas wczytywania tekstur i poziomów."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "D3D Video Decode",
+      "what": {
+        "en": "How busy the GPU's video decoder is (playing videos and streams), in percent.",
+        "pl": "Jak bardzo obciążony jest dekoder wideo GPU (odtwarzanie filmów i strumieni), w procentach."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "D3D Video Encode",
+      "what": {
+        "en": "How busy the GPU's video encoder is (recording and streaming), in percent.",
+        "pl": "Jak bardzo obciążony jest koder wideo GPU (nagrywanie i streaming), w procentach."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "D3D Video Processing",
+      "what": {
+        "en": "How busy the GPU's video-processing engine is (scaling and enhancing video), in percent.",
+        "pl": "Jak bardzo obciążony jest silnik przetwarzania wideo GPU (skalowanie i poprawa obrazu), w procentach."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "D3D Optical Flow Accelerator*",
+      "what": {
+        "en": "How busy the GPU's optical-flow engine is. Frame-generation features can use it to estimate motion between frames.",
+        "pl": "Jak bardzo obciążony jest silnik przepływu optycznego GPU. Funkcje generowania klatek mogą go używać do szacowania ruchu między klatkami."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "D3D JPEG Decode*",
+      "what": {
+        "en": "How busy one of the GPU's hardware JPEG decoders is, in percent.",
+        "pl": "Jak bardzo obciążony jest jeden ze sprzętowych dekoderów JPEG GPU, w procentach."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "D3D *",
+      "what": {
+        "en": "How busy a specific GPU engine (as listed by Windows) is, in percent. Overlay, Scene Assembly, Crypto and other minor engines are rarely busy.",
+        "pl": "Jak bardzo obciążony jest dany silnik GPU (według listy Windows), w procentach. Silniki takie jak Overlay, Scene Assembly czy Crypto rzadko są zajęte."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Gpu",
+      "match": "GPU Package",
+      "what": {
+        "en": "Power the graphics card (or chip) is drawing right now, in watts. It rises sharply in demanding games and drops at idle.",
+        "pl": "Moc pobierana teraz przez kartę graficzną (lub układ), w watach. Mocno rośnie w wymagających grach i spada w spoczynku."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Gpu",
+      "match": "GPU Core",
+      "what": {
+        "en": "Power used by the graphics chip alone (without the rest of the card), in watts.",
+        "pl": "Moc pobierana tylko przez układ graficzny (bez reszty karty), w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Gpu",
+      "match": "GPU PPT",
+      "what": {
+        "en": "Package Power Tracking: the total power an AMD GPU draws, which is checked against its power limit.",
+        "pl": "Package Power Tracking – całkowita moc pobierana przez układ graficzny AMD, porównywana z jego limitem mocy."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Gpu",
+      "match": "GPU SoC",
+      "what": {
+        "en": "Power used by the SoC part of an AMD GPU (memory controller and data fabric), in watts.",
+        "pl": "Moc pobierana przez część SoC układu graficznego AMD (kontroler pamięci i magistrala danych), w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Gpu",
+      "match": "GPU Power",
+      "what": {
+        "en": "Power used by the integrated graphics, in watts.",
+        "pl": "Moc pobierana przez zintegrowaną grafikę, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Gpu",
+      "match": "GPU Total",
+      "what": {
+        "en": "Total power of the Intel Arc card, in watts.",
+        "pl": "Całkowita moc karty Intel Arc, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Gpu",
+      "match": "12VHPWR Pin {n}",
+      "what": {
+        "en": "Power flowing through one pin of the 12VHPWR (12V-2x6) power connector, in watts. Reported by some ASUS cards.",
+        "pl": "Moc przepływająca przez jeden pin złącza zasilania 12VHPWR (12V-2x6), w watach. Raportowana przez niektóre karty ASUS."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Gpu",
+      "match": "12VHPWR Connector",
+      "what": {
+        "en": "Total power flowing through the 12VHPWR (12V-2x6) power connector, in watts.",
+        "pl": "Całkowita moc przepływająca przez złącze zasilania 12VHPWR (12V-2x6), w watach."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Gpu",
+      "match": "GPU Core Voltage",
+      "what": {
+        "en": "Voltage supplied to the graphics chip. It rises with clock speed and falls at idle.",
+        "pl": "Napięcie zasilające układ graficzny. Rośnie wraz z taktowaniem i spada w spoczynku."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Gpu",
+      "match": "GPU Core",
+      "what": {
+        "en": "Voltage supplied to the graphics chip. It rises with clock speed and falls at idle.",
+        "pl": "Napięcie zasilające układ graficzny. Rośnie wraz z taktowaniem i spada w spoczynku."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Gpu",
+      "match": "GPU Memory",
+      "what": {
+        "en": "Voltage supplied to the card's video memory.",
+        "pl": "Napięcie zasilające pamięć wideo karty."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Gpu",
+      "match": "GPU SoC",
+      "what": {
+        "en": "Voltage supplied to the SoC part of an AMD GPU (memory controller and data fabric).",
+        "pl": "Napięcie zasilające część SoC układu graficznego AMD (kontroler pamięci i magistrala danych)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Gpu",
+      "match": "12VHPWR Pin {n}",
+      "what": {
+        "en": "Voltage measured at one pin of the 12VHPWR (12V-2x6) power connector. It should be close to 12 V. Reported by some ASUS cards.",
+        "pl": "Napięcie zmierzone na jednym pinie złącza zasilania 12VHPWR (12V-2x6). Powinno być bliskie 12 V. Raportowane przez niektóre karty ASUS."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Gpu",
+      "match": "12VHPWR Pin {n}",
+      "what": {
+        "en": "Current flowing through one pin of the 12VHPWR (12V-2x6) power connector, in amps. Reported by some ASUS cards.",
+        "pl": "Prąd płynący przez jeden pin złącza zasilania 12VHPWR (12V-2x6), w amperach. Raportowany przez niektóre karty ASUS."
+      },
+      "watch": {
+        "en": "Pins should carry roughly similar current; a large difference can point to a badly seated or damaged cable.",
+        "pl": "Piny powinny przenosić zbliżony prąd; duża różnica może wskazywać na źle wpięty lub uszkodzony kabel."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Gpu",
+      "match": "12VHPWR Connector",
+      "what": {
+        "en": "Total current flowing through the 12VHPWR (12V-2x6) power connector, in amps.",
+        "pl": "Całkowity prąd płynący przez złącze zasilania 12VHPWR (12V-2x6), w amperach."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Gpu",
+      "match": "GPU Fan",
+      "what": {
+        "en": "Speed of the graphics card's fan, in RPM. Many cards stop their fans completely at low temperature (0 RPM mode), which is normal.",
+        "pl": "Prędkość wentylatora karty graficznej, w obr./min (RPM). Wiele kart całkowicie zatrzymuje wentylatory przy niskiej temperaturze (tryb 0 RPM) i to jest normalne."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Gpu",
+      "match": "GPU Fan {n}",
+      "what": {
+        "en": "Speed of one of the graphics card's fans, in RPM. Many cards stop their fans completely at low temperature (0 RPM mode), which is normal.",
+        "pl": "Prędkość jednego z wentylatorów karty graficznej, w obr./min (RPM). Wiele kart całkowicie zatrzymuje wentylatory przy niskiej temperaturze (tryb 0 RPM) i to jest normalne."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Gpu",
+      "match": "GPU",
+      "what": {
+        "en": "Speed of the graphics card's fan, in RPM. Many cards stop their fans completely at low temperature, which is normal.",
+        "pl": "Prędkość wentylatora karty graficznej, w obr./min (RPM). Wiele kart całkowicie zatrzymuje wentylatory przy niskiej temperaturze i to jest normalne."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Gpu",
+      "match": "GPU Fan",
+      "what": {
+        "en": "How hard the card is driving its fan, as a percentage of maximum. This is the command, not the measured speed (see the fan RPM).",
+        "pl": "Jak mocno karta steruje swoim wentylatorem, w procentach maksimum. To polecenie, a nie zmierzona prędkość (patrz wentylator w RPM)."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Gpu",
+      "match": "GPU Fan *",
+      "what": {
+        "en": "How hard the card is driving one of its fans, as a percentage of maximum. This is the command, not the measured speed.",
+        "pl": "Jak mocno karta steruje jednym ze swoich wentylatorów, w procentach maksimum. To polecenie, a nie zmierzona prędkość."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "GPU Memory Used",
+      "what": {
+        "en": "How much of the card's video memory (VRAM) is in use right now.",
+        "pl": "Ile pamięci wideo (VRAM) karty jest teraz używane."
+      },
+      "watch": {
+        "en": "If it keeps hitting the card's total, lower texture quality; otherwise the game may stutter.",
+        "pl": "Jeśli stale dobija do pojemności karty, obniż jakość tekstur – inaczej gra może się przycinać."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "GPU Memory Free",
+      "what": {
+        "en": "How much of the card's video memory (VRAM) is still free.",
+        "pl": "Ile pamięci wideo (VRAM) karty jest jeszcze wolne."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "GPU Memory Total",
+      "what": {
+        "en": "Total size of the card's video memory (VRAM).",
+        "pl": "Całkowity rozmiar pamięci wideo (VRAM) karty."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "D3D Dedicated Memory Used",
+      "what": {
+        "en": "Video memory (VRAM) in use according to Windows (Direct3D): memory that belongs to the graphics card only.",
+        "pl": "Pamięć wideo (VRAM) w użyciu według Windows (Direct3D) – pamięć należąca wyłącznie do karty graficznej."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "D3D Dedicated Memory Free",
+      "what": {
+        "en": "Video memory (VRAM) still free according to Windows (Direct3D).",
+        "pl": "Pamięć wideo (VRAM) wciąż wolna według Windows (Direct3D)."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "D3D Dedicated Memory Total",
+      "what": {
+        "en": "Total video memory (VRAM) of the graphics card according to Windows (Direct3D).",
+        "pl": "Całkowita pamięć wideo (VRAM) karty graficznej według Windows (Direct3D)."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "D3D Shared Memory Used",
+      "what": {
+        "en": "System RAM currently borrowed by the graphics card, according to Windows. Integrated graphics use it as their main memory.",
+        "pl": "Pamięć RAM komputera aktualnie pożyczona przez kartę graficzną, według Windows. Zintegrowana grafika używa jej jako głównej pamięci."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "D3D Shared Memory Free",
+      "what": {
+        "en": "System RAM that the graphics card could still borrow, according to Windows.",
+        "pl": "Pamięć RAM komputera, którą karta graficzna może jeszcze pożyczyć, według Windows."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "D3D Shared Memory Total",
+      "what": {
+        "en": "Total system RAM that Windows lets the graphics card borrow when its own video memory runs out.",
+        "pl": "Łączna pamięć RAM komputera, którą Windows pozwala karcie pożyczyć, gdy skończy jej się własna pamięć wideo."
+      }
+    },
+    {
+      "kind": "Throughput",
+      "hw": "Gpu",
+      "match": "GPU PCIe Rx",
+      "what": {
+        "en": "Data rate coming into the graphics card from the rest of the PC over PCIe.",
+        "pl": "Szybkość przepływu danych płynących do karty graficznej z reszty komputera przez PCIe."
+      }
+    },
+    {
+      "kind": "Throughput",
+      "hw": "Gpu",
+      "match": "GPU PCIe Tx",
+      "what": {
+        "en": "Data rate going out of the graphics card to the rest of the PC over PCIe.",
+        "pl": "Szybkość przepływu danych płynących z karty graficznej do reszty komputera przez PCIe."
+      }
+    },
+    {
+      "kind": "Throughput",
+      "hw": "Gpu",
+      "match": "GPU Memory Read",
+      "what": {
+        "en": "Data rate at which the Intel Arc GPU reads from its video memory.",
+        "pl": "Szybkość, z jaką układ Intel Arc odczytuje dane ze swojej pamięci wideo."
+      }
+    },
+    {
+      "kind": "Throughput",
+      "hw": "Gpu",
+      "match": "GPU Memory Write",
+      "what": {
+        "en": "Data rate at which the Intel Arc GPU writes to its video memory.",
+        "pl": "Szybkość, z jaką układ Intel Arc zapisuje dane do swojej pamięci wideo."
+      }
+    },
+    {
+      "kind": "Factor",
+      "hw": "Gpu",
+      "match": "Fullscreen FPS",
+      "what": {
+        "en": "Frame rate of the fullscreen 3D application as reported by the AMD driver. It can read -1 or 0 when no such application is running.",
+        "pl": "Liczba klatek na sekundę pełnoekranowej aplikacji 3D według sterownika AMD. Może pokazywać -1 lub 0, gdy taka aplikacja nie działa."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "+12V",
+      "what": {
+        "en": "Voltage of the 12 V line coming from the power supply. It feeds the CPU power circuitry, fans and the graphics card.",
+        "pl": "Napięcie linii 12 V z zasilacza. Zasila układ zasilania procesora, wentylatory i kartę graficzną."
+      },
+      "watch": {
+        "en": "A rail should stay close to its nominal value (within about 5%). Boards can read a little off, so only big gaps matter.",
+        "pl": "Napięcie powinno trzymać się blisko wartości nominalnej (w granicach ok. 5%). Płyty mogą odczytywać z lekkim błędem, więc liczą się tylko duże różnice."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "+5V",
+      "what": {
+        "en": "Voltage of the 5 V line coming from the power supply. It feeds USB ports, drives and some chips.",
+        "pl": "Napięcie linii 5 V z zasilacza. Zasila porty USB, dyski i niektóre układy."
+      },
+      "watch": {
+        "en": "A rail should stay close to its nominal value (within about 5%). Boards can read a little off, so only big gaps matter.",
+        "pl": "Napięcie powinno trzymać się blisko wartości nominalnej (w granicach ok. 5%). Płyty mogą odczytywać z lekkim błędem, więc liczą się tylko duże różnice."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "+3.3V",
+      "what": {
+        "en": "Voltage of the 3.3 V line coming from the power supply. It feeds chips on the board and expansion slots.",
+        "pl": "Napięcie linii 3,3 V z zasilacza. Zasila układy na płycie i gniazda rozszerzeń."
+      },
+      "watch": {
+        "en": "A rail should stay close to its nominal value (within about 5%). Boards can read a little off, so only big gaps matter.",
+        "pl": "Napięcie powinno trzymać się blisko wartości nominalnej (w granicach ok. 5%). Płyty mogą odczytywać z lekkim błędem, więc liczą się tylko duże różnice."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "+3.3V (*)",
+      "what": {
+        "en": "Voltage of the 3.3 V line, read through the sensor-chip pin named in brackets (3VCC or AVCC). It should be close to 3.3 V.",
+        "pl": "Napięcie linii 3,3 V odczytane przez pin układu czujników podany w nawiasie (3VCC lub AVCC). Powinno być bliskie 3,3 V."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "+1.8V",
+      "what": {
+        "en": "Voltage of a 1.8 V supply line on the board, used by the chipset and CPU auxiliary circuits.",
+        "pl": "Napięcie linii zasilania 1,8 V na płycie, używanej przez chipset i pomocnicze układy procesora."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*Battery",
+      "what": {
+        "en": "Voltage of the CMOS battery (the coin cell on the motherboard that keeps the clock and BIOS settings).",
+        "pl": "Napięcie baterii CMOS (pastylki na płycie głównej, która podtrzymuje zegar i ustawienia BIOS)."
+      },
+      "watch": {
+        "en": "A fresh coin cell reads about 3 V; clearly lower values mean it is wearing out and should be replaced.",
+        "pl": "Nowa bateria pastylkowa ma ok. 3 V; wyraźnie niższe wartości oznaczają, że się wyczerpuje i trzeba ją wymienić."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "VBat",
+      "what": {
+        "en": "Voltage of the CMOS battery (the coin cell on the motherboard that keeps the clock and BIOS settings).",
+        "pl": "Napięcie baterii CMOS (pastylki na płycie głównej, która podtrzymuje zegar i ustawienia BIOS)."
+      },
+      "watch": {
+        "en": "A fresh coin cell reads about 3 V; clearly lower values mean it is wearing out and should be replaced.",
+        "pl": "Nowa bateria pastylkowa ma ok. 3 V; wyraźnie niższe wartości oznaczają, że się wyczerpuje i trzeba ją wymienić."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*Standby*",
+      "what": {
+        "en": "Voltage of a standby supply line. It stays powered when the PC is off to keep functions such as wake-up and USB charging alive.",
+        "pl": "Napięcie linii zasilania czuwania. Jest obecne także przy wyłączonym komputerze i podtrzymuje m.in. wybudzanie i ładowanie przez USB."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*VSB*",
+      "what": {
+        "en": "Voltage of a standby supply line (VSB). It stays powered when the PC is off to keep functions such as wake-up and USB charging alive.",
+        "pl": "Napięcie linii zasilania czuwania (VSB). Jest obecne także przy wyłączonym komputerze i podtrzymuje m.in. wybudzanie i ładowanie przez USB."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "+1.05V A*",
+      "what": {
+        "en": "Voltage of an \"always-on\" 1.05 V supply line that stays powered even when the PC is off.",
+        "pl": "Napięcie stale włączonej linii zasilania 1,05 V, która jest pod napięciem nawet przy wyłączonym komputerze."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "AVCC*",
+      "what": {
+        "en": "Voltage of the analog supply (AVCC) of the motherboard's sensor chip. It should be close to 3.3 V.",
+        "pl": "Napięcie zasilania analogowego (AVCC) układu czujników płyty. Powinno być bliskie 3,3 V."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Analog VCC",
+      "what": {
+        "en": "Voltage of the analog supply of the motherboard's sensor chip. It should be close to 3.3 V.",
+        "pl": "Napięcie zasilania analogowego układu czujników płyty. Powinno być bliskie 3,3 V."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "3VCC",
+      "what": {
+        "en": "Voltage of the 3.3 V supply (3VCC) of the motherboard's sensor chip. It should be close to 3.3 V.",
+        "pl": "Napięcie zasilania 3,3 V (3VCC) układu czujników płyty. Powinno być bliskie 3,3 V."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "VCC3V",
+      "what": {
+        "en": "Voltage of the 3.3 V supply (VCC3V) of the motherboard's sensor chip. It should be close to 3.3 V.",
+        "pl": "Napięcie zasilania 3,3 V (VCC3V) układu czujników płyty. Powinno być bliskie 3,3 V."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Dual DDR5 5V",
+      "what": {
+        "en": "5 V line that feeds the power-management chips (PMIC) of DDR5 memory modules.",
+        "pl": "Linia 5 V zasilająca układy zarządzania energią (PMIC) modułów pamięci DDR5."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*VTT*",
+      "what": {
+        "en": "Termination voltage (VTT) used by memory or CPU bus signals. For memory it is typically about half of the memory voltage. Set automatically by the board.",
+        "pl": "Napięcie terminujące (VTT) sygnałów pamięci lub magistrali procesora. Dla pamięci to zwykle ok. połowy jej napięcia. Ustawiane automatycznie przez płytę."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*VPP*",
+      "what": {
+        "en": "VPP voltage of the memory modules: an auxiliary supply used inside the RAM chips. It is normally fixed by the memory standard and rarely changed.",
+        "pl": "Napięcie VPP modułów pamięci – pomocnicze zasilanie wewnątrz układów RAM. Zwykle jest ustalone przez standard pamięci i rzadko się je zmienia."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*VDDQ",
+      "what": {
+        "en": "VDDQ: the supply of the memory chips' input/output circuits. Part of what a memory profile (XMP/EXPO) sets.",
+        "pl": "VDDQ – zasilanie obwodów wejścia/wyjścia układów pamięci. Jedna z wartości ustawianych przez profil pamięci (XMP/EXPO)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "DRAM VDD",
+      "what": {
+        "en": "VDD: the main supply voltage of the memory chips. Part of what a memory profile (XMP/EXPO) sets.",
+        "pl": "VDD – główne napięcie zasilania układów pamięci. Jedna z wartości ustawianych przez profil pamięci (XMP/EXPO)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "DIMM Termination",
+      "what": {
+        "en": "Termination voltage of the memory modules (DIMMs), usually about half of the memory voltage.",
+        "pl": "Napięcie terminujące modułów pamięci (DIMM), zwykle ok. połowy napięcia pamięci."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "DIMM I/O",
+      "what": {
+        "en": "Voltage of the input/output circuits of the memory modules (DIMMs).",
+        "pl": "Napięcie obwodów wejścia/wyjścia modułów pamięci (DIMM)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "DIMM Write",
+      "what": {
+        "en": "A voltage related to writing to the memory modules (DIMMs), reported by the board. Its exact role depends on the model.",
+        "pl": "Napięcie związane z zapisem do modułów pamięci (DIMM), raportowane przez płytę. Dokładna rola zależy od modelu."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU VDDIO Memory",
+      "what": {
+        "en": "Voltage of the CPU's memory interface (VDDIO). It follows the memory voltage profile.",
+        "pl": "Napięcie interfejsu pamięci procesora (VDDIO). Podąża za profilem napięcia pamięci."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "DIMM*",
+      "what": {
+        "en": "Voltage supplied to the memory modules (RAM). It is set by the memory profile (XMP/EXPO) or BIOS.",
+        "pl": "Napięcie zasilające moduły pamięci (RAM). Ustawia je profil pamięci (XMP/EXPO) lub BIOS."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "DRAM*",
+      "what": {
+        "en": "Voltage supplied to the memory modules (RAM). It is set by the memory profile (XMP/EXPO) or BIOS.",
+        "pl": "Napięcie zasilające moduły pamięci (RAM). Ustawia je profil pamięci (XMP/EXPO) lub BIOS."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "VDIMM",
+      "what": {
+        "en": "Voltage supplied to the memory modules (RAM). It is set by the memory profile (XMP/EXPO) or BIOS.",
+        "pl": "Napięcie zasilające moduły pamięci (RAM). Ustawia je profil pamięci (XMP/EXPO) lub BIOS."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "DDR*",
+      "what": {
+        "en": "Voltage supplied to the memory (DDR) or its auxiliary circuits. The exact rail depends on the label.",
+        "pl": "Napięcie zasilające pamięć (DDR) lub jej obwody pomocnicze. Dokładna szyna zależy od etykiety."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "PCH*",
+      "what": {
+        "en": "Voltage of the chipset (PCH, Platform Controller Hub) or one of its supply rails.",
+        "pl": "Napięcie chipsetu (PCH, Platform Controller Hub) lub jednej z jego szyn zasilania."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*Chipset*",
+      "what": {
+        "en": "Voltage of the motherboard chipset or one of its supply rails. The exact rail depends on the label.",
+        "pl": "Napięcie chipsetu płyty głównej lub jednej z jego szyn zasilania. Dokładna szyna zależy od etykiety."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*SoC*",
+      "what": {
+        "en": "Voltage of the CPU's SoC part: it powers the memory controller and I/O blocks. Faster memory often needs a bit more of it.",
+        "pl": "Napięcie części SoC procesora, która zasila kontroler pamięci i bloki wejścia/wyjścia. Szybsza pamięć często wymaga nieco wyższego napięcia."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*Misc*",
+      "what": {
+        "en": "Voltage of a miscellaneous CPU supply rail (\"Misc\"), which feeds some I/O and memory-interface logic.",
+        "pl": "Napięcie pomocniczej szyny zasilania procesora („Misc”), która zasila część układów wejścia/wyjścia i interfejsu pamięci."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*iGPU*",
+      "what": {
+        "en": "Voltage supplied to the CPU's integrated graphics (iGPU).",
+        "pl": "Napięcie zasilające zintegrowaną grafikę procesora (iGPU)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU Graphics",
+      "what": {
+        "en": "Voltage supplied to the CPU's integrated graphics.",
+        "pl": "Napięcie zasilające zintegrowaną grafikę procesora."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU VCCGT",
+      "what": {
+        "en": "Voltage supplied to the integrated graphics (GT) of an Intel CPU.",
+        "pl": "Napięcie zasilające zintegrowaną grafikę (GT) procesora Intel."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*VAXG",
+      "what": {
+        "en": "Voltage supplied to the integrated graphics of an Intel CPU (VAXG).",
+        "pl": "Napięcie zasilające zintegrowaną grafikę procesora Intel (VAXG)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Graphics",
+      "what": {
+        "en": "Voltage supplied to the integrated graphics of the CPU.",
+        "pl": "Napięcie zasilające zintegrowaną grafikę procesora."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU Termination",
+      "what": {
+        "en": "Termination voltage of the CPU (VTT) used for its bus signals. Set automatically by the board.",
+        "pl": "Napięcie terminujące procesora (VTT) dla sygnałów jego magistrali. Ustawiane automatycznie przez płytę."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU System Agent",
+      "what": {
+        "en": "Voltage of the CPU's System Agent (VCCSA) on Intel: the part with the memory controller. High-speed memory may raise it.",
+        "pl": "Napięcie System Agent procesora Intel (VCCSA) – części z kontrolerem pamięci. Szybka pamięć może je podnosić."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "VCCSA",
+      "what": {
+        "en": "Voltage of the CPU's System Agent (VCCSA) on Intel: the part with the memory controller. High-speed memory may raise it.",
+        "pl": "Napięcie System Agent procesora Intel (VCCSA) – części z kontrolerem pamięci. Szybka pamięć może je podnosić."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU Input Auxiliary",
+      "what": {
+        "en": "Auxiliary input voltage of the CPU (VCCIN_AUX): a supply for the CPU's secondary circuits such as I/O and memory controller.",
+        "pl": "Pomocnicze napięcie wejściowe procesora (VCCIN_AUX) – zasilanie dla dodatkowych obwodów, np. wejścia/wyjścia i kontrolera pamięci."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*VCCIO*",
+      "what": {
+        "en": "Voltage of the CPU's I/O circuits (VCCIO), used for memory and other links. Memory overclocking may raise it.",
+        "pl": "Napięcie obwodów wejścia/wyjścia procesora (VCCIO), używanych m.in. do pamięci i innych łączy. Podkręcanie pamięci może je podnosić."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU I/O",
+      "what": {
+        "en": "Voltage of the CPU's input/output circuits, used for memory and other links.",
+        "pl": "Napięcie obwodów wejścia/wyjścia procesora, używanych m.in. do pamięci i innych łączy."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU VDDIO",
+      "what": {
+        "en": "Voltage of the CPU's input/output circuits (VDDIO), used for the memory interface.",
+        "pl": "Napięcie obwodów wejścia/wyjścia procesora (VDDIO), używanych w interfejsie pamięci."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*VDDP",
+      "what": {
+        "en": "VDDP: a CPU supply rail for the memory interface (PHY). Normally managed automatically.",
+        "pl": "VDDP – szyna zasilania procesora dla interfejsu pamięci (PHY). Zwykle zarządzana automatycznie."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU VDD18",
+      "what": {
+        "en": "Voltage of the CPU's 1.8 V auxiliary supply (VDD18).",
+        "pl": "Napięcie pomocniczego zasilania 1,8 V procesora (VDD18)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU 1.8V",
+      "what": {
+        "en": "Voltage of the CPU's 1.8 V auxiliary supply.",
+        "pl": "Napięcie pomocniczego zasilania 1,8 V procesora."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU 1.05V",
+      "what": {
+        "en": "Voltage of the CPU's 1.05 V auxiliary supply.",
+        "pl": "Napięcie pomocniczego zasilania 1,05 V procesora."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "1.05V CPU",
+      "what": {
+        "en": "Voltage of the CPU's 1.05 V auxiliary supply.",
+        "pl": "Napięcie pomocniczego zasilania 1,05 V procesora."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "IMC VDD",
+      "what": {
+        "en": "Voltage of the memory controller (IMC) built into the CPU.",
+        "pl": "Napięcie kontrolera pamięci (IMC) wbudowanego w procesor."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Integrated Memory Controller",
+      "what": {
+        "en": "Voltage of the memory controller built into the CPU.",
+        "pl": "Napięcie kontrolera pamięci wbudowanego w procesor."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Phase Locked Loop",
+      "what": {
+        "en": "Voltage of the CPU's phase-locked loop (PLL), the circuit that generates its internal clocks.",
+        "pl": "Napięcie pętli synchronizacji fazowej (PLL) procesora – układu, który generuje jego wewnętrzne zegary."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "1.8V PLL",
+      "what": {
+        "en": "Voltage of a 1.8 V supply for the phase-locked loop (PLL), the circuit that generates internal clocks.",
+        "pl": "Napięcie zasilania 1,8 V dla pętli synchronizacji fazowej (PLL) – układu generującego wewnętrzne zegary."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Vccp2",
+      "what": {
+        "en": "Voltage of an auxiliary CPU supply rail (Vccp2) on the motherboard.",
+        "pl": "Napięcie pomocniczej szyny zasilania procesora (Vccp2) na płycie."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "IVR Atom L2 Cluster #{n}",
+      "what": {
+        "en": "Voltage of an internal regulator (IVR) tied to one E-core (Atom) L2 cache cluster in an Intel hybrid CPU.",
+        "pl": "Napięcie wewnętrznego stabilizatora (IVR) powiązanego z jednym klastrem pamięci podręcznej L2 rdzeni E (Atom) w hybrydowym procesorze Intel."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*Northbridge*",
+      "what": {
+        "en": "Voltage of the northbridge (older chipset part near the CPU) or one of its rails.",
+        "pl": "Napięcie northbridge (starszej części chipsetu przy procesorze) lub jednej z jego szyn."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*Southbridge*",
+      "what": {
+        "en": "Voltage of the southbridge (older chipset part for peripherals) or one of its rails.",
+        "pl": "Napięcie southbridge (starszej części chipsetu obsługującej urządzenia peryferyjne) lub jednej z jego szyn."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*Vcore*Ref*",
+      "what": {
+        "en": "Reference voltage for the CPU core supply, used by the board to measure Vcore accurately.",
+        "pl": "Napięcie odniesienia dla zasilania rdzeni procesora, używane przez płytę do dokładnego pomiaru Vcore."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "IOH Vcore",
+      "what": {
+        "en": "Core voltage of the I/O hub (IOH), an older chipset chip.",
+        "pl": "Napięcie rdzenia koncentratora wejścia/wyjścia (IOH) – układu starszego chipsetu."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "*Vcore*",
+      "what": {
+        "en": "Voltage supplied to the CPU cores (Vcore) as measured by the motherboard. It rises with clock speed and load.",
+        "pl": "Napięcie zasilające rdzenie procesora (Vcore) mierzone przez płytę główną. Rośnie wraz z taktowaniem i obciążeniem."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "CPU Core",
+      "what": {
+        "en": "Voltage supplied to the CPU cores (Vcore), read by the board's embedded controller.",
+        "pl": "Napięcie zasilające rdzenie procesora (Vcore) odczytane przez kontroler wbudowany płyty."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Voltage #*",
+      "what": {
+        "en": "A voltage input of the motherboard's sensor chip that is not labelled. What it measures depends on the board, and these are often hidden.",
+        "pl": "Wejście napięciowe układu czujników płyty bez opisu. To, co mierzy, zależy od płyty; często są domyślnie ukryte."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "VIN{n}",
+      "what": {
+        "en": "A voltage input (VIN) of the motherboard's sensor chip. What it measures depends on the board.",
+        "pl": "Wejście napięciowe (VIN) układu czujników płyty. To, co mierzy, zależy od płyty."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "VREF",
+      "what": {
+        "en": "A reference voltage inside the motherboard's sensor chip, used for its own measurements.",
+        "pl": "Napięcie odniesienia wewnątrz układu czujników płyty, używane do jego własnych pomiarów."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "PM_*",
+      "what": {
+        "en": "A power-management supply voltage reported by the board's sensor chip. The exact rail depends on the label.",
+        "pl": "Napięcie zasilania związane z zarządzaniem energią, raportowane przez układ czujników płyty. Dokładna szyna zależy od etykiety."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Super I/O",
+      "what": {
+        "en": "Supply voltage of the motherboard's Super I/O chip, the chip that reads these sensors.",
+        "pl": "Napięcie zasilania układu Super I/O płyty, czyli układu, który odczytuje te czujniki."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "VRM MOS",
+      "what": {
+        "en": "Raw voltage of an input wired to the thermistor of the VRM MOSFETs, not a real supply voltage. Hidden by default: look at the VRM temperature instead.",
+        "pl": "Surowe napięcie wejścia podłączonego do termistora MOSFET-ów VRM, a nie prawdziwe napięcie zasilania. Domyślnie ukryte – patrz temperatura VRM."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Reserved",
+      "what": {
+        "en": "A reserved voltage input of the motherboard's sensor chip. It has no defined meaning.",
+        "pl": "Zarezerwowane wejście napięciowe układu czujników płyty. Nie ma zdefiniowanego znaczenia."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Motherboard",
+      "match": "Unknown*",
+      "what": {
+        "en": "A voltage input of the motherboard's sensor chip whose purpose is not known.",
+        "pl": "Wejście napięciowe układu czujników płyty o nieznanym przeznaczeniu."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "*MOS*",
+      "what": {
+        "en": "Temperature of the power transistors (MOSFETs) in a voltage regulator (VRM) of the motherboard. They feed the CPU or other chips with power.",
+        "pl": "Temperatura tranzystorów mocy (MOSFET) w układzie zasilania (VRM) płyty głównej. Zasilają one procesor lub inne układy."
+      },
+      "watch": {
+        "en": "The power-delivery area of a board typically stays under about 90–100 °C; higher values under long load suggest poor airflow over it.",
+        "pl": "Sekcja zasilania płyty zwykle nie przekracza ok. 90–100 °C; wyższe wartości przy długim obciążeniu sugerują słaby przepływ powietrza."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "*VRM*",
+      "what": {
+        "en": "Temperature of the voltage regulator module (VRM): the power-delivery circuitry that feeds the CPU. It gets hot during heavy, long loads.",
+        "pl": "Temperatura układu zasilania (VRM), który dostarcza energię do procesora. Mocno się nagrzewa przy długim, ciężkim obciążeniu."
+      },
+      "watch": {
+        "en": "The power-delivery area of a board typically stays under about 90–100 °C; higher values under long load suggest poor airflow over it.",
+        "pl": "Sekcja zasilania płyty zwykle nie przekracza ok. 90–100 °C; wyższe wartości przy długim obciążeniu sugerują słaby przepływ powietrza."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "VREG",
+      "what": {
+        "en": "Temperature of a voltage regulator on the motherboard, part of its power-delivery circuitry.",
+        "pl": "Temperatura stabilizatora napięcia na płycie głównej, części jej układu zasilania."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "CPU PWM",
+      "what": {
+        "en": "Temperature of the CPU's PWM power controller area, part of the motherboard's power-delivery circuitry.",
+        "pl": "Temperatura okolicy kontrolera PWM zasilania procesora, części układu zasilania płyty głównej."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "CPU Package",
+      "what": {
+        "en": "Temperature of the whole processor chip (package), as read by the motherboard.",
+        "pl": "Temperatura całego procesora (pakietu) odczytana przez płytę główną."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "CPU Socket",
+      "what": {
+        "en": "Temperature measured by a sensor in or under the CPU socket. It usually reads lower than the CPU's own core temperature.",
+        "pl": "Temperatura zmierzona czujnikiem w gnieździe procesora lub pod nim. Zwykle jest niższa niż temperatura samych rdzeni."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "CPU (*)",
+      "what": {
+        "en": "CPU temperature derived from the processor's own readings (via the PECI interface) by the motherboard. It follows the CPU's real temperature closely.",
+        "pl": "Temperatura procesora obliczona przez płytę z odczytów samego procesora (przez interfejs PECI). Dobrze oddaje rzeczywistą temperaturę procesora."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "CPU Calibrated",
+      "what": {
+        "en": "CPU temperature from the processor's own readings, corrected by the motherboard.",
+        "pl": "Temperatura procesora z odczytów samego procesora, skorygowana przez płytę."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "PECI*",
+      "what": {
+        "en": "CPU temperature read through the PECI interface, which gets it from the processor's own sensors. It follows the real CPU temperature closely.",
+        "pl": "Temperatura procesora odczytana przez interfejs PECI, który pobiera ją z czujników samego procesora. Dobrze oddaje rzeczywistą temperaturę procesora."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "CPU Core",
+      "what": {
+        "en": "CPU core temperature as reported to the motherboard.",
+        "pl": "Temperatura rdzeni procesora zgłoszona do płyty głównej."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "CPU Cores",
+      "what": {
+        "en": "CPU core temperature as reported to the motherboard.",
+        "pl": "Temperatura rdzeni procesora zgłoszona do płyty głównej."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "CPU",
+      "what": {
+        "en": "Temperature of the CPU as measured by the motherboard. It may come from a sensor under the socket or from the CPU itself.",
+        "pl": "Temperatura procesora zmierzona przez płytę główną. Może pochodzić z czujnika pod gniazdem lub z samego procesora."
+      },
+      "watch": {
+        "en": "Most CPUs start lowering their clocks (throttling) at roughly 90–100 °C.",
+        "pl": "Większość procesorów zaczyna obniżać taktowanie (throttling) przy ok. 90–100 °C."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "*SoC*",
+      "what": {
+        "en": "Temperature of the CPU's SoC part (memory controller and I/O), as read by the motherboard.",
+        "pl": "Temperatura części SoC procesora (kontroler pamięci i wejścia/wyjścia), odczytana przez płytę główną."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Agent {n} DIMM {n}",
+      "what": {
+        "en": "Temperature of a memory module (DIMM) as seen by the CPU's memory controller (\"agent\").",
+        "pl": "Temperatura modułu pamięci (DIMM) widziana przez kontroler pamięci procesora („agent”)."
+      },
+      "watch": {
+        "en": "Memory modules are generally designed to stay below ~85 °C; sustained higher values suggest poor airflow.",
+        "pl": "Moduły pamięci są zwykle projektowane tak, by nie przekraczać ok. 85 °C; dłużej utrzymujące się wyższe wartości sugerują słaby przepływ powietrza."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "PCH*",
+      "what": {
+        "en": "Temperature related to the chipset (PCH, Platform Controller Hub). The exact measuring point depends on the board.",
+        "pl": "Temperatura związana z chipsetem (PCH, Platform Controller Hub). Dokładne miejsce pomiaru zależy od płyty."
+      },
+      "watch": {
+        "en": "Chipsets typically run warm, often 50–70 °C, which is normal.",
+        "pl": "Chipsety zwykle są ciepłe, często 50–70 °C, i jest to normalne."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "*Chipset*",
+      "what": {
+        "en": "Temperature of the motherboard chipset, the chip that connects the CPU with USB, SATA, extra PCIe slots and other devices.",
+        "pl": "Temperatura chipsetu płyty głównej – układu łączącego procesor z USB, SATA, dodatkowymi gniazdami PCIe i innymi urządzeniami."
+      },
+      "watch": {
+        "en": "Chipsets typically run warm, often 50–70 °C, which is normal.",
+        "pl": "Chipsety zwykle są ciepłe, często 50–70 °C, i jest to normalne."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Northbridge",
+      "what": {
+        "en": "Temperature of the northbridge, an older chipset part that sits close to the CPU.",
+        "pl": "Temperatura northbridge – starszej części chipsetu położonej blisko procesora."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Southbridge",
+      "what": {
+        "en": "Temperature of the southbridge, an older chipset part that handles peripherals.",
+        "pl": "Temperatura southbridge – starszej części chipsetu obsługującej urządzenia peryferyjne."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "*PCIe*",
+      "what": {
+        "en": "Temperature measured by a sensor near a PCIe slot. It often reflects the heat from the graphics card installed there.",
+        "pl": "Temperatura zmierzona czujnikiem w pobliżu gniazda PCIe. Często odzwierciedla ciepło od zainstalowanej tam karty graficznej."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "PCI-E*",
+      "what": {
+        "en": "Temperature measured by a sensor near a PCIe slot. It often reflects the heat from the graphics card installed there.",
+        "pl": "Temperatura zmierzona czujnikiem w pobliżu gniazda PCIe. Często odzwierciedla ciepło od zainstalowanej tam karty graficznej."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "M2 #{n}",
+      "what": {
+        "en": "Temperature measured near an M.2 slot (where an NVMe SSD is installed). The SSD's own temperature is reported by the drive.",
+        "pl": "Temperatura zmierzona w pobliżu gniazda M.2 (w którym jest dysk NVMe). Własną temperaturę dysku zgłasza on sam."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "M.2*",
+      "what": {
+        "en": "Temperature measured near an M.2 slot (where an NVMe SSD is installed). The SSD's own temperature is reported by the drive.",
+        "pl": "Temperatura zmierzona w pobliżu gniazda M.2 (w którym jest dysk NVMe). Własną temperaturę dysku zgłasza on sam."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Thermistor Sensor*",
+      "what": {
+        "en": "Temperature from a thermistor probe connected to a sensor header on the board. It shows whatever the probe is attached to.",
+        "pl": "Temperatura z sondy termistorowej podłączonej do złącza czujnika na płycie. Pokazuje to, do czego sonda jest przymocowana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "T*Sensor*",
+      "what": {
+        "en": "Temperature from an external probe plugged into the motherboard's temperature-sensor header (T_SENSOR). It shows whatever the probe is attached to.",
+        "pl": "Temperatura z zewnętrznej sondy podłączonej do złącza czujnika temperatury płyty (T_SENSOR). Pokazuje to, do czego sonda jest przymocowana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "T{n}",
+      "what": {
+        "en": "Temperature from a motherboard sensor input (T1/T2), often used for an external probe. It shows whatever the sensor is attached to.",
+        "pl": "Temperatura z wejścia czujnika płyty (T1/T2), często używanego do zewnętrznej sondy. Pokazuje to, do czego czujnik jest przymocowany."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "External*",
+      "what": {
+        "en": "Temperature from an external probe connected to the motherboard. It shows whatever the probe is attached to.",
+        "pl": "Temperatura z zewnętrznej sondy podłączonej do płyty głównej. Pokazuje to, do czego sonda jest przymocowana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Probe",
+      "what": {
+        "en": "Temperature from a probe connected to the motherboard. It shows whatever the probe is attached to.",
+        "pl": "Temperatura z sondy podłączonej do płyty głównej. Pokazuje to, do czego sonda jest przymocowana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Water In",
+      "what": {
+        "en": "Temperature of the coolant entering the CPU water block of a custom water-cooling loop, read by the motherboard.",
+        "pl": "Temperatura płynu wpływającego do bloku wodnego procesora w niestandardowej pętli chłodzenia cieczą, odczytana przez płytę."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Water Out",
+      "what": {
+        "en": "Temperature of the coolant leaving the CPU water block of a custom water-cooling loop, read by the motherboard.",
+        "pl": "Temperatura płynu wypływającego z bloku wodnego procesora w niestandardowej pętli chłodzenia cieczą, odczytana przez płytę."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Water Block In",
+      "what": {
+        "en": "Temperature of the coolant entering a water block in a custom water-cooling loop, read by the motherboard.",
+        "pl": "Temperatura płynu wpływającego do bloku wodnego w niestandardowej pętli chłodzenia cieczą, odczytana przez płytę."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "System*",
+      "what": {
+        "en": "Temperature of the motherboard's general system sensor, usually placed somewhere on the board. It reflects the air temperature inside the case.",
+        "pl": "Temperatura ogólnego czujnika systemowego płyty, zwykle umieszczonego gdzieś na płycie. Odzwierciedla temperaturę powietrza wewnątrz obudowy."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Motherboard",
+      "what": {
+        "en": "Temperature of the motherboard itself, measured by a sensor placed on the board. It reflects the air temperature inside the case.",
+        "pl": "Temperatura samej płyty głównej, zmierzona czujnikiem na płycie. Odzwierciedla temperaturę powietrza wewnątrz obudowy."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Sensor*",
+      "what": {
+        "en": "Temperature from a numbered sensor of the motherboard's sensor chip. What it measures depends on the board.",
+        "pl": "Temperatura z numerowanego czujnika układu czujników płyty. To, co mierzy, zależy od płyty."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Auxiliary*",
+      "what": {
+        "en": "Temperature from an auxiliary input of the motherboard's sensor chip, often an extra sensor or header. What it measures depends on the board.",
+        "pl": "Temperatura z pomocniczego wejścia układu czujników płyty, często dodatkowego czujnika lub złącza. To, co mierzy, zależy od płyty."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "AUX {n}",
+      "what": {
+        "en": "Temperature from an auxiliary input (AUX) of the motherboard's sensor chip. What it measures depends on the board.",
+        "pl": "Temperatura z pomocniczego wejścia (AUX) układu czujników płyty. To, co mierzy, zależy od płyty."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Temperature #*",
+      "what": {
+        "en": "Temperature from a numbered input of the motherboard's sensor chip. The label does not say where it is measured, and that depends on the board.",
+        "pl": "Temperatura z numerowanego wejścia układu czujników płyty. Etykieta nie mówi, gdzie jest mierzona – zależy to od płyty."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Device {n}",
+      "what": {
+        "en": "Temperature of a numbered device or sensor reported by the motherboard. What it measures depends on the board.",
+        "pl": "Temperatura numerowanego urządzenia lub czujnika zgłaszana przez płytę. To, co mierzy, zależy od płyty."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "SMBus {n}",
+      "what": {
+        "en": "Temperature read through the SMBus, the board's small management bus. What it measures depends on the board.",
+        "pl": "Temperatura odczytana przez SMBus, niewielką magistralę zarządzania płyty. To, co mierzy, zależy od płyty."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Peripheral",
+      "what": {
+        "en": "Temperature of the peripheral-controller area of the board (a chipset-related sensor). The exact point depends on the board.",
+        "pl": "Temperatura okolicy kontrolera urządzeń peryferyjnych płyty (czujnik związany z chipsetem). Dokładne miejsce zależy od płyty."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "EC",
+      "what": {
+        "en": "Temperature reported by the embedded controller (EC), the small management chip of the board or laptop.",
+        "pl": "Temperatura zgłaszana przez kontroler wbudowany (EC) – niewielki układ zarządzający płyty lub laptopa."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Motherboard",
+      "match": "Virtual*",
+      "what": {
+        "en": "A computed (virtual) temperature value from the sensor chip, not a real measuring point. Do not rely on it.",
+        "pl": "Obliczona (wirtualna) wartość temperatury z układu czujników, a nie rzeczywiste miejsce pomiaru. Nie polegaj na niej."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "System Fan #{n} / Pump",
+      "what": {
+        "en": "Speed of the device on this system header, in RPM. The header supports either a case fan or a pump. 0 means stopped or nothing connected.",
+        "pl": "Prędkość urządzenia na tym złączu systemowym, w obr./min (RPM). Złącze obsługuje wentylator obudowy lub pompę. 0 oznacza zatrzymanie lub brak podłączonego urządzenia."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "CPU Fan #{n} / Pump",
+      "what": {
+        "en": "Speed of the device on this CPU header, in RPM. The header supports either a CPU fan or a pump. 0 means stopped or nothing connected.",
+        "pl": "Prędkość urządzenia na tym złączu procesora, w obr./min (RPM). Złącze obsługuje wentylator procesora lub pompę. 0 oznacza zatrzymanie lub brak podłączonego urządzenia."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "CPU*Opt*",
+      "what": {
+        "en": "Speed of the fan on the optional CPU fan header (second fan on a CPU cooler, or a pump), in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora na dodatkowym złączu procesora (drugi wentylator chłodzenia lub pompa), w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego urządzenia."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "*Pump*",
+      "what": {
+        "en": "Speed of a water-cooling pump connected to the motherboard, in RPM. Pumps normally run at a steady speed; 0 or a drop means trouble.",
+        "pl": "Prędkość pompy chłodzenia cieczą podłączonej do płyty, w obr./min (RPM). Pompy zwykle pracują ze stałą prędkością; 0 lub spadek to sygnał problemu."
+      },
+      "watch": {
+        "en": "A pump showing 0 RPM while the PC is on can mean a failed pump or a loose connector, and the CPU may overheat quickly.",
+        "pl": "Pompa pokazująca 0 RPM przy włączonym komputerze może oznaczać awarię lub luźne złącze, a procesor może szybko się przegrzać."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "CPU*",
+      "what": {
+        "en": "Speed of the fan on the CPU fan header (normally the CPU cooler), in RPM. It rises when the CPU gets hotter.",
+        "pl": "Prędkość wentylatora na złączu wentylatora procesora (zwykle chłodzenia procesora), w obr./min (RPM). Rośnie, gdy procesor się nagrzewa."
+      },
+      "watch": {
+        "en": "0 RPM with a cooler connected usually means a failed fan or a loose connector, and the CPU may overheat.",
+        "pl": "0 RPM przy podłączonym chłodzeniu zwykle oznacza awarię wentylatora lub luźne złącze, a procesor może się przegrzewać."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "System Fan*",
+      "what": {
+        "en": "Speed of the fan on a system fan header (usually a case fan), in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora na złączu systemowym (zwykle wentylatora obudowy), w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "Chassis*",
+      "what": {
+        "en": "Speed of the fan on a chassis (case) fan header, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora na złączu wentylatora obudowy, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "Radiator Fan*",
+      "what": {
+        "en": "Speed of a radiator fan connected to the motherboard, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora chłodnicy podłączonego do płyty, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "High Amp Fan",
+      "what": {
+        "en": "Speed of the fan on the board's high-current fan header, built for fans or pumps that need more power than a normal header gives, in RPM.",
+        "pl": "Prędkość wentylatora na złączu o zwiększonym prądzie, przeznaczonym dla wentylatorów lub pomp wymagających więcej mocy niż zwykłe złącze, w obr./min (RPM)."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "HAMP",
+      "what": {
+        "en": "Speed of the fan on the board's high-current fan header (HAMP), built for fans or pumps that need more power than a normal header gives, in RPM.",
+        "pl": "Prędkość wentylatora na złączu o zwiększonym prądzie (HAMP), przeznaczonym dla wentylatorów lub pomp wymagających więcej mocy niż zwykłe złącze, w obr./min (RPM)."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "MOS*",
+      "what": {
+        "en": "Speed of the fan cooling the board's power-delivery area (MOSFETs / VRM), in RPM.",
+        "pl": "Prędkość wentylatora chłodzącego sekcję zasilania płyty (MOSFET / VRM), w obr./min (RPM)."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "VRM*",
+      "what": {
+        "en": "Speed of the fan cooling the board's power-delivery area (VRM), in RPM.",
+        "pl": "Prędkość wentylatora chłodzącego sekcję zasilania płyty (VRM), w obr./min (RPM)."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "Chipset*",
+      "what": {
+        "en": "Speed of the fan cooling the chipset (or a disk area), in RPM.",
+        "pl": "Prędkość wentylatora chłodzącego chipset (lub okolicę dysków), w obr./min (RPM)."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "PCH Fan",
+      "what": {
+        "en": "Speed of the fan cooling the chipset (PCH), in RPM.",
+        "pl": "Prędkość wentylatora chłodzącego chipset (PCH), w obr./min (RPM)."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "*bridge Fan",
+      "what": {
+        "en": "Speed of the fan cooling an older chipset part (north/southbridge), in RPM.",
+        "pl": "Prędkość wentylatora chłodzącego starszą część chipsetu (north/southbridge), w obr./min (RPM)."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "Power Fan",
+      "what": {
+        "en": "Speed of the fan on the header labelled Power Fan, in RPM. It is typically used for a fan near the power section or the PSU.",
+        "pl": "Prędkość wentylatora na złączu opisanym jako Power Fan, w obr./min (RPM). Zwykle używane do wentylatora w okolicy sekcji zasilania lub zasilacza."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "Auxiliary Fan*",
+      "what": {
+        "en": "Speed of the fan on an auxiliary fan header, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora na pomocniczym złączu wentylatora, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "EZ-Connect Fan",
+      "what": {
+        "en": "Speed of the fan on the board's EZ-Connect header, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora na złączu EZ-Connect płyty, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "Extra Flow Fan",
+      "what": {
+        "en": "Speed of the fan on an extra airflow fan header, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora na dodatkowym złączu wentylatora, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "Fan*",
+      "what": {
+        "en": "Speed of the fan on a numbered fan header of the board, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora na numerowanym złączu wentylatora płyty, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Motherboard",
+      "match": "Unused",
+      "what": {
+        "en": "An unused fan header of the board.",
+        "pl": "Niewykorzystane złącze wentylatora płyty."
+      }
+    },
+    {
+      "kind": "Flow",
+      "hw": "Motherboard",
+      "match": "Water Flow",
+      "what": {
+        "en": "Flow of the coolant in a custom water-cooling loop, read by the motherboard.",
+        "pl": "Przepływ płynu w niestandardowej pętli chłodzenia cieczą, odczytany przez płytę."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "*Pump*",
+      "what": {
+        "en": "How hard the board drives a pump header, as a percentage of maximum. This is the command, not the measured speed (see the matching RPM).",
+        "pl": "Jak mocno płyta steruje złączem pompy, w procentach maksimum. To polecenie, a nie zmierzona prędkość (patrz odpowiadające RPM)."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "CPU*",
+      "what": {
+        "en": "How hard the board drives the CPU fan header, as a percentage of maximum. This is the command, not the measured speed (see the matching RPM).",
+        "pl": "Jak mocno płyta steruje złączem wentylatora procesora, w procentach maksimum. To polecenie, a nie zmierzona prędkość (patrz odpowiadające RPM)."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "Chassis*",
+      "what": {
+        "en": "How hard the board drives a case fan header, as a percentage of maximum. This is the command, not the measured speed (see the matching RPM).",
+        "pl": "Jak mocno płyta steruje złączem wentylatora obudowy, w procentach maksimum. To polecenie, a nie zmierzona prędkość (patrz odpowiadające RPM)."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "MOS*",
+      "what": {
+        "en": "How hard the board drives the fan cooling its power-delivery area, as a percentage of maximum. A command, not the measured speed.",
+        "pl": "Jak mocno płyta steruje wentylatorem chłodzącym jej sekcję zasilania, w procentach maksimum. To polecenie, a nie zmierzona prędkość."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "VRM",
+      "what": {
+        "en": "How hard the board drives the fan cooling its power-delivery area (VRM), as a percentage of maximum. A command, not the measured speed.",
+        "pl": "Jak mocno płyta steruje wentylatorem chłodzącym jej sekcję zasilania (VRM), w procentach maksimum. To polecenie, a nie zmierzona prędkość."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "Chipset*",
+      "what": {
+        "en": "How hard the board drives the chipset fan header, as a percentage of maximum. A command, not the measured speed.",
+        "pl": "Jak mocno płyta steruje złączem wentylatora chipsetu, w procentach maksimum. To polecenie, a nie zmierzona prędkość."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "HAMP",
+      "what": {
+        "en": "How hard the board drives its high-current fan header (HAMP), as a percentage of maximum. A command, not the measured speed.",
+        "pl": "Jak mocno płyta steruje złączem o zwiększonym prądzie (HAMP), w procentach maksimum. To polecenie, a nie zmierzona prędkość."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "*Fan*",
+      "what": {
+        "en": "How hard the board drives a fan header, as a percentage of maximum. This is the command, not the measured speed (see the matching RPM).",
+        "pl": "Jak mocno płyta steruje złączem wentylatora, w procentach maksimum. To polecenie, a nie zmierzona prędkość (patrz odpowiadające RPM)."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "PWM #{n}",
+      "what": {
+        "en": "How hard the board drives a PWM fan output, as a percentage of maximum. This is the command, not the measured speed.",
+        "pl": "Jak mocno płyta steruje wyjściem wentylatora PWM, w procentach maksimum. To polecenie, a nie zmierzona prędkość."
+      }
+    },
+    {
+      "kind": "Control",
+      "hw": "Motherboard",
+      "match": "Unused",
+      "what": {
+        "en": "An unused fan control output of the board.",
+        "pl": "Niewykorzystane wyjście sterowania wentylatorem płyty."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Motherboard",
+      "match": "CPU",
+      "what": {
+        "en": "Electric current the CPU is drawing, in amps, read by the board's embedded controller. It rises with load.",
+        "pl": "Prąd pobierany przez procesor, w amperach, odczytany przez kontroler wbudowany płyty. Rośnie wraz z obciążeniem."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Memory",
+      "match": "Memory",
+      "what": {
+        "en": "How much of the memory is in use, in percent. Shown for physical RAM and, separately, for virtual memory (RAM plus the page file).",
+        "pl": "Jaka część pamięci jest używana, w procentach. Pokazywane osobno dla pamięci fizycznej (RAM) i wirtualnej (RAM plus plik stronicowania)."
+      },
+      "watch": {
+        "en": "Staying near 100% for long can slow the PC down, because Windows then starts using the much slower page file on disk.",
+        "pl": "Długie utrzymywanie się blisko 100% może spowolnić komputer, bo Windows zaczyna wtedy używać znacznie wolniejszego pliku stronicowania na dysku."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Memory",
+      "match": "Memory Used",
+      "what": {
+        "en": "Amount of memory in use right now. Shown for physical RAM and, separately, for virtual memory (RAM plus the page file).",
+        "pl": "Ilość używanej teraz pamięci. Pokazywana osobno dla pamięci fizycznej (RAM) i wirtualnej (RAM plus plik stronicowania)."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Memory",
+      "match": "Memory Available",
+      "what": {
+        "en": "Amount of memory still available to programs. Shown for physical RAM and, separately, for virtual memory (RAM plus the page file).",
+        "pl": "Ilość pamięci wciąż dostępnej dla programów. Pokazywana osobno dla pamięci fizycznej (RAM) i wirtualnej (RAM plus plik stronicowania)."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Memory",
+      "match": "DIMM #{n}",
+      "what": {
+        "en": "Temperature of a memory module (DIMM) read from its built-in sensor. Not every module has one.",
+        "pl": "Temperatura modułu pamięci (DIMM) odczytana z jego wbudowanego czujnika. Nie każdy moduł go ma."
+      },
+      "watch": {
+        "en": "Memory modules are generally designed to stay below ~85 °C; sustained higher values suggest poor airflow.",
+        "pl": "Moduły pamięci są zwykle projektowane tak, by nie przekraczać ok. 85 °C; dłużej utrzymujące się wyższe wartości sugerują słaby przepływ powietrza."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Memory",
+      "match": "Temperature Sensor Resolution",
+      "what": {
+        "en": "Step size of the module's temperature sensor, in °C. A property of the sensor, not a temperature reading.",
+        "pl": "Rozdzielczość czujnika temperatury modułu, w °C. To cecha czujnika, a nie odczyt temperatury."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Memory",
+      "match": "Thermal Sensor Low Limit",
+      "what": {
+        "en": "Lower temperature threshold programmed into the module's thermal sensor. A stored setting, not a live reading.",
+        "pl": "Dolny próg temperatury zaprogramowany w czujniku termicznym modułu. Zapisane ustawienie, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Memory",
+      "match": "Thermal Sensor High Limit",
+      "what": {
+        "en": "Upper temperature threshold programmed into the module's thermal sensor. A stored setting, not a live reading.",
+        "pl": "Górny próg temperatury zaprogramowany w czujniku termicznym modułu. Zapisane ustawienie, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Memory",
+      "match": "Thermal Sensor Critical Limit",
+      "what": {
+        "en": "Critical temperature threshold programmed into the module's thermal sensor. A stored setting, not a live reading.",
+        "pl": "Krytyczny próg temperatury zaprogramowany w czujniku termicznym modułu. Zapisane ustawienie, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Memory",
+      "match": "Thermal Sensor Critical Low Limit",
+      "what": {
+        "en": "Critical lower temperature threshold programmed into the module's thermal sensor. A stored setting, not a live reading.",
+        "pl": "Krytyczny dolny próg temperatury zaprogramowany w czujniku termicznym modułu. Zapisane ustawienie, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Memory",
+      "match": "Thermal Sensor Critical High Limit",
+      "what": {
+        "en": "Critical upper temperature threshold programmed into the module's thermal sensor. A stored setting, not a live reading.",
+        "pl": "Krytyczny górny próg temperatury zaprogramowany w czujniku termicznym modułu. Zapisane ustawienie, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Memory",
+      "match": "Capacity",
+      "what": {
+        "en": "Total capacity of this memory module, as stored in its SPD chip.",
+        "pl": "Całkowita pojemność tego modułu pamięci, zapisana w jego układzie SPD."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tCKAVGmin (*)",
+      "what": {
+        "en": "Shortest clock cycle (tCKAVGmin) the module supports. Lower means a higher rated base speed. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Najkrótszy cykl zegara (tCKAVGmin) obsługiwany przez moduł. Mniej = wyższa znamionowa prędkość bazowa. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tCKAVGmax (*)",
+      "what": {
+        "en": "Longest clock cycle (tCKAVGmax) at which the module still works, i.e. its slowest rated speed. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Najdłuższy cykl zegara (tCKAVGmax), przy którym moduł jeszcze działa, czyli jego najniższa znamionowa prędkość. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tAA (*)",
+      "what": {
+        "en": "CAS latency time (tAA): delay between a read command and the data arriving. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas opóźnienia CAS (tAA) – opóźnienie między poleceniem odczytu a pojawieniem się danych. Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRCD (*)",
+      "what": {
+        "en": "RAS-to-CAS delay (tRCD): time between opening a memory row and reading or writing in it. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Opóźnienie RAS do CAS (tRCD) – czas między otwarciem wiersza pamięci a odczytem lub zapisem w nim. Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRP (*)",
+      "what": {
+        "en": "Row precharge time (tRP): time needed to close a row before another can be opened. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas przeładowania wiersza (tRP) – czas potrzebny na zamknięcie wiersza, zanim otworzy się inny. Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRAS (*)",
+      "what": {
+        "en": "Active-to-precharge time (tRAS): the minimum time a row has to stay open. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas aktywny do przeładowania (tRAS) – minimalny czas, przez jaki wiersz musi pozostać otwarty. Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRC (*)",
+      "what": {
+        "en": "Active-to-active/refresh time (tRC): minimum time between opening two rows in the same bank (about tRAS + tRP). Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas aktywny do aktywnego/odświeżenia (tRC) – minimalny czas między otwarciem dwóch wierszy w tym samym banku (ok. tRAS + tRP). Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRFC1 (*)",
+      "what": {
+        "en": "Refresh recovery time (tRFC1): how long the memory is busy after a refresh before it can be used again. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas odzyskiwania po odświeżeniu (tRFC1) – jak długo pamięć jest zajęta po odświeżeniu, zanim znów można jej użyć. Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRFC2 (*)",
+      "what": {
+        "en": "Refresh recovery time in a finer refresh mode (tRFC2): how long the memory is busy after a refresh. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas odzyskiwania po odświeżeniu w trybie dokładniejszego odświeżania (tRFC2). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRFC4 (*)",
+      "what": {
+        "en": "Refresh recovery time in the finest refresh mode (tRFC4): how long the memory is busy after a refresh. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas odzyskiwania po odświeżeniu w najdokładniejszym trybie (tRFC4). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRFCsb (*)",
+      "what": {
+        "en": "Same-bank refresh recovery time (tRFCsb, DDR5): how long a bank is busy after being refreshed. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas odzyskiwania po odświeżeniu pojedynczego banku (tRFCsb, DDR5). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRFC1_dlr (*)",
+      "what": {
+        "en": "Normal refresh recovery time for stacked (3DS) modules, between different logical ranks (tRFC1_dlr). Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas odzyskiwania po zwykłym odświeżeniu w modułach stosowych (3DS), między różnymi rangami logicznymi (tRFC1_dlr). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRFC2_dlr (*)",
+      "what": {
+        "en": "Fine-granularity refresh recovery time for stacked (3DS) modules (tRFC2_dlr). Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas odzyskiwania po odświeżeniu w trybie dokładnym dla modułów stosowych (3DS) (tRFC2_dlr). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRFCsb_dlr (*)",
+      "what": {
+        "en": "Same-bank refresh recovery time for stacked (3DS) modules (tRFCsb_dlr). Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas odzyskiwania po odświeżeniu pojedynczego banku dla modułów stosowych (3DS) (tRFCsb_dlr). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tFAW (*)",
+      "what": {
+        "en": "Four-activate window (tFAW): a time window in which at most four rows may be opened. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Okno czterech aktywacji (tFAW) – przedział czasu, w którym można otworzyć najwyżej cztery wiersze. Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRRD_S (*)",
+      "what": {
+        "en": "Minimum delay between opening rows in different bank groups (tRRD_S). Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Minimalne opóźnienie między otwarciem wierszy w różnych grupach banków (tRRD_S). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tRRD_L (*)",
+      "what": {
+        "en": "Minimum delay between opening rows in the same bank group (tRRD_L). Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Minimalne opóźnienie między otwarciem wierszy w tej samej grupie banków (tRRD_L). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tCCD_L (*)",
+      "what": {
+        "en": "Minimum delay between two consecutive reads or writes in the same bank group (tCCD_L). Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Minimalne opóźnienie między dwoma kolejnymi odczytami lub zapisami w tej samej grupie banków (tCCD_L). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tWR (*)",
+      "what": {
+        "en": "Write recovery time (tWR): how long after a write the row must wait before it can be closed. Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Czas odzyskiwania po zapisie (tWR) – jak długo po zapisie wiersz musi czekać, zanim można go zamknąć. Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tWTR_S (*)",
+      "what": {
+        "en": "Delay between a write and the next read in a different bank group (tWTR_S). Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Opóźnienie między zapisem a następnym odczytem w innej grupie banków (tWTR_S). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Timing",
+      "hw": "Memory",
+      "match": "tWTR_L (*)",
+      "what": {
+        "en": "Delay between a write and the next read in the same bank group (tWTR_L). Lower is faster. Rated value from the module's SPD chip, not necessarily the timing running now.",
+        "pl": "Opóźnienie między zapisem a następnym odczytem w tej samej grupie banków (tWTR_L). Mniej = szybciej. Wartość znamionowa z układu SPD modułu, niekoniecznie aktualnie używana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Storage",
+      "match": "Temperature",
+      "what": {
+        "en": "Main temperature of the drive, reported by the drive itself.",
+        "pl": "Główna temperatura dysku, zgłaszana przez sam dysk."
+      },
+      "watch": {
+        "en": "Typically HDDs prefer to stay under ~50 °C, while many SSDs slow down on their own from roughly 70 °C and up.",
+        "pl": "Zwykle dyski HDD wolą nie przekraczać ok. 50 °C, a wiele SSD samoczynnie zwalnia od ok. 70 °C wzwyż."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Storage",
+      "match": "Temperature #{n}",
+      "what": {
+        "en": "An additional temperature sensor inside the drive (on NVMe SSDs often the controller or the flash chips), reported by the drive itself.",
+        "pl": "Dodatkowy czujnik temperatury wewnątrz dysku (w SSD NVMe często kontrolera lub układów pamięci flash), zgłaszany przez sam dysk."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Storage",
+      "match": "Warning Temperature",
+      "what": {
+        "en": "The temperature at which the drive starts to warn or slow down. A threshold set by the drive, not a live reading.",
+        "pl": "Temperatura, przy której dysk zaczyna ostrzegać lub zwalniać. Próg ustawiony przez dysk, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Storage",
+      "match": "Critical Temperature",
+      "what": {
+        "en": "The temperature at which the drive protects itself, for example by slowing down heavily or shutting down. A threshold, not a live reading.",
+        "pl": "Temperatura, przy której dysk się chroni, np. mocno zwalniając lub wyłączając się. Próg, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Level",
+      "hw": "Storage",
+      "match": "Life",
+      "what": {
+        "en": "Estimated remaining health of the drive in percent, from the drive's own SMART data. 100% means like new.",
+        "pl": "Szacowany pozostały stan zdrowia dysku w procentach, z danych SMART samego dysku. 100% oznacza jak nowy."
+      },
+      "watch": {
+        "en": "Low values mean the drive is wearing out. Back up important data and plan a replacement.",
+        "pl": "Niskie wartości oznaczają zużywanie się dysku. Zrób kopię ważnych danych i zaplanuj wymianę."
+      }
+    },
+    {
+      "kind": "Level",
+      "hw": "Storage",
+      "match": "Available Spare",
+      "what": {
+        "en": "Percentage of spare flash memory still left on an NVMe SSD to replace worn-out cells. 100% is full spare capacity.",
+        "pl": "Jaki procent zapasowej pamięci flash w dysku NVMe pozostał na zastąpienie zużytych komórek. 100% to pełna pula zapasowa."
+      }
+    },
+    {
+      "kind": "Level",
+      "hw": "Storage",
+      "match": "Available Spare Threshold",
+      "what": {
+        "en": "The spare-capacity level below which the NVMe SSD reports a warning. A threshold set by the drive, not a live reading.",
+        "pl": "Poziom pamięci zapasowej, poniżej którego dysk NVMe zgłasza ostrzeżenie. Próg ustawiony przez dysk, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Level",
+      "hw": "Storage",
+      "match": "Percentage Used",
+      "what": {
+        "en": "How much of the SSD's rated endurance has been used up, in percent. It can go above 100% on drives used beyond their rating.",
+        "pl": "Jaka część znamionowej trwałości SSD została zużyta, w procentach. U dysków używanych ponad normę może przekroczyć 100%."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Storage",
+      "match": "Data Read",
+      "what": {
+        "en": "Total amount of data the computer has read from this drive over its lifetime, according to the drive's SMART data.",
+        "pl": "Łączna ilość danych odczytanych przez komputer z tego dysku w całym jego życiu, według danych SMART dysku."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Storage",
+      "match": "Data Written",
+      "what": {
+        "en": "Total amount of data written to this drive over its lifetime, according to its SMART data. SSD endurance is rated by this number.",
+        "pl": "Łączna ilość danych zapisanych na tym dysku w całym jego życiu, według danych SMART. Trwałość SSD podaje się właśnie w tej wartości."
+      },
+      "watch": {
+        "en": "Compare it with the drive's rated endurance (TBW) from its spec sheet. Normal use rarely gets close.",
+        "pl": "Porównaj z podaną przez producenta trwałością dysku (TBW). Przy zwykłym użytkowaniu rzadko zbliża się do limitu."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Storage",
+      "match": "Free Space",
+      "what": {
+        "en": "Free space on the drive, summed over its partitions.",
+        "pl": "Wolne miejsce na dysku, zsumowane ze wszystkich partycji."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Storage",
+      "match": "Total Space",
+      "what": {
+        "en": "Total capacity of the drive.",
+        "pl": "Całkowita pojemność dysku."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Storage",
+      "match": "Used Space",
+      "what": {
+        "en": "How full the drive is, in percent of its capacity.",
+        "pl": "Jak bardzo zapełniony jest dysk, w procentach jego pojemności."
+      },
+      "watch": {
+        "en": "SSDs stay fastest with some free space left; keeping about 10–20% free is a common rule of thumb.",
+        "pl": "SSD działają najszybciej, gdy zostaje trochę wolnego miejsca; orientacyjnie warto zostawić ok. 10–20%."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Storage",
+      "match": "Read Activity",
+      "what": {
+        "en": "Share of time the drive spent reading, in percent. 100% means it was busy reading all the time.",
+        "pl": "Jaką część czasu dysk spędził na odczycie, w procentach. 100% oznacza, że cały czas był zajęty odczytem."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Storage",
+      "match": "Write Activity",
+      "what": {
+        "en": "Share of time the drive spent writing, in percent. 100% means it was busy writing all the time.",
+        "pl": "Jaką część czasu dysk spędził na zapisie, w procentach. 100% oznacza, że cały czas był zajęty zapisem."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Storage",
+      "match": "Total Activity",
+      "what": {
+        "en": "Share of time the drive was busy at all, in percent. A drive at 100% is saturated and everything waiting for it feels slow.",
+        "pl": "Jaką część czasu dysk był w ogóle zajęty, w procentach. Dysk na 100% jest przeciążony, a wszystko, co na niego czeka, działa wolno."
+      }
+    },
+    {
+      "kind": "Throughput",
+      "hw": "Storage",
+      "match": "Read Rate",
+      "what": {
+        "en": "How fast data is being read from the drive right now.",
+        "pl": "Z jaką prędkością dane są teraz odczytywane z dysku."
+      }
+    },
+    {
+      "kind": "Throughput",
+      "hw": "Storage",
+      "match": "Write Rate",
+      "what": {
+        "en": "How fast data is being written to the drive right now.",
+        "pl": "Z jaką prędkością dane są teraz zapisywane na dysku."
+      }
+    },
+    {
+      "kind": "Factor",
+      "hw": "Storage",
+      "match": "Power On Count",
+      "what": {
+        "en": "How many times the drive has been powered on during its lifetime (power cycles).",
+        "pl": "Ile razy dysk został włączony w całym swoim życiu (cykle zasilania)."
+      }
+    },
+    {
+      "kind": "Factor",
+      "hw": "Storage",
+      "match": "Power On Hours",
+      "what": {
+        "en": "How many hours the drive has been powered on during its lifetime.",
+        "pl": "Przez ile godzin dysk był włączony w całym swoim życiu."
+      }
+    },
+    {
+      "kind": "Throughput",
+      "hw": "Network",
+      "match": "Download Speed",
+      "what": {
+        "en": "How fast data is being received through this network adapter right now.",
+        "pl": "Z jaką prędkością dane są teraz odbierane przez tę kartę sieciową."
+      }
+    },
+    {
+      "kind": "Throughput",
+      "hw": "Network",
+      "match": "Upload Speed",
+      "what": {
+        "en": "How fast data is being sent through this network adapter right now.",
+        "pl": "Z jaką prędkością dane są teraz wysyłane przez tę kartę sieciową."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Network",
+      "match": "Data Downloaded",
+      "what": {
+        "en": "Total amount of data received through this network adapter since it was started (usually since boot).",
+        "pl": "Łączna ilość danych odebranych przez tę kartę sieciową od jej uruchomienia (zwykle od startu komputera)."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Network",
+      "match": "Data Uploaded",
+      "what": {
+        "en": "Total amount of data sent through this network adapter since it was started (usually since boot).",
+        "pl": "Łączna ilość danych wysłanych przez tę kartę sieciową od jej uruchomienia (zwykle od startu komputera)."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Network",
+      "match": "Network Utilization",
+      "what": {
+        "en": "How much of the adapter's link speed is being used, in percent. 100% means the connection is saturated.",
+        "pl": "Jaka część przepustowości łącza karty jest wykorzystywana, w procentach. 100% oznacza całkowicie wysycone łącze."
+      }
+    },
+    {
+      "kind": "Level",
+      "hw": "Battery",
+      "match": "Charge Level",
+      "what": {
+        "en": "How full the battery is, in percent.",
+        "pl": "Jak bardzo naładowana jest bateria, w procentach."
+      }
+    },
+    {
+      "kind": "Level",
+      "hw": "Battery",
+      "match": "Degradation Level",
+      "what": {
+        "en": "How much of its original capacity the battery has lost with age, in percent. Lower is better.",
+        "pl": "Ile pierwotnej pojemności bateria utraciła z wiekiem, w procentach. Mniej = lepiej."
+      },
+      "watch": {
+        "en": "A battery that has lost a large share of its capacity (for example 30–40%) lasts much less per charge.",
+        "pl": "Bateria, która straciła dużą część pojemności (np. 30–40%), działa znacznie krócej na jednym ładowaniu."
+      }
+    },
+    {
+      "kind": "Energy",
+      "hw": "Battery",
+      "match": "Designed Capacity",
+      "what": {
+        "en": "Energy the battery could hold when new, according to its manufacturer (in mWh).",
+        "pl": "Energia, jaką bateria mogła pomieścić jako nowa, według producenta (w mWh)."
+      }
+    },
+    {
+      "kind": "Energy",
+      "hw": "Battery",
+      "match": "Fully-Charged Capacity",
+      "what": {
+        "en": "Energy the battery can hold when fully charged today (in mWh). It shrinks as the battery ages.",
+        "pl": "Energia, jaką bateria mieści dziś po pełnym naładowaniu (w mWh). Maleje wraz ze starzeniem się baterii."
+      }
+    },
+    {
+      "kind": "Energy",
+      "hw": "Battery",
+      "match": "Remaining Capacity",
+      "what": {
+        "en": "Energy currently stored in the battery (in mWh).",
+        "pl": "Energia aktualnie zgromadzona w baterii (w mWh)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Battery",
+      "match": "Voltage",
+      "what": {
+        "en": "Voltage of the battery pack. It drops slowly as the battery discharges.",
+        "pl": "Napięcie pakietu baterii. Powoli spada w miarę rozładowywania baterii."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Battery",
+      "match": "Charge/Discharge Current",
+      "what": {
+        "en": "Current flowing into or out of the battery, in amps. The sign or the mode shows whether it is charging or discharging.",
+        "pl": "Prąd płynący do baterii lub z niej, w amperach. Znak lub tryb pokazuje, czy bateria się ładuje, czy rozładowuje."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Battery",
+      "match": "Charge/Discharge Rate",
+      "what": {
+        "en": "Power flowing into or out of the battery, in watts. It shows how fast the battery charges or how fast the laptop drains it.",
+        "pl": "Moc płynąca do baterii lub z niej, w watach. Pokazuje, jak szybko bateria się ładuje lub jak szybko laptop ją rozładowuje."
+      }
+    },
+    {
+      "kind": "TimeSpan",
+      "hw": "Battery",
+      "match": "Remaining Time (Estimated)",
+      "what": {
+        "en": "Estimated time left until the battery is empty at the current usage. It changes with what the laptop is doing.",
+        "pl": "Szacowany czas do rozładowania baterii przy obecnym zużyciu. Zmienia się wraz z tym, co robi laptop."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Battery",
+      "match": "Battery Temperature",
+      "what": {
+        "en": "Temperature of the battery.",
+        "pl": "Temperatura baterii."
+      },
+      "watch": {
+        "en": "Batteries typically prefer to stay below ~45 °C; heat speeds up their wear.",
+        "pl": "Baterie zwykle wolą nie przekraczać ok. 45 °C; gorąco przyspiesza ich zużycie."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Psu",
+      "match": "VRM",
+      "what": {
+        "en": "Temperature of the power-conversion stage inside the power supply (PSU).",
+        "pl": "Temperatura stopnia przetwarzania energii wewnątrz zasilacza (PSU)."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Psu",
+      "match": "Case",
+      "what": {
+        "en": "Temperature inside the power supply's housing.",
+        "pl": "Temperatura wewnątrz obudowy zasilacza."
+      }
+    },
+    {
+      "kind": "Fan",
+      "hw": "Psu",
+      "match": "Case",
+      "what": {
+        "en": "Speed of the power supply's own fan, in RPM. Many PSUs keep the fan off at low load, which is normal.",
+        "pl": "Prędkość wentylatora samego zasilacza, w obr./min (RPM). Wiele zasilaczy wyłącza wentylator przy niskim obciążeniu i jest to normalne."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Psu",
+      "match": "Input",
+      "what": {
+        "en": "Voltage coming into the power supply from the wall socket (AC).",
+        "pl": "Napięcie wchodzące do zasilacza z gniazdka (prąd przemienny)."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Psu",
+      "match": "Input",
+      "what": {
+        "en": "Current drawn by the power supply from the wall socket (AC).",
+        "pl": "Prąd pobierany przez zasilacz z gniazdka (prąd przemienny)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Psu",
+      "match": "+12V",
+      "what": {
+        "en": "Voltage on the power supply's 12 V output, which feeds the CPU and graphics card.",
+        "pl": "Napięcie na wyjściu 12 V zasilacza, które zasila procesor i kartę graficzną."
+      },
+      "watch": {
+        "en": "A rail should stay close to its nominal value (within about 5%).",
+        "pl": "Napięcie powinno trzymać się blisko wartości nominalnej (w granicach ok. 5%)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Psu",
+      "match": "+5V",
+      "what": {
+        "en": "Voltage on the power supply's 5 V output, which feeds USB ports, drives and some chips.",
+        "pl": "Napięcie na wyjściu 5 V zasilacza, które zasila porty USB, dyski i niektóre układy."
+      },
+      "watch": {
+        "en": "A rail should stay close to its nominal value (within about 5%).",
+        "pl": "Napięcie powinno trzymać się blisko wartości nominalnej (w granicach ok. 5%)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "hw": "Psu",
+      "match": "+3.3V",
+      "what": {
+        "en": "Voltage on the power supply's 3.3 V output, which feeds chips on the board and expansion slots.",
+        "pl": "Napięcie na wyjściu 3,3 V zasilacza, które zasila układy na płycie i gniazda rozszerzeń."
+      },
+      "watch": {
+        "en": "A rail should stay close to its nominal value (within about 5%).",
+        "pl": "Napięcie powinno trzymać się blisko wartości nominalnej (w granicach ok. 5%)."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Psu",
+      "match": "+12V",
+      "what": {
+        "en": "Current drawn from the power supply's 12 V output, in amps. It rises with CPU and graphics-card load.",
+        "pl": "Prąd pobierany z wyjścia 12 V zasilacza, w amperach. Rośnie wraz z obciążeniem procesora i karty graficznej."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Psu",
+      "match": "+5V",
+      "what": {
+        "en": "Current drawn from the power supply's 5 V output, in amps.",
+        "pl": "Prąd pobierany z wyjścia 5 V zasilacza, w amperach."
+      }
+    },
+    {
+      "kind": "Current",
+      "hw": "Psu",
+      "match": "+3.3V",
+      "what": {
+        "en": "Current drawn from the power supply's 3.3 V output, in amps.",
+        "pl": "Prąd pobierany z wyjścia 3,3 V zasilacza, w amperach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Psu",
+      "match": "+12V",
+      "what": {
+        "en": "Power delivered by the power supply's 12 V output, in watts. In a gaming PC it carries most of the load.",
+        "pl": "Moc oddawana przez wyjście 12 V zasilacza, w watach. W komputerze do gier przenosi większość obciążenia."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Psu",
+      "match": "+5V",
+      "what": {
+        "en": "Power delivered by the power supply's 5 V output, in watts.",
+        "pl": "Moc oddawana przez wyjście 5 V zasilacza, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Psu",
+      "match": "+3.3V",
+      "what": {
+        "en": "Power delivered by the power supply's 3.3 V output, in watts.",
+        "pl": "Moc oddawana przez wyjście 3,3 V zasilacza, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Psu",
+      "match": "Total watts",
+      "what": {
+        "en": "Total power the power supply is delivering to the PC right now, in watts.",
+        "pl": "Całkowita moc, którą zasilacz oddaje teraz do komputera, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Psu",
+      "match": "Total Output",
+      "what": {
+        "en": "Total power delivered by the power supply, summed over its 12 V, 5 V and 3.3 V outputs, in watts.",
+        "pl": "Całkowita moc oddawana przez zasilacz, zsumowana z wyjść 12 V, 5 V i 3,3 V, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "hw": "Psu",
+      "match": "PSU Out",
+      "what": {
+        "en": "Total power the power supply is delivering to the PC right now, in watts.",
+        "pl": "Całkowita moc, którą zasilacz oddaje teraz do komputera, w watach."
+      }
+    },
+    {
+      "kind": "Level",
+      "hw": "Psu",
+      "match": "PSU Efficiency",
+      "what": {
+        "en": "How efficiently the power supply converts wall power into PC power, in percent. The rest becomes heat.",
+        "pl": "Jak sprawnie zasilacz zamienia prąd z gniazdka na zasilanie komputera, w procentach. Reszta zamienia się w ciepło."
+      }
+    },
+    {
+      "kind": "TimeSpan",
+      "hw": "Psu",
+      "match": "Uptime",
+      "what": {
+        "en": "How long the power supply has been running since it was last switched on.",
+        "pl": "Jak długo zasilacz działa od ostatniego włączenia."
+      }
+    },
+    {
+      "kind": "TimeSpan",
+      "hw": "Psu",
+      "match": "Total uptime",
+      "what": {
+        "en": "How long the power supply has been running in total over its lifetime.",
+        "pl": "Jak długo łącznie zasilacz pracował w całym swoim życiu."
+      }
+    },
+    {
+      "kind": "TimeSpan",
+      "hw": "Psu",
+      "match": "Total Runtime",
+      "what": {
+        "en": "How long the power supply has been running in total over its lifetime.",
+        "pl": "Jak długo łącznie zasilacz pracował w całym swoim życiu."
+      }
+    },
+    {
+      "kind": "Fps",
+      "hw": "Game",
+      "match": "Framerate",
+      "what": {
+        "en": "How many frames per second the game is drawing, counted from the frames it presents to the screen. Higher means smoother motion.",
+        "pl": "Ile klatek na sekundę rysuje gra, liczone z klatek, które przekazuje na ekran. Więcej oznacza płynniejszy ruch."
+      },
+      "watch": {
+        "en": "Frames above your monitor's refresh rate are not all shown on screen.",
+        "pl": "Klatki powyżej częstotliwości odświeżania monitora nie są w całości wyświetlane na ekranie."
+      }
+    },
+    {
+      "kind": "Fps",
+      "hw": "Game",
+      "match": "1% Low",
+      "what": {
+        "en": "The frame rate of the slowest 1% of frames: a good measure of stutter. Close to the average means smooth; a big gap means noticeable hitches.",
+        "pl": "Liczba klatek na sekundę dla najwolniejszego 1% klatek – dobra miara przycięć. Blisko średniej oznacza płynność; duża różnica to wyraźne przycięcia."
+      }
+    },
+    {
+      "kind": "Fps",
+      "hw": "Game",
+      "match": "0.1% Low",
+      "what": {
+        "en": "The frame rate of the slowest 0.1% of frames: it catches the rare, biggest hitches that the 1% low smooths out.",
+        "pl": "Liczba klatek na sekundę dla najwolniejszego 0,1% klatek – wychwytuje rzadkie, największe przycięcia, które 1% Low wygładza."
+      }
+    },
+    {
+      "kind": "FrameTime",
+      "hw": "Game",
+      "match": "Frametime",
+      "what": {
+        "en": "How long the latest frame took to produce, in milliseconds. Lower is better: 16.7 ms is 60 FPS, 6.9 ms is 144 FPS. Spikes feel like stutter.",
+        "pl": "Jak długo powstawała ostatnia klatka, w milisekundach. Mniej = lepiej: 16,7 ms to 60 FPS, 6,9 ms to 144 FPS. Skoki odczuwa się jako przycięcia."
+      },
+      "watch": {
+        "en": "A steady line matters more than a low number; jumps up and down feel like stutter even at a high FPS.",
+        "pl": "Ważniejsza jest równa linia niż niska liczba; skoki w górę i w dół są odczuwalne jako przycinanie nawet przy wysokim FPS."
+      }
+    },
+    {
+      "kind": "FrameTime",
+      "hw": "Game",
+      "match": "Frametime Max",
+      "what": {
+        "en": "The longest frame time recently, in milliseconds: the worst single hitch in the measured period.",
+        "pl": "Najdłuższy czas klatki w ostatnim okresie, w milisekundach – najgorsze pojedyncze przycięcie w mierzonym czasie."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Engine 3D",
+      "what": {
+        "en": "How busy the GPU's main 3D engine is, as measured by Windows. In games this is the main number for GPU load.",
+        "pl": "Jak bardzo obciążony jest główny silnik 3D GPU, według pomiaru Windows. W grach to główna liczba pokazująca obciążenie GPU."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Engine Copy",
+      "what": {
+        "en": "How busy the GPU's copy engine is: it moves data in and out of video memory, mostly while loading textures and levels.",
+        "pl": "Jak bardzo obciążony jest silnik kopiowania GPU, który przenosi dane do i z pamięci wideo, głównie podczas wczytywania tekstur i poziomów."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Engine Video Decode",
+      "what": {
+        "en": "How busy the GPU's video decoder is (playing videos and streams), as measured by Windows.",
+        "pl": "Jak bardzo obciążony jest dekoder wideo GPU (odtwarzanie filmów i strumieni), według pomiaru Windows."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Gpu",
+      "match": "GPU Engine Video Encode",
+      "what": {
+        "en": "How busy the GPU's video encoder is (recording and streaming), as measured by Windows.",
+        "pl": "Jak bardzo obciążony jest koder wideo GPU (nagrywanie i streaming), według pomiaru Windows."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "Dedicated GPU Memory",
+      "what": {
+        "en": "Video memory (VRAM) of the graphics card in use right now, according to Windows.",
+        "pl": "Pamięć wideo (VRAM) karty graficznej używana w tej chwili, według Windows."
+      },
+      "watch": {
+        "en": "If it keeps hitting the card's total, lower texture quality; otherwise the game may stutter.",
+        "pl": "Jeśli stale dobija do pojemności karty, obniż jakość tekstur – inaczej gra może się przycinać."
+      }
+    },
+    {
+      "kind": "Data",
+      "hw": "Gpu",
+      "match": "Shared GPU Memory",
+      "what": {
+        "en": "System RAM currently borrowed by the graphics card, according to Windows. Integrated graphics use it as their main memory.",
+        "pl": "Pamięć RAM komputera aktualnie pożyczona przez kartę graficzną, według Windows. Zintegrowana grafika używa jej jako głównej pamięci."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Storage",
+      "match": "Disk Temperature",
+      "what": {
+        "en": "Temperature of the drive as reported by the drive itself through Windows.",
+        "pl": "Temperatura dysku zgłaszana przez sam dysk za pośrednictwem Windows."
+      },
+      "watch": {
+        "en": "Typically HDDs prefer to stay under ~50 °C, while many SSDs slow down on their own from roughly 70 °C and up.",
+        "pl": "Zwykle dyski HDD wolą nie przekraczać ok. 50 °C, a wiele SSD samoczynnie zwalnia od ok. 70 °C wzwyż."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Storage",
+      "match": "Active Time",
+      "what": {
+        "en": "Share of time the drive was busy handling requests, in percent (like \"Active time\" in Task Manager). 100% means it is saturated.",
+        "pl": "Jaką część czasu dysk był zajęty obsługą żądań, w procentach (jak „Czas aktywności” w Menedżerze zadań). 100% oznacza przeciążony dysk."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Memory",
+      "match": "Memory Speed",
+      "what": {
+        "en": "Speed of the RAM in MT/s (mega-transfers per second), for example 6000 for DDR5-6000. This is the speed the modules are configured to run at.",
+        "pl": "Prędkość pamięci RAM w MT/s (megatransferach na sekundę), np. 6000 dla DDR5-6000. To prędkość, z jaką moduły są skonfigurowane do pracy."
+      },
+      "watch": {
+        "en": "A lower number than the speed on the box usually means XMP/EXPO is not enabled in the BIOS.",
+        "pl": "Niższa liczba niż prędkość podana na opakowaniu zwykle oznacza, że XMP/EXPO nie jest włączone w BIOS."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "CPU Core Max",
+      "what": {
+        "en": "Temperature of the hottest CPU core right now. A handy single number that shows the worst case among all cores.",
+        "pl": "Temperatura najgorętszego rdzenia procesora w tej chwili. Wygodna pojedyncza liczba pokazująca najgorszy przypadek spośród wszystkich rdzeni."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Cpu",
+      "match": "CPU Core Average",
+      "what": {
+        "en": "Average temperature of all CPU cores. Calmer than a single core, which can jump up and down quickly.",
+        "pl": "Średnia temperatura wszystkich rdzeni procesora. Spokojniejsza niż pojedynczy rdzeń, który potrafi szybko skakać w górę i w dół."
+      }
+    },
+    {
+      "kind": "Load",
+      "hw": "Cpu",
+      "match": "CPU Core Average",
+      "what": {
+        "en": "Average load of all CPU cores, in percent.",
+        "pl": "Średnie obciążenie wszystkich rdzeni procesora, w procentach."
+      }
+    },
+    {
+      "kind": "Clock",
+      "hw": "Cpu",
+      "match": "CPU Clock Max",
+      "what": {
+        "en": "The highest clock speed among all CPU cores right now. Games often push one or two cores much higher than the rest.",
+        "pl": "Najwyższe taktowanie spośród wszystkich rdzeni procesora w tej chwili. Gry często rozpędzają jeden–dwa rdzenie znacznie wyżej niż resztę."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "hw": "Memory",
+      "match": "DIMM Max",
+      "what": {
+        "en": "Temperature of the hottest memory module (DIMM). Only modules with a built-in temperature sensor are counted.",
+        "pl": "Temperatura najgorętszego modułu pamięci (DIMM). Liczone są tylko moduły z wbudowanym czujnikiem temperatury."
+      },
+      "watch": {
+        "en": "Memory modules are generally designed to stay below ~85 °C; sustained higher values suggest poor airflow.",
+        "pl": "Moduły pamięci są zwykle projektowane tak, by nie przekraczać ok. 85 °C; dłużej utrzymujące się wyższe wartości sugerują słaby przepływ powietrza."
+      }
+    },
+    {
+      "kind": "Throughput",
+      "match": "Total Throughput",
+      "what": {
+        "en": "Combined data rate of a group, for example download plus upload of all network adapters, or read plus write of all drives.",
+        "pl": "Łączna szybkość przepływu danych w grupie, np. pobieranie plus wysyłanie wszystkich kart sieciowych albo odczyt plus zapis wszystkich dysków."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Coolant",
+      "what": {
+        "en": "Temperature of the coolant (liquid) in a water-cooling loop.",
+        "pl": "Temperatura płynu chłodzącego w obiegu chłodzenia cieczą."
+      },
+      "watch": {
+        "en": "Coolant above roughly 50 °C is a sign that the radiator cannot shed the heat; many loops stay well below that.",
+        "pl": "Płyn powyżej ok. 50 °C to znak, że chłodnica nie nadąża z oddawaniem ciepła; w wielu obiegach temperatura jest wyraźnie niższa."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Water Temperature",
+      "what": {
+        "en": "Temperature of the coolant (liquid) in a water-cooling loop.",
+        "pl": "Temperatura płynu chłodzącego w obiegu chłodzenia cieczą."
+      },
+      "watch": {
+        "en": "Coolant above roughly 50 °C is a sign that the radiator cannot shed the heat; many loops stay well below that.",
+        "pl": "Płyn powyżej ok. 50 °C to znak, że chłodnica nie nadąża z oddawaniem ciepła; w wielu obiegach temperatura jest wyraźnie niższa."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Liquid*",
+      "what": {
+        "en": "Temperature of the coolant (liquid) in a water-cooling loop or all-in-one cooler.",
+        "pl": "Temperatura płynu chłodzącego w obiegu chłodzenia cieczą lub w zestawie AIO."
+      },
+      "watch": {
+        "en": "Coolant above roughly 50 °C is a sign that the radiator cannot shed the heat; many loops stay well below that.",
+        "pl": "Płyn powyżej ok. 50 °C to znak, że chłodnica nie nadąża z oddawaniem ciepła; w wielu obiegach temperatura jest wyraźnie niższa."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Internal Water",
+      "what": {
+        "en": "Temperature of the coolant measured inside the pump.",
+        "pl": "Temperatura płynu chłodzącego zmierzona wewnątrz pompy."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Inlet Temperature",
+      "what": {
+        "en": "Temperature of the coolant at the inlet of the cooler's pump block.",
+        "pl": "Temperatura płynu chłodzącego na wlocie bloku pompy chłodzenia."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "External Fan VRM",
+      "what": {
+        "en": "Temperature of the power stage (VRM) that drives the external fan output of an Aquastream pump.",
+        "pl": "Temperatura stopnia zasilania (VRM) sterującego zewnętrznym wyjściem wentylatora pompy Aquastream."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Onboard Temperature *",
+      "what": {
+        "en": "Temperature measured on the board of the WireView power-monitoring device, close to the graphics card's power connector.",
+        "pl": "Temperatura zmierzona na płytce urządzenia monitorującego zasilanie WireView, w pobliżu złącza zasilania karty graficznej."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "External*",
+      "what": {
+        "en": "Temperature from an external probe connected to the device. It shows whatever the probe is attached to (for example air or coolant).",
+        "pl": "Temperatura z zewnętrznej sondy podłączonej do urządzenia. Pokazuje to, do czego sonda jest przymocowana (np. powietrze lub płyn)."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Temperature Sensor {n}",
+      "what": {
+        "en": "Temperature from an external probe connected to the cooler. It shows whatever the probe is attached to.",
+        "pl": "Temperatura z zewnętrznej sondy podłączonej do chłodzenia. Pokazuje to, do czego sonda jest przymocowana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Digital Sensor*",
+      "what": {
+        "en": "Temperature from a digital probe of a T-Balancer controller. It shows whatever the probe is attached to.",
+        "pl": "Temperatura z cyfrowej sondy kontrolera T-Balancer. Pokazuje to, do czego sonda jest przymocowana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Analog Sensor*",
+      "what": {
+        "en": "Temperature from an analog probe of a T-Balancer controller. It shows whatever the probe is attached to.",
+        "pl": "Temperatura z analogowej sondy kontrolera T-Balancer. Pokazuje to, do czego sonda jest przymocowana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Sensorhub Sensor*",
+      "what": {
+        "en": "Temperature from a probe on a T-Balancer sensor hub. It shows whatever the probe is attached to.",
+        "pl": "Temperatura z sondy na hubie czujników T-Balancer. Pokazuje to, do czego sonda jest przymocowana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "miniNG*",
+      "what": {
+        "en": "Temperature from a probe of a T-Balancer miniNG module. It shows whatever the probe is attached to.",
+        "pl": "Temperatura z sondy modułu T-Balancer miniNG. Pokazuje to, do czego sonda jest przymocowana."
+      }
+    },
+    {
+      "kind": "Temperature",
+      "match": "Temperature #{n}",
+      "what": {
+        "en": "Temperature from a numbered probe input of a fan controller or sensor chip. The label does not say what it measures; that depends on what is connected.",
+        "pl": "Temperatura z numerowanego wejścia sondy kontrolera wentylatorów lub układu czujników. Etykieta nie mówi, co mierzy – zależy to od tego, co jest podłączone."
+      }
+    },
+    {
+      "kind": "Fan",
+      "match": "Pump Fan",
+      "what": {
+        "en": "Speed of the small fan on the pump unit of a liquid cooler, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość małego wentylatora na jednostce pompy chłodzenia cieczą, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "match": "*Pump*",
+      "what": {
+        "en": "Speed of the pump of a water-cooling loop or all-in-one cooler, in RPM. Pumps normally run at a steady speed; 0 or a drop means trouble.",
+        "pl": "Prędkość pompy chłodzenia cieczą lub zestawu AIO, w obr./min (RPM). Pompy zwykle pracują ze stałą prędkością; 0 lub spadek to sygnał problemu."
+      },
+      "watch": {
+        "en": "A pump showing 0 RPM while the PC is on can mean a failed pump or a loose connector, and the CPU may overheat quickly.",
+        "pl": "Pompa pokazująca 0 RPM przy włączonym komputerze może oznaczać awarię lub luźne złącze, a procesor może szybko się przegrzać."
+      }
+    },
+    {
+      "kind": "Fan",
+      "match": "Radiator Fan*",
+      "what": {
+        "en": "Speed of the radiator fan of a liquid cooler, in RPM. It rises when the coolant gets hotter.",
+        "pl": "Prędkość wentylatora chłodnicy chłodzenia cieczą, w obr./min (RPM). Rośnie, gdy płyn się nagrzewa."
+      }
+    },
+    {
+      "kind": "Fan",
+      "match": "GRID Fan*",
+      "what": {
+        "en": "Speed of a fan connected to an NZXT GRID controller, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora podłączonego do kontrolera NZXT GRID, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "match": "Fan Channel*",
+      "what": {
+        "en": "Speed of a fan on a T-Balancer controller channel, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora na kanale kontrolera T-Balancer, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "match": "miniNG*",
+      "what": {
+        "en": "Speed of a fan on a T-Balancer miniNG channel, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora na kanale modułu T-Balancer miniNG, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Fan",
+      "match": "*Fan*",
+      "what": {
+        "en": "Speed of a fan connected to a fan controller or cooler, in RPM. 0 means stopped or nothing connected.",
+        "pl": "Prędkość wentylatora podłączonego do kontrolera wentylatorów lub chłodzenia, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego wentylatora."
+      }
+    },
+    {
+      "kind": "Control",
+      "match": "Pump Fan*",
+      "what": {
+        "en": "How hard the small fan on the pump unit is being driven, as a percentage of maximum. A command, not the measured speed.",
+        "pl": "Jak mocno sterowany jest mały wentylator na jednostce pompy, w procentach maksimum. To polecenie, a nie zmierzona prędkość."
+      }
+    },
+    {
+      "kind": "Control",
+      "match": "*Pump*",
+      "what": {
+        "en": "How hard the pump is being driven, as a percentage of maximum. This is the command, not the measured speed (see the matching RPM).",
+        "pl": "Jak mocno sterowana jest pompa, w procentach maksimum. To polecenie, a nie zmierzona prędkość (patrz odpowiadające RPM)."
+      }
+    },
+    {
+      "kind": "Control",
+      "match": "WireView Pro II (*)",
+      "what": {
+        "en": "How hard the fan of the WireView Pro II power monitor is being driven, as a percentage of maximum. A command, not the measured speed.",
+        "pl": "Jak mocno sterowany jest wentylator monitora zasilania WireView Pro II, w procentach maksimum. To polecenie, a nie zmierzona prędkość."
+      }
+    },
+    {
+      "kind": "Control",
+      "match": "Control #{n}",
+      "what": {
+        "en": "How hard a fan output is being driven, as a percentage of maximum. This is the command, not the measured speed (see the matching RPM).",
+        "pl": "Jak mocno sterowane jest wyjście wentylatora, w procentach maksimum. To polecenie, a nie zmierzona prędkość (patrz odpowiadające RPM)."
+      }
+    },
+    {
+      "kind": "Control",
+      "match": "*Fan*",
+      "what": {
+        "en": "How hard a fan is being driven, as a percentage of maximum. This is the command, not the measured speed (see the matching RPM).",
+        "pl": "Jak mocno sterowany jest wentylator, w procentach maksimum. To polecenie, a nie zmierzona prędkość (patrz odpowiadające RPM)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "match": "+*V Voltage",
+      "what": {
+        "en": "Voltage of a supply line feeding the controller, as measured by the controller itself.",
+        "pl": "Napięcie linii zasilania kontrolera, mierzone przez sam kontroler."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "match": "*Pump*",
+      "what": {
+        "en": "Voltage the controller applies to the pump motor. It sets how fast the pump runs.",
+        "pl": "Napięcie, które kontroler podaje na silnik pompy. Decyduje o tym, jak szybko pompa pracuje."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "match": "*Fan*",
+      "what": {
+        "en": "Voltage the controller applies to a fan output. For DC-controlled fans it sets how fast they spin.",
+        "pl": "Napięcie, które kontroler podaje na wyjście wentylatora. W wentylatorach sterowanych napięciem decyduje o ich prędkości."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "match": "Input",
+      "what": {
+        "en": "Voltage the controller receives from its power connector.",
+        "pl": "Napięcie, które kontroler otrzymuje ze swojego złącza zasilania."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "match": "VCC",
+      "what": {
+        "en": "Supply voltage of the device's electronics, measured by the device itself.",
+        "pl": "Napięcie zasilania elektroniki urządzenia, mierzone przez samo urządzenie."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "match": "VCC USB",
+      "what": {
+        "en": "Voltage the device receives over its USB connection (nominally 5 V).",
+        "pl": "Napięcie, które urządzenie otrzymuje przez złącze USB (nominalnie 5 V)."
+      }
+    },
+    {
+      "kind": "Voltage",
+      "match": "Pin {n} Voltage",
+      "what": {
+        "en": "Voltage at one pin of the graphics card's high-power connector (12V-2x6 / 12VHPWR), measured by the WireView device. It should be close to 12 V.",
+        "pl": "Napięcie na jednym pinie wysokoprądowego złącza karty graficznej (12V-2x6 / 12VHPWR), mierzone przez urządzenie WireView. Powinno być bliskie 12 V."
+      }
+    },
+    {
+      "kind": "Current",
+      "match": "*Pump*",
+      "what": {
+        "en": "Current drawn by the pump motor, in amps.",
+        "pl": "Prąd pobierany przez silnik pompy, w amperach."
+      }
+    },
+    {
+      "kind": "Current",
+      "match": "*Fan*",
+      "what": {
+        "en": "Current drawn by a fan output of the controller, in amps. It rises with fan speed.",
+        "pl": "Prąd pobierany przez wyjście wentylatora kontrolera, w amperach. Rośnie wraz z prędkością wentylatora."
+      }
+    },
+    {
+      "kind": "Current",
+      "match": "Total Current",
+      "what": {
+        "en": "Total current flowing through the graphics card's high-power connector (12V-2x6 / 12VHPWR), measured by the WireView device, in amps.",
+        "pl": "Całkowity prąd płynący przez wysokoprądowe złącze karty graficznej (12V-2x6 / 12VHPWR), mierzony przez urządzenie WireView, w amperach."
+      }
+    },
+    {
+      "kind": "Current",
+      "match": "Pin {n} Current",
+      "what": {
+        "en": "Current through one pin of the graphics card's high-power connector (12V-2x6 / 12VHPWR), measured by the WireView device, in amps.",
+        "pl": "Prąd płynący przez jeden pin wysokoprądowego złącza karty graficznej (12V-2x6 / 12VHPWR), mierzony przez urządzenie WireView, w amperach."
+      },
+      "watch": {
+        "en": "Pins should carry roughly similar current; a large difference can point to a badly seated or damaged cable.",
+        "pl": "Piny powinny przenosić zbliżony prąd; duża różnica może wskazywać na źle wpięty lub uszkodzony kabel."
+      }
+    },
+    {
+      "kind": "Power",
+      "match": "Dissipated Power",
+      "what": {
+        "en": "Heat power the liquid is carrying away from the components, calculated from the coolant temperatures and the flow, in watts.",
+        "pl": "Moc cieplna odprowadzana przez płyn od podzespołów, obliczona z temperatur płynu i jego przepływu, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "match": "*Pump*",
+      "what": {
+        "en": "Electric power drawn by the pump motor, in watts.",
+        "pl": "Moc elektryczna pobierana przez silnik pompy, w watach."
+      }
+    },
+    {
+      "kind": "Power",
+      "match": "*Fan*",
+      "what": {
+        "en": "Electric power drawn by a fan output of the controller, in watts. It rises with fan speed.",
+        "pl": "Moc elektryczna pobierana przez wyjście wentylatora kontrolera, w watach. Rośnie wraz z prędkością wentylatora."
+      }
+    },
+    {
+      "kind": "Power",
+      "match": "Total Power",
+      "what": {
+        "en": "Total power flowing through the graphics card's high-power connector (12V-2x6 / 12VHPWR), measured by the WireView device, in watts.",
+        "pl": "Całkowita moc przepływająca przez wysokoprądowe złącze karty graficznej (12V-2x6 / 12VHPWR), mierzona przez urządzenie WireView, w watach."
+      }
+    },
+    {
+      "kind": "Flow",
+      "match": "Flowmeter*",
+      "what": {
+        "en": "Coolant flow measured by a flow meter of a T-Balancer controller, in litres per hour.",
+        "pl": "Przepływ płynu zmierzony przepływomierzem kontrolera T-Balancer, w litrach na godzinę."
+      }
+    },
+    {
+      "kind": "Flow",
+      "match": "Viritual Flow",
+      "what": {
+        "en": "Flow rate estimated by the controller (not measured by a flow sensor), in litres per hour.",
+        "pl": "Przepływ szacowany przez kontroler (a nie mierzony czujnikiem przepływu), w litrach na godzinę."
+      }
+    },
+    {
+      "kind": "Flow",
+      "match": "Virtual Flow",
+      "what": {
+        "en": "Flow rate estimated by the controller (not measured by a flow sensor), in litres per hour.",
+        "pl": "Przepływ szacowany przez kontroler (a nie mierzony czujnikiem przepływu), w litrach na godzinę."
+      }
+    },
+    {
+      "kind": "Flow",
+      "match": "*Pump*",
+      "what": {
+        "en": "Flow rate of coolant produced by the pump, in litres per hour.",
+        "pl": "Przepływ płynu wytwarzany przez pompę, w litrach na godzinę."
+      }
+    },
+    {
+      "kind": "Flow",
+      "match": "Flow",
+      "what": {
+        "en": "How much coolant flows through the loop, in litres per hour. A drop can mean a clogged block or a failing pump.",
+        "pl": "Ile płynu przepływa przez obieg, w litrach na godzinę. Spadek może oznaczać zapchany blok lub psującą się pompę."
+      }
+    },
+    {
+      "kind": "Frequency",
+      "match": "Pump Frequency",
+      "what": {
+        "en": "Current drive frequency of the pump motor, in Hz. It sets the pump speed.",
+        "pl": "Aktualna częstotliwość sterowania silnikiem pompy, w Hz. Decyduje o prędkości pompy."
+      }
+    },
+    {
+      "kind": "Frequency",
+      "match": "Pump MaxFrequency",
+      "what": {
+        "en": "Highest drive frequency the pump motor is set to use, in Hz. A setting, not a live reading.",
+        "pl": "Najwyższa częstotliwość sterowania silnikiem pompy, jaką ustawiono do użycia, w Hz. Ustawienie, a nie odczyt na żywo."
+      }
+    },
+    {
+      "kind": "Factor",
+      "match": "Pressure (mBar)",
+      "what": {
+        "en": "Pressure of the coolant in the pump, in millibar.",
+        "pl": "Ciśnienie płynu w pompie, w milibarach."
+      }
+    },
+    {
+      "kind": "Factor",
+      "match": "*Alarm",
+      "what": {
+        "en": "An alarm flag of the cooler: usually 0 when everything is fine and a non-zero value when the alarm is active.",
+        "pl": "Flaga alarmu chłodzenia: zwykle 0, gdy wszystko jest w porządku, i wartość różna od zera, gdy alarm jest aktywny."
+      }
+    },
+    {
+      "kind": "Level",
+      "match": "Water Quality",
+      "what": {
+        "en": "Quality of the coolant in percent, as estimated by the device. A low value means the liquid is aging.",
+        "pl": "Jakość płynu chłodzącego w procentach, szacowana przez urządzenie. Niska wartość oznacza starzenie się płynu."
+      }
+    },
+    {
+      "kind": "Level",
+      "match": "Controller {n} *",
+      "what": {
+        "en": "Brightness level (in percent) of one colour channel of an RGB lighting controller output.",
+        "pl": "Poziom jasności (w procentach) jednego kanału koloru wyjścia kontrolera oświetlenia RGB."
+      }
+    },
+    {
+      "kind": "Conductivity",
+      "match": "Conductivity",
+      "what": {
+        "en": "Electrical conductivity of the coolant, in µS/cm. It rises as the liquid picks up dissolved particles and ages.",
+        "pl": "Przewodność elektryczna płynu chłodzącego, w µS/cm. Rośnie, gdy płyn zbiera rozpuszczone cząstki i się starzeje."
+      }
+    },
+    {
+      "kind": "Noise",
+      "match": "GRID Noise",
+      "what": {
+        "en": "Estimated noise level of the fans connected to the controller, in dBA.",
+        "pl": "Szacowany poziom hałasu wentylatorów podłączonych do kontrolera, w dBA."
+      }
+    }
+  ],
+  "fallbacks": {
+    "Voltage": {
+      "en": "An electrical voltage (V) measured on a component or power line. Small changes are normal; big drifts from the usual value are worth a look.",
+      "pl": "Napięcie elektryczne (V) zmierzone na podzespole lub linii zasilania. Małe zmiany są normalne; duże odchylenia od zwykłej wartości warto sprawdzić."
+    },
+    "Current": {
+      "en": "How much electric current (A) flows through a component or power line. It rises with load.",
+      "pl": "Jak duży prąd elektryczny (A) płynie przez podzespół lub linię zasilania. Rośnie wraz z obciążeniem."
+    },
+    "Power": {
+      "en": "How much electric power (W) a component is drawing right now. It rises with load and falls when idle.",
+      "pl": "Ile mocy elektrycznej (W) pobiera teraz dany podzespół. Rośnie wraz z obciążeniem i spada w spoczynku."
+    },
+    "Clock": {
+      "en": "How fast a part is running right now, in MHz (millions of cycles per second). It changes constantly with load and power saving.",
+      "pl": "Z jaką prędkością pracuje dana część, w MHz (miliony cykli na sekundę). Zmienia się cały czas wraz z obciążeniem i oszczędzaniem energii."
+    },
+    "Temperature": {
+      "en": "How hot a part is, in °C. It is higher under load; if it keeps climbing, check cooling and airflow.",
+      "pl": "Jak gorąca jest dana część, w °C. Pod obciążeniem jest wyższa; jeśli stale rośnie, sprawdź chłodzenie i przepływ powietrza."
+    },
+    "Load": {
+      "en": "How busy something is, as a percentage. 100% means it is fully used.",
+      "pl": "Jak bardzo coś jest obciążone, w procentach. 100% oznacza pełne wykorzystanie."
+    },
+    "Frequency": {
+      "en": "A frequency in Hz: how many cycles per second something runs at.",
+      "pl": "Częstotliwość w Hz – ile cykli na sekundę wykonuje dany element."
+    },
+    "Fan": {
+      "en": "Speed of a fan or pump, in RPM (revolutions per minute). 0 means stopped or nothing connected.",
+      "pl": "Prędkość wentylatora lub pompy, w obr./min (RPM). 0 oznacza zatrzymanie lub brak podłączonego urządzenia."
+    },
+    "Flow": {
+      "en": "How much liquid flows through a water-cooling loop, in litres per hour.",
+      "pl": "Ile płynu przepływa przez obieg chłodzenia cieczą, w litrach na godzinę."
+    },
+    "Control": {
+      "en": "How hard the system drives a fan or pump, as a percentage of maximum. It is a command, not the measured speed.",
+      "pl": "Jak mocno system steruje wentylatorem lub pompą, w procentach maksimum. To polecenie, a nie zmierzona prędkość."
+    },
+    "Level": {
+      "en": "A level or share in percent, for example charge, remaining life or used capacity.",
+      "pl": "Poziom lub udział w procentach, np. naładowanie, pozostała trwałość lub zajęta pojemność."
+    },
+    "Factor": {
+      "en": "A plain number without a unit reported by the hardware, such as a ratio, multiplier, counter or flag.",
+      "pl": "Zwykła liczba bez jednostki zgłaszana przez sprzęt, np. współczynnik, mnożnik, licznik lub flaga."
+    },
+    "Data": {
+      "en": "An amount of data or memory (shown in GB or similar): used, free or total.",
+      "pl": "Ilość danych lub pamięci (pokazywana w GB lub podobnie): używana, wolna albo całkowita."
+    },
+    "SmallData": {
+      "en": "A small amount of data or memory (shown in MB or similar): used, free or total.",
+      "pl": "Niewielka ilość danych lub pamięci (pokazywana w MB lub podobnie): używana, wolna albo całkowita."
+    },
+    "Throughput": {
+      "en": "A data transfer rate: how much data moves per second (for example MB/s).",
+      "pl": "Szybkość transferu danych – ile danych przepływa w ciągu sekundy (np. MB/s)."
+    },
+    "TimeSpan": {
+      "en": "A length of time reported by the hardware, for example uptime or time remaining.",
+      "pl": "Odcinek czasu zgłaszany przez sprzęt, np. czas pracy lub czas, który pozostał."
+    },
+    "Timing": {
+      "en": "A timing in nanoseconds (ns), for example a memory delay. Lower usually means faster.",
+      "pl": "Czas w nanosekundach (ns), np. opóźnienie pamięci. Mniej zwykle oznacza szybciej."
+    },
+    "Energy": {
+      "en": "An amount of stored or consumed energy (mWh), for example a battery capacity.",
+      "pl": "Ilość zgromadzonej lub zużytej energii (mWh), np. pojemność baterii."
+    },
+    "Noise": {
+      "en": "A noise level in dBA. Lower is quieter.",
+      "pl": "Poziom hałasu w dBA. Mniej = ciszej."
+    },
+    "Conductivity": {
+      "en": "Electrical conductivity in µS/cm, for example of the coolant in a water-cooling loop. It shows how much the liquid has aged.",
+      "pl": "Przewodność elektryczna w µS/cm, np. płynu w obiegu chłodzenia cieczą. Pokazuje, na ile płyn się zestarzał."
+    },
+    "Humidity": {
+      "en": "Relative humidity in percent.",
+      "pl": "Wilgotność względna w procentach."
+    },
+    "Fps": {
+      "en": "How many frames per second the game is drawing. Higher means smoother motion.",
+      "pl": "Ile klatek na sekundę rysuje gra. Więcej oznacza płynniejszy ruch."
+    },
+    "FrameTime": {
+      "en": "How long each frame takes to produce, in milliseconds. Lower is better; sudden spikes feel like stutter.",
+      "pl": "Jak długo powstaje każda klatka, w milisekundach. Mniej = lepiej; nagłe skoki odczuwa się jako przycięcia."
+    }
+  }
+}

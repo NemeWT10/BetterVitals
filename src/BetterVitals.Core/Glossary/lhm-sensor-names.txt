@@ -1,0 +1,960 @@
+# LibreHardwareMonitorLib 0.9.7-pre771 sensor names (built from master commit feb0e0ee33cb, 2026-10-23), one "Kind|Hw|Name" per line.
+# Kind = LHM SensorType; Hw = BetterVitals hardware category. Lines starting with "#" are comments.
+# Dynamic names (Core #n, GPU Memory #n, Fan #n, ...) are listed with a few sample indices.
+
+# CPU - generic (GenericCpu: load sensors) [Cpu]
+Load|Cpu|CPU Total
+Load|Cpu|CPU Core Max
+Load|Cpu|CPU Core
+Load|Cpu|CPU Core #1
+Load|Cpu|CPU Core #2
+Load|Cpu|CPU Core #8
+Load|Cpu|CPU Core #16
+Load|Cpu|CPU Core #24
+Load|Cpu|CPU Core #1 Thread #1
+Load|Cpu|CPU Core #1 Thread #2
+Load|Cpu|CPU Core #2 Thread #1
+Load|Cpu|CPU Core #2 Thread #2
+Load|Cpu|CPU Core #12 Thread #1
+Load|Cpu|CPU Core #12 Thread #2
+
+# CPU - Intel (IntelCpu) [Cpu]
+Temperature|Cpu|Core Max
+Temperature|Cpu|Core Average
+Temperature|Cpu|CPU Package
+Temperature|Cpu|CPU Core #1
+Temperature|Cpu|CPU Core #8
+Temperature|Cpu|P-Core #1
+Temperature|Cpu|P-Core #8
+Temperature|Cpu|E-Core #1
+Temperature|Cpu|E-Core #16
+Temperature|Cpu|CPU Core
+Temperature|Cpu|CPU Core #1 Distance to TjMax
+Temperature|Cpu|P-Core #1 Distance to TjMax
+Temperature|Cpu|E-Core #1 Distance to TjMax
+Temperature|Cpu|E-Core #16 Distance to TjMax
+Clock|Cpu|Bus Speed
+Clock|Cpu|CPU Core #1
+Clock|Cpu|CPU Core #8
+Clock|Cpu|P-Core #1
+Clock|Cpu|P-Core #8
+Clock|Cpu|E-Core #1
+Clock|Cpu|E-Core #16
+Clock|Cpu|CPU Core
+Power|Cpu|CPU Package
+Power|Cpu|CPU Cores
+Power|Cpu|CPU Graphics
+Power|Cpu|CPU Memory
+Power|Cpu|CPU Platform
+Voltage|Cpu|CPU Core
+Voltage|Cpu|CPU Core #1
+Voltage|Cpu|CPU Core #8
+Voltage|Cpu|P-Core #1
+Voltage|Cpu|E-Core #1
+Voltage|Cpu|E-Core #16
+
+# CPU - AMD Zen (Amd17Cpu) [Cpu]
+Temperature|Cpu|Core (Tctl/Tdie)
+Temperature|Cpu|Core (Tctl)
+Temperature|Cpu|Core (Tdie)
+Temperature|Cpu|CCD1 (Tdie)
+Temperature|Cpu|CCD2 (Tdie)
+Temperature|Cpu|CCD8 (Tdie)
+Temperature|Cpu|CCD16 (Tdie)
+Temperature|Cpu|CCDs Max (Tdie)
+Temperature|Cpu|CCDs Average (Tdie)
+Temperature|Cpu|Core #1
+Temperature|Cpu|Core #8
+Temperature|Cpu|Core #16
+Power|Cpu|Package
+Power|Cpu|Core #1 (SMU)
+Power|Cpu|Core #16 (SMU)
+Voltage|Cpu|Core (SVI2 TFN)
+Voltage|Cpu|SoC (SVI2 TFN)
+Voltage|Cpu|Core VIDs
+Voltage|Cpu|Core #1 VID
+Voltage|Cpu|Core #16 VID
+Clock|Cpu|Cores (Average)
+Clock|Cpu|Cores (Average Effective)
+Clock|Cpu|Core #1
+Clock|Cpu|Core #16
+Clock|Cpu|Core #1 (Effective)
+Clock|Cpu|Core #16 (Effective)
+Factor|Cpu|Core #1
+Factor|Cpu|Core #16
+
+# CPU - AMD Zen SMU PM-table sensors (RyzenSMU.cs, uncommented entries) [Cpu]
+Current|Cpu|TDC
+Current|Cpu|EDC
+Current|Cpu|SoC
+Power|Cpu|SoC
+Temperature|Cpu|Core #2
+Temperature|Cpu|Core #3
+Temperature|Cpu|Core #4
+Voltage|Cpu|GFX
+Temperature|Cpu|GFX
+Clock|Cpu|GFX
+Load|Cpu|GFX
+Clock|Cpu|Fabric
+Clock|Cpu|Uncore
+Clock|Cpu|Memory
+Factor|Cpu|Displays
+Temperature|Cpu|SoC
+Power|Cpu|CPU PPT
+Temperature|Cpu|Package
+Power|Cpu|Core Power
+Power|Cpu|SOC Power
+Power|Cpu|Misc Power
+Power|Cpu|Total Power
+Voltage|Cpu|VDDCR
+Voltage|Cpu|VDDCR SoC
+Voltage|Cpu|VDD Misc
+Temperature|Cpu|IOD Hotspot
+Temperature|Cpu|L3 (CCD1)
+Temperature|Cpu|L3 (CCD2)
+Voltage|Cpu|LDO VDD
+Power|Cpu|CPU PPT Limit
+Power|Cpu|PPT Fast Limit
+Power|Cpu|PPT Slow
+Power|Cpu|PPT Fast
+Current|Cpu|TDC Limit
+Current|Cpu|EDC Limit
+Temperature|Cpu|CPU Temperature Limit
+Temperature|Cpu|VDDCR VDD
+Temperature|Cpu|VDDCR SoC
+Temperature|Cpu|VDD Misc
+Power|Cpu|SoC Power
+Voltage|Cpu|SoC Voltage
+Current|Cpu|SoC Current
+Voltage|Cpu|CLDO VDDG IOD
+Voltage|Cpu|CLDO VDDG CCD
+Voltage|Cpu|CLDO VDDP
+
+# CPU - AMD K8 / K10-K16 (Amd0FCpu, Amd10Cpu) [Cpu]
+Temperature|Cpu|CPU Cores
+Voltage|Cpu|CPU Cores
+Voltage|Cpu|Northbridge
+Level|Cpu|CPU Package C2
+Level|Cpu|CPU Package C3
+
+# GPU - NVIDIA (NvidiaGpu) [Gpu]
+Temperature|Gpu|GPU Core
+Temperature|Gpu|GPU Memory
+Temperature|Gpu|GPU Power Supply
+Temperature|Gpu|GPU Board
+Temperature|Gpu|GPU Visual Computing Board
+Temperature|Gpu|GPU Visual Computing Inlet
+Temperature|Gpu|GPU Visual Computing Outlet
+Temperature|Gpu|GPU
+Temperature|Gpu|GPU Hot Spot
+Temperature|Gpu|GPU Memory Junction
+Temperature|Gpu|GPU Hot Spot #1
+Temperature|Gpu|GPU Hot Spot #2
+Temperature|Gpu|GPU Hot Spot #6
+Temperature|Gpu|GPU Memory #1
+Temperature|Gpu|GPU Memory #2
+Temperature|Gpu|GPU Memory #24
+Temperature|Gpu|GPU Memory #48
+Clock|Gpu|GPU Core
+Clock|Gpu|GPU Memory
+Clock|Gpu|GPU Shader
+Clock|Gpu|GPU Video
+Fan|Gpu|GPU Fan
+Fan|Gpu|GPU Fan 1
+Fan|Gpu|GPU Fan 2
+Fan|Gpu|GPU
+Control|Gpu|GPU Fan
+Control|Gpu|GPU Fan 1
+Control|Gpu|GPU Fan 2
+Load|Gpu|GPU Core
+Load|Gpu|GPU Memory Controller
+Load|Gpu|GPU Video Engine
+Load|Gpu|GPU Bus
+Load|Gpu|GPU Memory
+Load|Gpu|GPU Power
+Load|Gpu|GPU Board Power
+Voltage|Gpu|GPU Core Voltage
+Power|Gpu|GPU Package
+Throughput|Gpu|GPU PCIe Rx
+Throughput|Gpu|GPU PCIe Tx
+Data|Gpu|GPU Memory Free
+Data|Gpu|GPU Memory Used
+Data|Gpu|GPU Memory Total
+Data|Gpu|D3D Dedicated Memory Used
+Data|Gpu|D3D Shared Memory Used
+Voltage|Gpu|12VHPWR Pin 1
+Current|Gpu|12VHPWR Pin 1
+Power|Gpu|12VHPWR Pin 1
+Voltage|Gpu|12VHPWR Pin 2
+Current|Gpu|12VHPWR Pin 2
+Power|Gpu|12VHPWR Pin 2
+Voltage|Gpu|12VHPWR Pin 3
+Current|Gpu|12VHPWR Pin 3
+Power|Gpu|12VHPWR Pin 3
+Voltage|Gpu|12VHPWR Pin 4
+Current|Gpu|12VHPWR Pin 4
+Power|Gpu|12VHPWR Pin 4
+Voltage|Gpu|12VHPWR Pin 5
+Current|Gpu|12VHPWR Pin 5
+Power|Gpu|12VHPWR Pin 5
+Voltage|Gpu|12VHPWR Pin 6
+Current|Gpu|12VHPWR Pin 6
+Power|Gpu|12VHPWR Pin 6
+Power|Gpu|12VHPWR Connector
+Current|Gpu|12VHPWR Connector
+
+# GPU - D3D engine nodes (D3DDisplayDevice, used by NVIDIA/AMD/Intel) [Gpu]
+Load|Gpu|D3D 3D
+Load|Gpu|D3D Video Decode
+Load|Gpu|D3D Video Encode
+Load|Gpu|D3D Video Processing
+Load|Gpu|D3D Scene Assembly
+Load|Gpu|D3D Copy
+Load|Gpu|D3D Overlay
+Load|Gpu|D3D Crypto
+Load|Gpu|D3D Unknown
+Load|Gpu|D3D Other
+Load|Gpu|D3D JPEG Decode 0
+Load|Gpu|D3D JPEG Decode 7
+Load|Gpu|D3D Optical Flow Accelerator 0
+
+# GPU - AMD (AmdGpu) [Gpu]
+Temperature|Gpu|GPU VR VDDC
+Temperature|Gpu|GPU VR MVDD
+Temperature|Gpu|GPU VR SoC
+Temperature|Gpu|GPU Liquid
+Temperature|Gpu|GPU PLX
+Clock|Gpu|GPU SoC
+Voltage|Gpu|GPU Core
+Voltage|Gpu|GPU Memory
+Voltage|Gpu|GPU SoC
+Power|Gpu|GPU Core
+Power|Gpu|GPU PPT
+Power|Gpu|GPU SoC
+Factor|Gpu|Fullscreen FPS
+Data|Gpu|D3D Dedicated Memory Free
+Data|Gpu|D3D Dedicated Memory Total
+Data|Gpu|D3D Shared Memory Free
+Data|Gpu|D3D Shared Memory Total
+
+# GPU - Intel integrated (IntelIntegratedGpu) [Gpu]
+Power|Gpu|GPU Power
+
+# GPU - Intel discrete Arc (IntelDiscreteGpu) [Gpu]
+Power|Gpu|GPU Total
+Load|Gpu|GPU Render/Compute
+Load|Gpu|GPU Media
+Throughput|Gpu|GPU Memory Read
+Throughput|Gpu|GPU Memory Write
+
+# Motherboard - SuperIOHardware board tables: Voltage [Motherboard]
+Voltage|Motherboard|VCC3V
+Voltage|Motherboard|VSB3V
+Voltage|Motherboard|Battery
+Voltage|Motherboard|Vcore
+Voltage|Motherboard|Voltage #2
+Voltage|Motherboard|Voltage #3
+Voltage|Motherboard|AVCC
+Voltage|Motherboard|Voltage #5
+Voltage|Motherboard|+5VSB
+Voltage|Motherboard|CMOS Battery
+Voltage|Motherboard|DRAM
+Voltage|Motherboard|+3.3V (AVCC)
+Voltage|Motherboard|+3.3V (3VCC)
+Voltage|Motherboard|VDD Misc
+Voltage|Motherboard|3VSB
+Voltage|Motherboard|VBat
+Voltage|Motherboard|Voltage #7
+Voltage|Motherboard|Voltage #9
+Voltage|Motherboard|+12V
+Voltage|Motherboard|AVSB
+Voltage|Motherboard|3VCC
+Voltage|Motherboard|+5V
+Voltage|Motherboard|VDIMM
+Voltage|Motherboard|Voltage #0
+Voltage|Motherboard|+3.3V
+Voltage|Motherboard|Voltage #1
+Voltage|Motherboard|Reserved
+Voltage|Motherboard|+3V Standby
+Voltage|Motherboard|Voltage #10
+Voltage|Motherboard|VCore
+Voltage|Motherboard|Super I/O
+Voltage|Motherboard|VTT
+Voltage|Motherboard|+3.3V Standby
+Voltage|Motherboard|CPU Northbridge/SoC
+Voltage|Motherboard|DIMM
+Voltage|Motherboard|Chipset
+Voltage|Motherboard|CPU System Agent
+Voltage|Motherboard|+1.8V
+Voltage|Motherboard|CPU VDDP
+Voltage|Motherboard|CPU VDDIO
+Voltage|Motherboard|CPU Termination
+Voltage|Motherboard|CPU I/O
+Voltage|Motherboard|AVCC3
+Voltage|Motherboard|VRef
+Voltage|Motherboard|VSB
+Voltage|Motherboard|VREF
+Voltage|Motherboard|VIN5
+Voltage|Motherboard|VIN7
+Voltage|Motherboard|Unknown_3
+Voltage|Motherboard|Voltage #
+Voltage|Motherboard|Voltage #4
+Voltage|Motherboard|Voltage #6
+Voltage|Motherboard|Voltage #8
+Voltage|Motherboard|Northbridge Core
+Voltage|Motherboard|Phase Locked Loop
+Voltage|Motherboard|Southbridge 2.5V
+Voltage|Motherboard|DIMM A/B
+Voltage|Motherboard|Southbridge 1.05V
+Voltage|Motherboard|DIMM C/D
+Voltage|Motherboard|Vccp2
+Voltage|Motherboard|Northbridge
+Voltage|Motherboard|iGPU VAXG
+Voltage|Motherboard|iGPU
+Voltage|Motherboard|CPU Input Auxiliary
+Voltage|Motherboard|VSOC
+Voltage|Motherboard|VDDP
+Voltage|Motherboard|Vcore SoC
+Voltage|Motherboard|iGPU VAGX
+Voltage|Motherboard|Vcore Misc
+Voltage|Motherboard|Dual DDR5 5V
+Voltage|Motherboard|CPU Vcore SoC
+Voltage|Motherboard|VCCSA
+Voltage|Motherboard|CPU Vcore
+Voltage|Motherboard|CPU VCCGT
+Voltage|Motherboard|VDDQ
+Voltage|Motherboard|DDRVTT
+Voltage|Motherboard|PCHCore
+Voltage|Motherboard|CPU VCCIO
+Voltage|Motherboard|DDRVPP
+Voltage|Motherboard|DDR
+Voltage|Motherboard|CPU NB/SoC
+Voltage|Motherboard|CPU Misc
+Voltage|Motherboard|DRAM VDD
+Voltage|Motherboard|DRAM VDDQ
+Voltage|Motherboard|VIN4
+Voltage|Motherboard|VAXG
+Voltage|Motherboard|CPU VDDIO Memory
+Voltage|Motherboard|PCH VCCIO
+Voltage|Motherboard|Graphics
+Voltage|Motherboard|VIN0
+Voltage|Motherboard|DDRVTT AB
+Voltage|Motherboard|Chipset Core
+Voltage|Motherboard|CPU VDD18
+Voltage|Motherboard|PM_CLDO12
+Voltage|Motherboard|DDR VTT
+Voltage|Motherboard|VIN3
+Voltage|Motherboard|Chipset Core +2.5V
+Voltage|Motherboard|VCCIO
+Voltage|Motherboard|DDR VPP
+Voltage|Motherboard|DIMM I/O
+Voltage|Motherboard|Chipset +0.82V
+Voltage|Motherboard|Chipset +1.8V
+Voltage|Motherboard|PM_VCC18
+Voltage|Motherboard|PM_VDD1V
+Voltage|Motherboard|VIN6
+Voltage|Motherboard|IOH Vcore
+Voltage|Motherboard|VIN1
+Voltage|Motherboard|Chipset 1.05V
+Voltage|Motherboard|VcoreRef
+Voltage|Motherboard|Vcore Refin
+Voltage|Motherboard|SoC
+Voltage|Motherboard|VPPM
+Voltage|Motherboard|VDDCR_SOC
+Voltage|Motherboard|Voltage #11
+Voltage|Motherboard|Voltage #12
+Voltage|Motherboard|Voltage #13
+Voltage|Motherboard|Voltage #14
+Voltage|Motherboard|Voltage #15
+Voltage|Motherboard|CPU 1.05V
+Voltage|Motherboard|Chipset 0.82V
+Voltage|Motherboard|Chipset 1.0V
+Voltage|Motherboard|+5V Standby
+Voltage|Motherboard|Integrated Memory Controller
+Voltage|Motherboard|CPU SoC
+Voltage|Motherboard|DIMM Termination
+Voltage|Motherboard|PREM CPU SoC
+Voltage|Motherboard|DIMM Write
+Voltage|Motherboard|1.05V CPU
+Voltage|Motherboard|0.82V Chipset
+Voltage|Motherboard|1.05V Chipset
+Voltage|Motherboard|+1.05V ALW
+Voltage|Motherboard|+1.05V Always-on
+Voltage|Motherboard|Analog VCC
+Voltage|Motherboard|+1.05 Standby
+Voltage|Motherboard|+1.05V Standby
+Voltage|Motherboard|VIN9
+Voltage|Motherboard|CPU Graphics
+Voltage|Motherboard|PCH Core
+Voltage|Motherboard|CPU VCCIO/IMC
+Voltage|Motherboard|PCH
+Voltage|Motherboard|Voltage #16
+Voltage|Motherboard|Voltage #17
+Voltage|Motherboard|VIN8
+Voltage|Motherboard|IVR Atom L2 Cluster #1
+Voltage|Motherboard|IVR Atom L2 Cluster #0
+Voltage|Motherboard|IMC VDD
+Voltage|Motherboard|+1.8V Standby
+Voltage|Motherboard|VMISC
+Voltage|Motherboard|1.8V Standby
+Voltage|Motherboard|CPU SOC
+Voltage|Motherboard|Chipset 0 VDD
+Voltage|Motherboard|Chipset 1 VDD
+Voltage|Motherboard|Chipset Standby
+Voltage|Motherboard|1.8V PLL
+Voltage|Motherboard|VMisc
+Voltage|Motherboard|1,8V Standby
+Voltage|Motherboard|Northbridge/SoC
+Voltage|Motherboard|VRM MOS
+Voltage|Motherboard|CPU 1.8V
+
+# Motherboard - SuperIOHardware board tables: Temperature [Motherboard]
+Temperature|Motherboard|Temperature #
+Temperature|Motherboard|CPU
+Temperature|Motherboard|Auxiliary
+Temperature|Motherboard|System
+Temperature|Motherboard|MOS
+Temperature|Motherboard|CPU (PECI)
+Temperature|Motherboard|Auxiliary 3
+Temperature|Motherboard|Peripheral
+Temperature|Motherboard|CPU Core
+Temperature|Motherboard|System0
+Temperature|Motherboard|System1
+Temperature|Motherboard|System2
+Temperature|Motherboard|System3
+Temperature|Motherboard|Motherboard
+Temperature|Motherboard|VRM MOS
+Temperature|Motherboard|T_Sensor
+Temperature|Motherboard|Chipset
+Temperature|Motherboard|CPU Socket
+Temperature|Motherboard|PCIe x1
+Temperature|Motherboard|PCH
+Temperature|Motherboard|Thermistor Sensor 1
+Temperature|Motherboard|Thermistor Sensor 2
+Temperature|Motherboard|PCIe #1
+Temperature|Motherboard|PCIe #2
+Temperature|Motherboard|M2 #1
+Temperature|Motherboard|M2 #4
+Temperature|Motherboard|Chipset #2
+Temperature|Motherboard|Thermistor Sensor #1
+Temperature|Motherboard|Thermistor Sensor #2
+Temperature|Motherboard|CPU PWM
+Temperature|Motherboard|Northbridge
+Temperature|Motherboard|VRM
+Temperature|Motherboard|Temperature #4
+Temperature|Motherboard|Temperature #5
+Temperature|Motherboard|Thermistor Sensor
+Temperature|Motherboard|PCIe x16
+Temperature|Motherboard|Temperature #6
+Temperature|Motherboard|Temperature #3
+Temperature|Motherboard|CPU Package
+Temperature|Motherboard|CPU Cores
+Temperature|Motherboard|System #1
+Temperature|Motherboard|System #2
+Temperature|Motherboard|VSoC MOS
+Temperature|Motherboard|Sensor #1
+Temperature|Motherboard|Sensor #2
+Temperature|Motherboard|External #1
+Temperature|Motherboard|Sensor #1/System #2
+Temperature|Motherboard|EC
+Temperature|Motherboard|System #3
+Temperature|Motherboard|VRAM MOS
+Temperature|Motherboard|System 1
+Temperature|Motherboard|System 2
+Temperature|Motherboard|PCIe x8
+Temperature|Motherboard|External #2
+Temperature|Motherboard|PCIe x4
+Temperature|Motherboard|VREG
+Temperature|Motherboard|Probe
+Temperature|Motherboard|Temperature #1
+Temperature|Motherboard|Temperature #2
+Temperature|Motherboard|Auxiliary Index #2
+Temperature|Motherboard|Core VRM
+Temperature|Motherboard|Core SoC
+Temperature|Motherboard|Southbridge
+Temperature|Motherboard|External #3
+Temperature|Motherboard|PCH TS10
+Temperature|Motherboard|Thermistor Sensor #3
+Temperature|Motherboard|Auxiliary #0
+Temperature|Motherboard|Auxiliary #1
+Temperature|Motherboard|Auxiliary #4
+Temperature|Motherboard|Virtual
+Temperature|Motherboard|T Sensor #1
+Temperature|Motherboard|T Sensor #2
+Temperature|Motherboard|T Sensor #3
+Temperature|Motherboard|T2
+Temperature|Motherboard|T1
+Temperature|Motherboard|PECI 0
+Temperature|Motherboard|AUX 0
+Temperature|Motherboard|AUX 1
+Temperature|Motherboard|AUX 2
+Temperature|Motherboard|AUX 3
+Temperature|Motherboard|AUX 4
+Temperature|Motherboard|SMBus 0
+Temperature|Motherboard|SMBus 1
+Temperature|Motherboard|PECI 1
+Temperature|Motherboard|PCH Chip CPU Max
+Temperature|Motherboard|PCH Chip
+Temperature|Motherboard|PCH CPU
+Temperature|Motherboard|PCH MCH
+Temperature|Motherboard|Agent 0 DIMM 0
+Temperature|Motherboard|Agent 0 DIMM 1
+Temperature|Motherboard|Agent 1 DIMM 0
+Temperature|Motherboard|Agent 1 DIMM 1
+Temperature|Motherboard|Device 0
+Temperature|Motherboard|Device 1
+Temperature|Motherboard|PECI 0 Calibrated
+Temperature|Motherboard|PECI 1 Calibrated
+Temperature|Motherboard|CPU (Weighted)
+Temperature|Motherboard|Temperature #7
+Temperature|Motherboard|Temperature #9
+Temperature|Motherboard|Temperature #8
+Temperature|Motherboard|Temperature #10
+Temperature|Motherboard|Temperature #11
+Temperature|Motherboard|Temperature #12
+Temperature|Motherboard|Temperature #14
+Temperature|Motherboard|Temperature #15
+Temperature|Motherboard|Temperature #16
+Temperature|Motherboard|Temperature #17
+Temperature|Motherboard|Temperature #18
+Temperature|Motherboard|Temperature #19
+Temperature|Motherboard|Temperature #20
+Temperature|Motherboard|Temperature #21
+Temperature|Motherboard|CPU Calibrated
+Temperature|Motherboard|T-Sensor
+Temperature|Motherboard|MOS CPU
+Temperature|Motherboard|M.2
+Temperature|Motherboard|PCI-E
+
+# Motherboard - SuperIOHardware board tables: Fan [Motherboard]
+Fan|Motherboard|Fan #
+Fan|Motherboard|System Fan
+Fan|Motherboard|CPU Fan
+Fan|Motherboard|Auxiliary Fan
+Fan|Motherboard|MOS Fan
+Fan|Motherboard|Fan #1
+Fan|Motherboard|CPU Fan #1
+Fan|Motherboard|Chassis Fan #4
+Fan|Motherboard|CPU Fan #2
+Fan|Motherboard|Chassis Fan #2
+Fan|Motherboard|Chassis Fan #1
+Fan|Motherboard|MOS Fan #1
+Fan|Motherboard|Water Pump
+Fan|Motherboard|Chassis Fan #3
+Fan|Motherboard|Pump Fan
+Fan|Motherboard|Chassis Fan
+Fan|Motherboard|System Fan #1
+Fan|Motherboard|System Fan #2
+Fan|Motherboard|System Fan #3
+Fan|Motherboard|System Fan #4
+Fan|Motherboard|System Fan #5
+Fan|Motherboard|System Fan #6
+Fan|Motherboard|CPU Pump Fan
+Fan|Motherboard|Pump Fan #1
+Fan|Motherboard|Pump Fan #2
+Fan|Motherboard|System Fan #7
+Fan|Motherboard|EZ-Connect Fan
+Fan|Motherboard|Chipset Fan
+Fan|Motherboard|Power Fan
+Fan|Motherboard|Fan #2
+Fan|Motherboard|Fan #3
+Fan|Motherboard|Northbridge Fan
+Fan|Motherboard|AIO Pump
+Fan|Motherboard|CPU Optional Fan
+Fan|Motherboard|High Amp Fan
+Fan|Motherboard|Fan 5
+Fan|Motherboard|Fan 6
+Fan|Motherboard|System Fan #4 / Pump
+Fan|Motherboard|PCH Fan
+Fan|Motherboard|System Fan #3 / Pump
+Fan|Motherboard|CPU Optional fan
+Fan|Motherboard|System Fan #5 / Pump
+Fan|Motherboard|System Fan #6 / Pump
+Fan|Motherboard|System Fan #
+Fan|Motherboard|CPU Pump
+Fan|Motherboard|Chassis #1
+Fan|Motherboard|Chassis #2
+Fan|Motherboard|Chassis #3
+Fan|Motherboard|CPU1
+Fan|Motherboard|Chassis #4
+Fan|Motherboard|CPU #1
+Fan|Motherboard|CPU #2
+Fan|Motherboard|Southbridge Fan
+Fan|Motherboard|Chassis Fan #5
+Fan|Motherboard|Chassis Fan #6
+Fan|Motherboard|VRM
+Fan|Motherboard|MOS
+Fan|Motherboard|Chassis #5
+Fan|Motherboard|CPU Fan #2 / Pump
+Fan|Motherboard|Fan #6
+Fan|Motherboard|Chassis FAN #5
+Fan|Motherboard|Chassis
+Fan|Motherboard|CPU
+Fan|Motherboard|Chipset / Disk
+Fan|Motherboard|Extra Flow Fan
+Fan|Motherboard|Auxiliary Fan #2
+Fan|Motherboard|Chassis Fan 1
+Fan|Motherboard|Chassis Fan 2
+Fan|Motherboard|Chassis Fan 3
+Fan|Motherboard|Chassis Fan 4
+Fan|Motherboard|CPU Fan Optional
+Fan|Motherboard|Waterpump
+Fan|Motherboard|Water Pump+
+Fan|Motherboard|HAMP
+Fan|Motherboard|Radiator Fan 1
+Fan|Motherboard|Radiator Fan 2
+Fan|Motherboard|Water Pump 1
+Fan|Motherboard|Water Pump 2
+Fan|Motherboard|CPU_OPT
+Fan|Motherboard|Unused
+Fan|Motherboard|Fan #7
+
+# Motherboard - SuperIOHardware board tables: Control [Motherboard]
+Control|Motherboard|Fan 1
+Control|Motherboard|Fan 2
+Control|Motherboard|System Fan
+Control|Motherboard|CPU Fan
+Control|Motherboard|Auxiliary Fan
+Control|Motherboard|MOS Fan
+Control|Motherboard|Fan #1
+Control|Motherboard|Fan #
+Control|Motherboard|CPU Fan #1
+Control|Motherboard|Chassis Fan #4
+Control|Motherboard|CPU Fan #2
+Control|Motherboard|Chassis Fan #2
+Control|Motherboard|Chassis Fan #1
+Control|Motherboard|MOS Fan #1
+Control|Motherboard|Water Pump
+Control|Motherboard|Chassis Fan #3
+Control|Motherboard|AIO Pump
+Control|Motherboard|Chassis Fan
+Control|Motherboard|Pump Fan
+Control|Motherboard|System Fan #1
+Control|Motherboard|System Fan #2
+Control|Motherboard|System Fan #3
+Control|Motherboard|System Fan #4
+Control|Motherboard|System Fan #5
+Control|Motherboard|System Fan #6
+Control|Motherboard|CPU Pump Fan
+Control|Motherboard|Pump Fan #1
+Control|Motherboard|Chipset Fan
+Control|Motherboard|EZ-Connect Fan
+Control|Motherboard|System Fan #7
+Control|Motherboard|PWM #1
+Control|Motherboard|PWM #2
+Control|Motherboard|PWM #3
+Control|Motherboard|CPU Fan DC Control
+Control|Motherboard|CPU Fan PWM Control
+Control|Motherboard|System Fan #1 Control
+Control|Motherboard|CPU Fan Control
+Control|Motherboard|Chassis Fan #1 Control
+Control|Motherboard|Chassis Fan #2 Control
+Control|Motherboard|Chassis Fan #3 Control
+Control|Motherboard|AIO Pump Control
+Control|Motherboard|CPU Optional Fan
+Control|Motherboard|System Fan #4 / Pump
+Control|Motherboard|PCH Fan
+Control|Motherboard|System Fan #3 / Pump
+Control|Motherboard|System Fan #5 / Pump
+Control|Motherboard|System Fan #6 / Pump
+Control|Motherboard|Power Fan
+Control|Motherboard|System Fan #
+Control|Motherboard|Fan Control #
+Control|Motherboard|CPU Pump
+Control|Motherboard|Chassis #1
+Control|Motherboard|Chassis #2
+Control|Motherboard|Chassis #3
+Control|Motherboard|CPU1
+Control|Motherboard|Chassis #4
+Control|Motherboard|CPU #1
+Control|Motherboard|CPU #2
+Control|Motherboard|Southbridge Fan
+Control|Motherboard|Chassis Fan #5
+Control|Motherboard|Chassis Fan #6
+Control|Motherboard|VRM
+Control|Motherboard|MOS
+Control|Motherboard|Chassis #5
+Control|Motherboard|CPU Fan #2 / Pump
+Control|Motherboard|Fan #6
+Control|Motherboard|Chassis
+Control|Motherboard|CPU
+Control|Motherboard|Chipset / Disk
+Control|Motherboard|Extra Flow Fan
+Control|Motherboard|Chassis Fan 1
+Control|Motherboard|Chassis Fan 2
+Control|Motherboard|Chassis Fan 3
+Control|Motherboard|Chassis Fan 4
+Control|Motherboard|CPU Fan Optional
+Control|Motherboard|High Amp Fan
+Control|Motherboard|Waterpump
+Control|Motherboard|Water Pump+
+Control|Motherboard|HAMP
+Control|Motherboard|Radiator Fan 1
+Control|Motherboard|Radiator Fan 2
+Control|Motherboard|Water Pump 1
+Control|Motherboard|Water Pump 2
+Control|Motherboard|CPU_OPT
+Control|Motherboard|Unused
+Control|Motherboard|Fan #7
+Control|Motherboard|Fan Control #1
+
+# Motherboard - embedded controller sources (ASUS EC, EmbeddedController.cs) [Motherboard]
+Temperature|Motherboard|T Sensor
+Voltage|Motherboard|CPU Core
+Fan|Motherboard|VRM Heat Sink Fan
+Flow|Motherboard|Water flow
+Current|Motherboard|CPU
+Temperature|Motherboard|Water In
+Temperature|Motherboard|Water Out
+Temperature|Motherboard|Water Block In
+Temperature|Motherboard|T Sensor 2
+Fan|Motherboard|Fan 1
+Fan|Motherboard|Fan 2
+
+# Memory - total / virtual (TotalMemory, VirtualMemory) [Memory]
+Load|Memory|Memory
+Data|Memory|Memory Used
+Data|Memory|Memory Available
+
+# Memory - DIMM SPD sensors (DimmMemory) [Memory]
+Temperature|Memory|DIMM #1
+Temperature|Memory|DIMM #4
+Temperature|Memory|Temperature Sensor Resolution
+Temperature|Memory|Thermal Sensor Low Limit
+Temperature|Memory|Thermal Sensor High Limit
+Temperature|Memory|Thermal Sensor Critical Limit
+Timing|Memory|tCKAVGmin (Minimum Cycle Time)
+Timing|Memory|tCKAVGmax (Maximum Cycle Time)
+Timing|Memory|tAA (CAS Latency Time)
+Timing|Memory|tRCD (RAS to CAS Delay Time)
+Timing|Memory|tRP (Row Precharge Delay Time)
+Timing|Memory|tRAS (Active to Precharge Delay Time)
+Timing|Memory|tRC (Active to Active/Refresh Delay Time)
+Timing|Memory|tRFC1 (Refresh Recovery Delay Time)
+Timing|Memory|tRFC2 (Refresh Recovery Delay Time)
+Timing|Memory|tRFC4 (Refresh Recovery Delay Time)
+Timing|Memory|tFAW (Four Activate Window Time)
+Timing|Memory|tRRD_S (Activate to Activate Delay Time)
+Timing|Memory|tRRD_L (Activate to Activate Delay Time)
+Timing|Memory|tCCD_L (CAS to CAS Delay Time)
+Timing|Memory|tWR (Write Recovery Time)
+Timing|Memory|tWTR_S (Write to Read Time)
+Timing|Memory|tWTR_L (Write to Read Time)
+Data|Memory|Capacity
+Temperature|Memory|Thermal Sensor Critical Low Limit
+Temperature|Memory|Thermal Sensor Critical High Limit
+Timing|Memory|tRFC1 (Normal Refresh Recovery Time)
+Timing|Memory|tRFC2 (Fine Granularity Refresh Recovery Time)
+Timing|Memory|tRFCsb (Same Bank Refresh Recovery Time)
+Timing|Memory|tRFC1_dlr (Normal Refresh Recovery Time 3DS)
+Timing|Memory|tRFC2_dlr (Fine Granularity Refresh Recovery Time 3DS)
+Timing|Memory|tRFCsb_dlr (Same Bank Refresh Recovery Time 3DS)
+
+# Storage (StorageDevice) [Storage]
+Temperature|Storage|Temperature
+Temperature|Storage|Temperature #1
+Temperature|Storage|Temperature #2
+Temperature|Storage|Temperature #3
+Temperature|Storage|Temperature #4
+Temperature|Storage|Temperature #5
+Temperature|Storage|Temperature #6
+Temperature|Storage|Temperature #7
+Temperature|Storage|Temperature #8
+Temperature|Storage|Warning Temperature
+Temperature|Storage|Critical Temperature
+Level|Storage|Life
+Data|Storage|Data Read
+Data|Storage|Data Written
+Factor|Storage|Power On Count
+Factor|Storage|Power On Hours
+Level|Storage|Available Spare
+Level|Storage|Available Spare Threshold
+Level|Storage|Percentage Used
+Load|Storage|Used Space
+Data|Storage|Free Space
+Data|Storage|Total Space
+Load|Storage|Read Activity
+Load|Storage|Write Activity
+Load|Storage|Total Activity
+Throughput|Storage|Read Rate
+Throughput|Storage|Write Rate
+
+# Network (Network.cs) [Network]
+Data|Network|Data Uploaded
+Data|Network|Data Downloaded
+Throughput|Network|Upload Speed
+Throughput|Network|Download Speed
+Load|Network|Network Utilization
+
+# Battery (Battery.cs) [Battery]
+Energy|Battery|Designed Capacity
+Energy|Battery|Fully-Charged Capacity
+Energy|Battery|Remaining Capacity
+Level|Battery|Degradation Level
+Level|Battery|Charge Level
+Voltage|Battery|Voltage
+Current|Battery|Charge/Discharge Current
+Power|Battery|Charge/Discharge Rate
+TimeSpan|Battery|Remaining Time (Estimated)
+Temperature|Battery|Battery Temperature
+
+# PSU - Corsair HXi/RMi (CorsairPsu) and MSI MPG Ai (MsiPsu) [Psu]
+Temperature|Psu|VRM
+Temperature|Psu|Case
+Fan|Psu|Case
+Voltage|Psu|Input
+Voltage|Psu|+12V
+Voltage|Psu|+5V
+Voltage|Psu|+3.3V
+Current|Psu|Input
+Current|Psu|+12V
+Current|Psu|+5V
+Current|Psu|+3.3V
+Power|Psu|+12V
+Power|Psu|+5V
+Power|Psu|+3.3V
+Power|Psu|Total watts
+Power|Psu|Total Output
+TimeSpan|Psu|Uptime
+TimeSpan|Psu|Total uptime
+Level|Psu|PSU Efficiency
+Power|Psu|PSU Out
+TimeSpan|Psu|Total Runtime
+
+# Controllers/coolers - Aquacomputer Aquastream Ultimate, XT, MPS, D5 Next, High Flow Next [Cooler]
+Temperature|Cooler|Coolant
+Temperature|Cooler|External Sensor
+Fan|Cooler|Pump
+Voltage|Cooler|Pump
+Current|Cooler|Pump
+Power|Cooler|Pump
+Flow|Cooler|Pump
+Factor|Cooler|Pressure (mBar)
+Fan|Cooler|Fan
+Voltage|Cooler|Fan
+Current|Cooler|Fan
+Power|Cooler|Fan
+Temperature|Cooler|External Fan VRM
+Temperature|Cooler|External
+Temperature|Cooler|Internal Water
+Voltage|Cooler|External Fan
+Fan|Cooler|External Fan
+Control|Cooler|External Fan
+Frequency|Cooler|Pump Frequency
+Frequency|Cooler|Pump MaxFrequency
+Temperature|Cooler|Water Temperature
+Voltage|Cooler|Fan Voltage
+Voltage|Cooler|Pump Voltage
+Voltage|Cooler|+5V Voltage
+Voltage|Cooler|+12V Voltage
+Power|Cooler|Fan Power
+Power|Cooler|Pump Power
+Flow|Cooler|Viritual Flow
+Control|Cooler|Fan Control
+Control|Cooler|Pump Control
+Temperature|Cooler|External Temperature
+Flow|Cooler|Flow
+Level|Cooler|Water Quality
+Power|Cooler|Dissipated Power
+Conductivity|Cooler|Conductivity
+Voltage|Cooler|VCC
+Voltage|Cooler|VCC USB
+Factor|Cooler|Flow Alarm
+Factor|Cooler|Water Temperature Alarm
+Factor|Cooler|External Temperature Alarm
+Factor|Cooler|Water Quality Alarm
+
+# Hedge: probable corrected spelling of the D5 Next "Viritual Flow" typo in LHM source [Cooler]
+Flow|Cooler|Virtual Flow
+
+# Controllers/coolers - NZXT Kraken X/Z, MSI MPG CoreLiquid [Cooler]
+Temperature|Cooler|Liquid
+Control|Cooler|Fans Control
+Fan|Cooler|Fans
+Fan|Cooler|Radiator Fan
+Fan|Cooler|Pump Fan
+Fan|Cooler|Fan 1
+Fan|Cooler|Fan 5
+Temperature|Cooler|Inlet Temperature
+Temperature|Cooler|Liquid Temperature
+Temperature|Cooler|Temperature Sensor 1
+Temperature|Cooler|Temperature Sensor 2
+Control|Cooler|Radiator Fan Control
+Control|Cooler|Pump Fan Control
+Control|Cooler|Fan 1 Control
+Control|Cooler|Fan 5 Control
+
+# Controllers - Aquacomputer Octo/Quadro/Farbwerk, NZXT GRID+ V3, Arctic, AeroCool, Razer, Heatmaster, T-Balancer [Controller]
+Temperature|Controller|Temperature #1
+Temperature|Controller|Temperature #2
+Temperature|Controller|Temperature #4
+Temperature|Controller|Temperature #8
+Fan|Controller|Fan #1
+Fan|Controller|Fan #2
+Fan|Controller|Fan #4
+Fan|Controller|Fan #8
+Voltage|Controller|Fan #1
+Current|Controller|Fan #1
+Power|Controller|Fan #1
+Voltage|Controller|Fan #4
+Current|Controller|Fan #4
+Power|Controller|Fan #4
+Voltage|Controller|Fan #8
+Current|Controller|Fan #8
+Power|Controller|Fan #8
+Voltage|Controller|Input
+Flow|Controller|Flow
+Fan|Controller|GRID Fan #1
+Voltage|Controller|GRID Fan #1
+Current|Controller|GRID Fan #1
+Power|Controller|GRID Fan #1
+Control|Controller|GRID Fan #1
+Fan|Controller|GRID Fan #6
+Voltage|Controller|GRID Fan #6
+Current|Controller|GRID Fan #6
+Power|Controller|GRID Fan #6
+Control|Controller|GRID Fan #6
+Noise|Controller|GRID Noise
+Control|Controller|Control #1
+Control|Controller|Control #10
+Control|Controller|Fan Control #1
+Control|Controller|Fan Control #5
+Level|Controller|Controller 1 Red
+Level|Controller|Controller 1 Green
+Level|Controller|Controller 1 Blue
+Level|Controller|Controller 2 Red
+Level|Controller|Controller 2 Green
+Level|Controller|Controller 2 Blue
+Level|Controller|Controller 4 Red
+Level|Controller|Controller 4 Green
+Level|Controller|Controller 4 Blue
+Temperature|Controller|Digital Sensor 0
+Temperature|Controller|Sensorhub Sensor 0
+Control|Controller|Fan Channel 0
+Fan|Controller|Fan Channel 0
+Temperature|Controller|Digital Sensor 3
+Temperature|Controller|Sensorhub Sensor 3
+Control|Controller|Fan Channel 3
+Fan|Controller|Fan Channel 3
+Temperature|Controller|Analog Sensor 1
+Flow|Controller|Flowmeter 1
+Temperature|Controller|Analog Sensor 4
+Flow|Controller|Flowmeter 4
+Temperature|Controller|miniNG #1 Sensor 1
+Temperature|Controller|miniNG #2 Sensor 2
+Control|Controller|miniNG #1 Fan Channel 1
+Fan|Controller|miniNG #2 Fan Channel 2
+
+# Power monitor - WireView Pro II (WireViewPro2) [Controller]
+Temperature|Controller|Onboard Temperature In
+Temperature|Controller|Onboard Temperature Out
+Temperature|Controller|External Temperature 1
+Temperature|Controller|External Temperature 2
+Voltage|Controller|Pin 1 Voltage
+Voltage|Controller|Pin 6 Voltage
+Current|Controller|Total Current
+Current|Controller|Pin 1 Current
+Current|Controller|Pin 6 Current
+Power|Controller|Total Power
+Fan|Controller|Fan
+Control|Controller|WireView Pro II (COM3)
