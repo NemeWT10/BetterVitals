@@ -35,10 +35,14 @@ public static class Program
 
         Log.Info($"start {AppEnv.Version} test={AppEnv.TestMode} elevated={Elevation.IsElevated}");
 
+        var startedByTask = args.Contains(ScheduledTasks.FromTaskArg, StringComparer.OrdinalIgnoreCase);
+
+        // a newer exe next to an installed copy: offer to put it in place of the installed one, then hand over to it
+        if (!AppEnv.TestMode && options.DataDir is null && !startedByTask && InstalledUpdate.TryRun() is { } updateExit) return updateExit;
+
         // WPF's native libraries only from a safe folder (never the user's %TEMP% for an elevated process)
         NativeRuntime.Prepare(typeof(Program).Assembly, AppEnv.ShortVersion);
 
-        var startedByTask = args.Contains(ScheduledTasks.FromTaskArg, StringComparer.OrdinalIgnoreCase);
         var instance = AcquireInstance(waitForPrevious: startedByTask);
         if (!instance.IsPrimary)
         {

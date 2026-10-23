@@ -65,6 +65,30 @@ public static class Installer
         }
     }
 
+    /// <summary>
+    /// Elevated: puts this exe (and WPF's native libraries) in place of the installed one — a newer download or test
+    /// build. Tasks, shortcut, settings and PawnIO stay as they are. The installed copy must not be running.
+    /// </summary>
+    public static bool Update(string version, System.Reflection.Assembly? nativeSource = null)
+    {
+        if (!Elevation.IsElevated) return false;
+        try
+        {
+            var source = Path.GetFullPath(Environment.ProcessPath ?? throw new InvalidOperationException("no process path"));
+            if (string.Equals(source, Path.GetFullPath(InstalledExe), StringComparison.OrdinalIgnoreCase)) return true;
+            CopyExe(source, InstalledExe);
+            if (nativeSource is not null) NativeRuntime.WriteBeside(nativeSource, InstallDir);
+            WriteUninstallEntry(version);
+            Core.Log.Info($"install: updated to {version}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Core.Log.Error("install: update failed", ex);
+            return false;
+        }
+    }
+
     /// <summary>Elevated: (re)creates the launcher and autostart tasks for a user.</summary>
     public static bool RegisterTasks(string userSid, bool autostart)
     {

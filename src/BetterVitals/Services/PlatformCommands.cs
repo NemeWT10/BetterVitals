@@ -9,7 +9,7 @@ namespace BetterVitals.Services;
 /// <summary>
 /// The exe's helper modes, run straight from Main before any WPF type is touched (an elevated helper must never load
 /// WPF's native libraries from a user-writable folder): <c>--install</c>, <c>--install-pawnio</c>,
-/// <c>--set-autostart</c>, <c>--uninstall</c>. Each does one job and exits with a code the caller understands.
+/// <c>--set-autostart</c>, <c>--update</c>, <c>--uninstall</c>. Each does one job and exits with a code the caller understands.
 /// </summary>
 internal static class PlatformCommands
 {
@@ -25,9 +25,11 @@ internal static class PlatformCommands
 
     public const string InstallPawnIoArgs = "--install-pawnio";
 
+    public const string UpdateArgs = "--update";
+
     public static string AutostartArgs(string sid, bool enabled) => $"--set-autostart {(enabled ? 1 : 0)} --user-sid {sid}";
 
-    private static readonly string[] HelperSwitches = ["--install", "--install-pawnio", "--set-autostart", "--uninstall"];
+    private static readonly string[] HelperSwitches = ["--install", "--install-pawnio", "--set-autostart", "--update", "--uninstall"];
 
     /// <summary>
     /// This process runs a helper mode. Known before Main (module initializers ask it): an elevated helper started from
@@ -54,6 +56,7 @@ internal static class PlatformCommands
             if (!Elevation.IsElevated) return NotElevated;
             return Installer.SetAutostart(Value("--user-sid") ?? Elevation.CurrentUserSid, on == "1") ? Ok : Failed;
         }
+        if (Has(UpdateArgs)) return Update();
         if (Has("--uninstall")) return Uninstall();
         return null;
     }
@@ -64,6 +67,13 @@ internal static class PlatformCommands
         var r = Installer.Install(new InstallOptions(sid, autostart, pawnIo), AppEnv.ShortVersion, typeof(PlatformCommands).Assembly);
         if (!r.Ok) return Failed;
         return r.PawnIo == PawnIoInstallOutcome.RestartRequired ? OkRestartNeeded : Ok;
+    }
+
+    /// <summary>Replaces the installed exe with this one (see <see cref="InstalledUpdate"/>).</summary>
+    public static int Update()
+    {
+        if (!Elevation.IsElevated) return NotElevated;
+        return Installer.Update(AppEnv.ShortVersion, typeof(PlatformCommands).Assembly) ? Ok : Failed;
     }
 
     public static int InstallPawnIo()
