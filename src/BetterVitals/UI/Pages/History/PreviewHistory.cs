@@ -42,7 +42,7 @@ internal sealed class PreviewHistory : IHistoryQuery
 
     private Profile ProfileOf(SensorDescriptor d)
     {
-        var seed = (uint)StringComparer.Ordinal.GetHashCode(d.Id);
+        var seed = StableHash(d.Id);
         var n = d.Name;
         bool Has(string s) => n.Contains(s, StringComparison.OrdinalIgnoreCase);
         var gpu = d.HardwareKind == HardwareKind.Gpu;
@@ -125,6 +125,14 @@ internal sealed class PreviewHistory : IHistoryQuery
     }
 
     private static double Knot(long k, uint seed) => Hash((uint)k ^ (uint)(k >> 32) * 0x85EBCA6Bu, seed) / (double)uint.MaxValue * 2 - 1;
+
+    /// <summary>FNV-1a of the sensor id: the same data in every process (string.GetHashCode is randomized per process).</summary>
+    private static uint StableHash(string s)
+    {
+        var h = 2166136261u;
+        foreach (var c in s) h = (h ^ c) * 16777619u;
+        return h;
+    }
 
     private static uint Hash(uint a, uint b)
     {
