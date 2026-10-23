@@ -171,6 +171,10 @@ public static partial class FriendlyCatalog
         return null;
     }
 
+    /// <summary>Hardware id of the GPU a gamer means by "GPU" (see <see cref="PickMainGpu"/>); null without a GPU.</summary>
+    public static string? MainGpuId(IReadOnlyList<HardwareDescriptor> hardware, IReadOnlyList<SensorDescriptor> sensors)
+        => PickMainGpu(hardware, sensors.GroupBy(s => s.HardwareId).ToDictionary(g => g.Key, g => g.ToList()));
+
     /// <summary>The GPU a gamer means by "GPU": a discrete card over the integrated one; then the one with the most sensors.</summary>
     internal static string? PickMainGpu(IReadOnlyList<HardwareDescriptor> hardware, IReadOnlyDictionary<string, List<SensorDescriptor>> byHw)
     {

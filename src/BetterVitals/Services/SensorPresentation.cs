@@ -1,3 +1,4 @@
+using BetterVitals.Core.Catalog;
 using BetterVitals.Core.Sensors;
 using BetterVitals.Localization;
 
@@ -100,10 +101,13 @@ public static class SensorPresentation
             if (hub.Find(id) is { } s && !result.Contains(s)) result.Add(s);
         }
         var sensors = hub.Sensors;
+        // "GPU" is the discrete card, not the Radeon / Intel graphics inside the CPU that may be listed first
+        var mainGpu = FriendlyCatalog.MainGpuId(hub.Hardware, sensors);
         foreach (var pick in Picks)
         {
             if (result.Count >= count) break;
-            var s = Best(sensors, pick.Hw, pick.Kind, pick.Names);
+            var s = (pick.Hw == HardwareKind.Gpu && mainGpu is not null ? Best(sensors, pick.Hw, pick.Kind, pick.Names, mainGpu) : null)
+                    ?? Best(sensors, pick.Hw, pick.Kind, pick.Names);
             if (s is not null && !result.Contains(s)) result.Add(s);
         }
         return result;
@@ -119,7 +123,7 @@ public static class SensorPresentation
         (HardwareKind.Game, SensorKind.Fps, ["FPS"]),
     ];
 
-    private static SensorDescriptor? Best(IReadOnlyList<SensorDescriptor> sensors, HardwareKind hw, SensorKind kind, string[] names)
+    private static SensorDescriptor? Best(IReadOnlyList<SensorDescriptor> sensors, HardwareKind hw, SensorKind kind, string[] names, string? hardwareId = null)
     {
         SensorDescriptor? first = null;
         var bestRank = int.MaxValue;
@@ -127,6 +131,7 @@ public static class SensorPresentation
         foreach (var s in sensors)
         {
             if (s.HardwareKind != hw || s.Kind != kind) continue;
+            if (hardwareId is not null && s.HardwareId != hardwareId) continue;
             first ??= s;
             var rank = Array.FindIndex(names, n => n.Equals(s.Name, StringComparison.OrdinalIgnoreCase));
             if (rank >= 0 && rank < bestRank)
