@@ -372,16 +372,6 @@ internal sealed class SimpleView : StackPanel
         icon.Margin = new Thickness(0, 0, 12, 0);
         icon.VerticalAlignment = VerticalAlignment.Center;
         dock.Children.Add(icon);
-        if (action is not null)
-        {
-            DockPanel.SetDock(action, Dock.Right);
-            if (action is FrameworkElement fa)
-            {
-                fa.Margin = new Thickness(12, 0, 0, 0);
-                fa.VerticalAlignment = VerticalAlignment.Center;
-            }
-            dock.Children.Add(action);
-        }
         if (linkKey is not null)
         {
             var b = Ui.Button("GhostButton", linkKey, "Icon.Refresh", link);
@@ -393,7 +383,23 @@ internal sealed class SimpleView : StackPanel
         var text = Ui.Text(textKey, size: 13, wrap: true);
         text.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text");
         text.VerticalAlignment = VerticalAlignment.Center;
-        dock.Children.Add(text);
+        if (action is null)
+        {
+            dock.Children.Add(text);
+        }
+        else
+        {
+            // the action under the sentence: long texts (PL) never squeeze into a narrow column
+            var stack = new StackPanel();
+            stack.Children.Add(text);
+            if (action is FrameworkElement fa)
+            {
+                fa.Margin = new Thickness(0, 10, 0, 2);
+                fa.HorizontalAlignment = HorizontalAlignment.Left;
+            }
+            stack.Children.Add(action);
+            dock.Children.Add(stack);
+        }
         var border = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(14, 10, 10, 10), Child = dock };
         border.SetResourceReference(Border.BackgroundProperty, background);
         return border;

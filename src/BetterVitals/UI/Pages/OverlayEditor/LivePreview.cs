@@ -381,7 +381,7 @@ internal sealed class LivePreview : StackPanel
         foreach (var (a, b) in _corners)
         {
             b.IsChecked = a == corner;
-            b.Visibility = a == corner ? Visibility.Hidden : Visibility.Visible;
+            b.Visibility = a == corner && _ctx.Layout.Items.Count > 0 ? Visibility.Hidden : Visibility.Visible;
         }
     }
 
