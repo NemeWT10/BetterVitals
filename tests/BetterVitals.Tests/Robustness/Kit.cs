@@ -209,19 +209,24 @@ internal sealed class ScriptedSource : ISensorSource
 }
 
 /// <summary>
-/// Collects the app's log lines (level, message) while it lives. Tests that drive the engine on their own thread read
-/// <see cref="Mine"/>: only what was logged on that thread, so parallel tests cannot disturb each other.
+/// Collects the app's log lines (level, message) while it lives. <see cref="Mine"/> holds only what this test's own
+/// flow logged (an async-local scope: it follows awaits and the threads the test starts, not a thread id another
+/// test may get next), so parallel tests cannot disturb each other.
 /// </summary>
 internal sealed class LogCapture : IDisposable
 {
-    private readonly List<(string Level, string Message, int Thread)> _lines = [];
-    private readonly int _owner = Environment.CurrentManagedThreadId;
+    private static readonly AsyncLocal<LogCapture?> Scope = new();
+    private readonly List<(string Level, string Message, bool Mine)> _lines = [];
 
-    public LogCapture() => Log.Written += OnLine;
+    public LogCapture()
+    {
+        Scope.Value = this;
+        Log.Written += OnLine;
+    }
 
     private void OnLine(string level, string message)
     {
-        lock (_lines) _lines.Add((level, message, Environment.CurrentManagedThreadId));
+        lock (_lines) _lines.Add((level, message, ReferenceEquals(Scope.Value, this)));
     }
 
     /// <summary>Everything logged by any thread.</summary>
@@ -233,12 +238,12 @@ internal sealed class LogCapture : IDisposable
         }
     }
 
-    /// <summary>What the creating thread logged (the engine runs on it in the simulated scenarios).</summary>
+    /// <summary>What this test's flow logged (the engine runs in it in the simulated scenarios).</summary>
     public (string Level, string Message)[] Mine
     {
         get
         {
-            lock (_lines) return _lines.Where(l => l.Thread == _owner).Select(l => (l.Level, l.Message)).ToArray();
+            lock (_lines) return _lines.Where(l => l.Mine).Select(l => (l.Level, l.Message)).ToArray();
         }
     }
 
