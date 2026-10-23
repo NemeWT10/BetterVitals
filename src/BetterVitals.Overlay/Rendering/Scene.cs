@@ -212,11 +212,14 @@ internal sealed unsafe class Scene : IDisposable
         // units: decided by formatting a seed value (also gives the column templates)
         Span<char> buf = stackalloc char[ValueText.Capacity];
         var seed = OverlayDefaults.Seed(item.Kind);
-        var len = FormatValue(item, seed, buf, out var unit);
+        FormatValue(item, seed, buf, out var unit);
+        // Compact line: "64°" — the degree sign joins the value (value font), no separate unit.
+        if (Arrangement == OverlayArrangement.Compact && unit is "°C" or "°F") item.DegreeSuffix = true;
+        var len = FormatValue(item, seed, buf, out unit);
         item.TemplateW = ValueText.Measure(item.Face, valuePx, buf[..len]);
         if (item.Cells is not null) item.CellTemplateW = ValueText.Measure(item.Face, item.SubPx, buf[..len]);
         var showUnit = src.ShowUnit ?? Style.ShowUnits;
-        if (unit.Length == 0 || string.Equals(unit, label, StringComparison.OrdinalIgnoreCase)) showUnit = false;
+        if (unit.Length == 0 || item.DegreeSuffix || string.Equals(unit, label, StringComparison.OrdinalIgnoreCase)) showUnit = false;
         item.ShowUnit = showUnit;
         SetUnit(item, unit);
         item.UnitColW = item.UnitLine?.Width ?? 0;
@@ -290,9 +293,13 @@ internal sealed unsafe class Scene : IDisposable
 
     private int FormatValue(SceneItem item, float value, Span<char> dest, out string unit)
     {
+        int n;
         if (item.Kind == SensorKind.SmallData && item.BaseUnit is null or "MB")
-            return ValueFormat.Format(SensorKind.Data, value / 1024f, dest, Input.Culture, out unit, item.Decimals, Input.TemperatureUnit);
-        return ValueFormat.Format(item.Kind, value, dest, Input.Culture, out unit, item.Decimals, Input.TemperatureUnit, item.BaseUnit);
+            n = ValueFormat.Format(SensorKind.Data, value / 1024f, dest, Input.Culture, out unit, item.Decimals, Input.TemperatureUnit);
+        else
+            n = ValueFormat.Format(item.Kind, value, dest, Input.Culture, out unit, item.Decimals, Input.TemperatureUnit, item.BaseUnit);
+        if (item.DegreeSuffix && n > 0 && n < dest.Length && dest[0] != '—') dest[n++] = '°';
+        return n;
     }
 
     // ── per refresh ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -689,6 +696,7 @@ internal sealed class SceneItem
     public bool IsMulti;
     public MultiValueDisplay Display;
     public bool ShowUnit;
+    public bool DegreeSuffix;
 
     public TextLine Label = null!;
     public TextLine[]? SubLabels;
