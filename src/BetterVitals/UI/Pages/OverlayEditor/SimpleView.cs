@@ -27,10 +27,10 @@ internal sealed class SimpleView : StackPanel
     private readonly Border _emptyBanner;
     private readonly Button _startButton;
     private readonly WrapPanel _chips;
-    private readonly WrapPanel _tiles;
+    private readonly TileGrid _tiles;
     private readonly Dictionary<HardwareKind, (RadioButton Chip, TextBlock Count)> _chipMap = [];
     private readonly List<Tile> _tileList = [];
-    private readonly SegmentBar<OverlayAnchor> _corners;
+    private readonly Dictionary<OverlayAnchor, RadioButton> _corners = [];
     private readonly StackPanel _monitorHost;
     private readonly ComboBox _monitor;
     private readonly SegmentBar<OverlayVisibility> _when;
@@ -94,32 +94,36 @@ internal sealed class SimpleView : StackPanel
             _chips.Children.Add(chip);
         }
         what.Children.Add(_chips);
-        _tiles = new WrapPanel();
+        _tiles = new TileGrid();
         what.Children.Add(_tiles);
         Children.Add(Ui.Section("ovl.simple.what", "ovl.simple.what.hint", what, step: "1"));
 
         // ── 2. where ──
         var where = new StackPanel();
-        _corners = new SegmentBar<OverlayAnchor>(
-            [
-                (OverlayAnchor.TopLeft, "ovl.corner.TopLeft"), (OverlayAnchor.TopRight, "ovl.corner.TopRight"),
-                (OverlayAnchor.BottomLeft, "ovl.corner.BottomLeft"), (OverlayAnchor.BottomRight, "ovl.corner.BottomRight"),
-            ],
-            OverlayEditorModel.NearestCorner(ctx.Layout.Placement.Anchor), a => _ctx.Model.SetCorner(a));
+        // four corners as a 2 × 2 grid, laid out like the screen
+        var cornerGrid = new UniformGrid { Columns = 2, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 300 };
+        var cornerGroup = Ui.NewGroup();
         foreach (var a in new[] { OverlayAnchor.TopLeft, OverlayAnchor.TopRight, OverlayAnchor.BottomLeft, OverlayAnchor.BottomRight })
         {
-            var b = _corners.ButtonOf(a);
             var content = new StackPanel { Orientation = Orientation.Horizontal };
-            var icon = Ui.InheritIcon("Icon.Anchor." + a, 16);
-            icon.Margin = new Thickness(0, 0, 6, 0);
+            var icon = Ui.InheritIcon("Icon.Anchor." + a, 17);
+            icon.Margin = new Thickness(0, 0, 8, 0);
             content.Children.Add(icon);
-            var t = Ui.Text("ovl.corner.short." + a);
+            var t = Ui.Text("ovl.corner.short." + a, size: 12.5);
             t.VerticalAlignment = VerticalAlignment.Center;
             content.Children.Add(t);
-            b.Content = content;
-            b.Padding = new Thickness(10, 6, 12, 6);
+            var rb = new RadioButton { GroupName = cornerGroup, Content = content };
+            rb.SetResourceReference(StyleProperty, "OvEd.Option");
+            rb.SetBinding(System.Windows.Automation.AutomationProperties.NameProperty, Ui.Tr("ovl.corner." + a));
+            var corner = a;
+            rb.Checked += (_, _) =>
+            {
+                if (!_syncing) _ctx.Model.SetCorner(corner);
+            };
+            _corners[a] = rb;
+            cornerGrid.Children.Add(rb);
         }
-        where.Children.Add(_corners);
+        where.Children.Add(cornerGrid);
         where.Children.Add(Ui.Hint("ovl.simple.where.mock", new Thickness(0, 8, 0, 0)));
         _monitor = new ComboBox { MinWidth = 240 };
         _monitor.SetResourceReference(StyleProperty, "Combo");
@@ -185,7 +189,8 @@ internal sealed class SimpleView : StackPanel
             _emptyBanner.Visibility = layout.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             _startButton.Visibility = FriendlyCatalog.DefaultOverlayKeys.Any(k => _ctx.Friendly.Any(f => f.Key == k)) ? Visibility.Visible : Visibility.Collapsed;
             _customBanner.Visibility = OverlayEditorModel.HasCustomizations(layout) ? Visibility.Visible : Visibility.Collapsed;
-            _corners.Set(OverlayEditorModel.NearestCorner(layout.Placement.Anchor));
+            var corner = OverlayEditorModel.NearestCorner(layout.Placement.Anchor);
+            foreach (var (a, rb) in _corners) rb.IsChecked = a == corner;
             _when.Set(layout.Visibility);
             _whenHint.Text = Loc.T(layout.Visibility == OverlayVisibility.Always ? "ovl.when.always.hint" : "ovl.when.games.hint");
             SelectMonitor();
@@ -422,6 +427,8 @@ internal sealed class OrderPanel : StackPanel
         Rebuild();
     }
 
+    public int ListCount => _list.Count;
+
     public void Rebuild()
     {
         _list.Clear();
@@ -488,5 +495,57 @@ internal sealed class OrderPanel : StackPanel
             var max = sensors.Select(s => _ctx.Feed.Value(s.Id)).Where(v => !float.IsNaN(v)).DefaultIfEmpty(float.NaN).Max();
             text.Text = float.IsNaN(max) ? "—" : Loc.T("ovl.tile.max", _ctx.Format(sensors[0], max));
         }
+    }
+}
+
+/// <summary>
+/// Tiles in equal columns: as many ≥ <see cref="MinTileWidth"/> columns as fit (2 next to the preview, 3–4 in a wide
+/// window), rows as tall as their tallest tile. Children's own margins are ignored in favor of <see cref="Gap"/>.
+/// </summary>
+internal sealed class TileGrid : System.Windows.Controls.Panel
+{
+    public double MinTileWidth { get; set; } = 150;
+
+    public double Gap { get; set; } = 10;
+
+    private int Columns(double width) => double.IsInfinity(width) ? 3 : Math.Max(1, (int)((width + Gap) / (MinTileWidth + Gap)));
+
+    protected override Size MeasureOverride(Size available)
+    {
+        var cols = Columns(available.Width);
+        var w = double.IsInfinity(available.Width) ? MinTileWidth + 20 : (available.Width - Gap * (cols - 1)) / cols;
+        double height = 0;
+        var rows = 0;
+        for (var start = 0; start < InternalChildren.Count; start += cols)
+        {
+            double row = 0;
+            for (var i = start; i < Math.Min(start + cols, InternalChildren.Count); i++)
+            {
+                var c = InternalChildren[i];
+                if (c is FrameworkElement fe) fe.Margin = new Thickness(0);
+                c.Measure(new Size(w, double.PositiveInfinity));
+                row = Math.Max(row, c.DesiredSize.Height);
+            }
+            height += row;
+            rows++;
+        }
+        if (rows > 1) height += Gap * (rows - 1);
+        return new Size(double.IsInfinity(available.Width) ? cols * w + Gap * (cols - 1) : available.Width, height);
+    }
+
+    protected override Size ArrangeOverride(Size final)
+    {
+        var cols = Columns(final.Width);
+        var w = (final.Width - Gap * (cols - 1)) / cols;
+        double y = 0;
+        for (var start = 0; start < InternalChildren.Count; start += cols)
+        {
+            double row = 0;
+            for (var i = start; i < Math.Min(start + cols, InternalChildren.Count); i++) row = Math.Max(row, InternalChildren[i].DesiredSize.Height);
+            for (var i = start; i < Math.Min(start + cols, InternalChildren.Count); i++)
+                InternalChildren[i].Arrange(new Rect((i - start) * (w + Gap), y, w, row));
+            y += row + Gap;
+        }
+        return final;
     }
 }

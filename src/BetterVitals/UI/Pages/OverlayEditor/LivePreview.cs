@@ -81,6 +81,7 @@ internal sealed class LivePreview : StackPanel
     private readonly GameScene _scene;
     private readonly Canvas _layer;
     private readonly Rectangle _overlay;
+    private readonly Rectangle _outline;
     private readonly Rectangle _guideX;
     private readonly Rectangle _guideY;
     private readonly ImageBrush _brush;
@@ -99,6 +100,7 @@ internal sealed class LivePreview : StackPanel
     private readonly Rectangle _closeOverlay;
     private readonly Canvas _closeLayer;
     private readonly TextBlock _closeEmpty;
+    private readonly TextBlock _closeTitle;
     private readonly DispatcherTimer _again;
 
     private WriteableBitmap? _bitmap;
@@ -165,6 +167,9 @@ internal sealed class LivePreview : StackPanel
         _layer.Children.Add(_guideX);
         _layer.Children.Add(_guideY);
         _layer.Children.Add(_overlay);
+        _outline = new Rectangle { RadiusX = 3, RadiusY = 3, StrokeThickness = 1.5, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+        _outline.SetResourceReference(Shape.StrokeProperty, "Brush.Accent2");
+        _layer.Children.Add(_outline);
 
         _cornerLayer = new Grid { Margin = new Thickness(8) };
         var group = Ui.NewGroup();
@@ -254,7 +259,7 @@ internal sealed class LivePreview : StackPanel
         Children.Add(_resolutionHost);
 
         // ── close-up at reference size ──
-        var closeTitle = Ui.Text("ovl.preview.closeUp", "SectionTitle");
+        var closeTitle = _closeTitle = Ui.Text("ovl.preview.closeUp", "SectionTitle");
         closeTitle.Margin = new Thickness(2, 18, 0, 8);
         Children.Add(closeTitle);
         _closeScene = new GameScene();
@@ -371,8 +376,13 @@ internal sealed class LivePreview : StackPanel
     /// <summary>Syncs the corner buttons with the placement.</summary>
     public void SyncCorners()
     {
+        // the chosen corner shows the overlay itself (outlined), the other three offer "move here"
         var corner = OverlayEditorModel.NearestCorner(_ctx.Layout.Placement.Anchor);
-        foreach (var (a, b) in _corners) b.IsChecked = a == corner;
+        foreach (var (a, b) in _corners)
+        {
+            b.IsChecked = a == corner;
+            b.Visibility = a == corner ? Visibility.Hidden : Visibility.Visible;
+        }
     }
 
     /// <summary>Asks for a new render (coalesced; at most one in flight, ~11 per second while dragging a slider).</summary>
@@ -472,6 +482,8 @@ internal sealed class LivePreview : StackPanel
         _overlay.Visibility = empty || _bw == 0 ? Visibility.Collapsed : Visibility.Visible;
         _closeLayer.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
         _closeEmpty.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+        _close.Visibility = _closeTitle.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
+        if (empty) _outline.Visibility = Visibility.Collapsed;
         if (empty)
         {
             _close.Width = double.NaN;
@@ -508,6 +520,11 @@ internal sealed class LivePreview : StackPanel
         _overlay.Height = Math.Max(1, ScaledH * f);
         Canvas.SetLeft(_overlay, x * f);
         Canvas.SetTop(_overlay, y * f);
+        _outline.Visibility = CornersVisible && _overlay.Visibility == Visibility.Visible ? Visibility.Visible : Visibility.Collapsed;
+        _outline.Width = _overlay.Width + 6;
+        _outline.Height = _overlay.Height + 6;
+        Canvas.SetLeft(_outline, x * f - 3);
+        Canvas.SetTop(_outline, y * f - 3);
         ArrangeCloseUp();
     }
 

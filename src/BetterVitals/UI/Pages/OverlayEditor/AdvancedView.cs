@@ -38,7 +38,10 @@ internal sealed class AdvancedView : StackPanel
     private readonly TextBlock _monitorNote;
     private readonly Button _onScreen;
     private readonly StackPanel _onScreenActive;
+    private readonly TextBlock _onScreenHint;
     private readonly ComboBox _profiles;
+    private readonly Button _load;
+    private readonly Button _delete;
     private readonly TextBox _profileName;
     private readonly OverlayProfileStore _store;
     private bool _syncing;
@@ -142,7 +145,8 @@ internal sealed class AdvancedView : StackPanel
         _onScreen.HorizontalAlignment = HorizontalAlignment.Left;
         _onScreen.Margin = new Thickness(0, 6, 0, 0);
         place.Children.Add(_onScreen);
-        place.Children.Add(Ui.Hint("ovl.onScreen.hint", new Thickness(0, 6, 0, 0)));
+        _onScreenHint = Ui.Hint("ovl.onScreen.hint", new Thickness(0, 6, 0, 0));
+        place.Children.Add(_onScreenHint);
         _onScreenActive = new StackPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 8, 0, 0) };
         var activeBanner = SimpleView.Banner("Icon.Monitor", "ovl.onScreen.active", null, null, "Brush.AccentSoft", "Brush.AccentText");
         _onScreenActive.Children.Add(activeBanner);
@@ -161,7 +165,10 @@ internal sealed class AdvancedView : StackPanel
 
         // ── behavior ──
         var behavior = new StackPanel();
-        behavior.Children.Add(Ui.Line("ovl.behavior.refresh", new SliderLine(250, 2000, layout.RefreshMs, 250, Ms, v => _ctx.Defer(l => l.RefreshMs = (int)v)), "ovl.behavior.refresh.hint", top: 0));
+        var refresh = new SliderLine(250, 2000, layout.RefreshMs, 250, Ms, v => _ctx.Defer(l => l.RefreshMs = (int)v), 240) { HorizontalAlignment = HorizontalAlignment.Left };
+        behavior.Children.Add(Ui.Line("ovl.behavior.refresh", new Border(), "ovl.behavior.refresh.hint", top: 0));
+        refresh.Margin = new Thickness(0, 8, 0, 4);
+        behavior.Children.Add(refresh);
         var when = new SegmentBar<OverlayVisibility>(
             [(OverlayVisibility.Always, "ovl.when.always"), (OverlayVisibility.GamesOnly, "ovl.when.games")],
             layout.Visibility, v => _ctx.Model.Edit(l => l.Visibility = v), fontSize: 12);
@@ -175,10 +182,10 @@ internal sealed class AdvancedView : StackPanel
         _profiles.SetResourceReference(StyleProperty, "Combo");
         var saved = new WrapPanel();
         saved.Children.Add(_profiles);
-        var load = Ui.Button("SecondaryButton", "ovl.profiles.load", null, (_, _) => LoadProfile());
+        var load = _load = Ui.Button("SecondaryButton", "ovl.profiles.load", null, (_, _) => LoadProfile());
         load.Margin = new Thickness(8, 0, 0, 0);
         saved.Children.Add(load);
-        var delete = Ui.IconButton("Icon.Trash", "ovl.profiles.delete", (_, _) => DeleteProfile());
+        var delete = _delete = Ui.IconButton("Icon.Trash", "ovl.profiles.delete", (_, _) => DeleteProfile());
         delete.Margin = new Thickness(4, 0, 0, 0);
         delete.Height = 34;
         saved.Children.Add(delete);
@@ -242,7 +249,7 @@ internal sealed class AdvancedView : StackPanel
                 _ => "ovl.monitor.primary.hint",
             });
             var editing = AppServices.Overlay.IsEditingOnScreen;
-            _onScreen.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+            _onScreen.Visibility = _onScreenHint.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
             _onScreenActive.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
             foreach (var (item, title, _) in _rows) title.Text = _ctx.Title(item);
         }
@@ -481,6 +488,7 @@ internal sealed class AdvancedView : StackPanel
             _profiles.IsEnabled = true;
         }
         _profiles.SelectedIndex = 0;
+        _load.IsEnabled = _delete.IsEnabled = _profiles.IsEnabled;
     }
 
     private void SaveProfile()

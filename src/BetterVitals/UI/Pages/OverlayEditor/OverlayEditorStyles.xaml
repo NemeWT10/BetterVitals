@@ -26,7 +26,6 @@
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Margin" Value="0,0,10,10"/>
-        <Setter Property="Width" Value="172"/>
         <Setter Property="Padding" Value="12,10,12,11"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="ui:Motion.HoverLift" Value="2"/>
@@ -78,7 +77,6 @@
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Margin" Value="0,0,10,10"/>
-        <Setter Property="Width" Value="172"/>
         <Setter Property="MinHeight" Value="72"/>
         <Setter Property="ui:Motion.HoverLift" Value="2"/>
         <Setter Property="Template">

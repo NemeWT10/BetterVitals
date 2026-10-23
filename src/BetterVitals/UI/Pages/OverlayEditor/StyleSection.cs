@@ -34,7 +34,10 @@ internal static class FontSamples
         HardwareKind = HardwareKind.Cpu,
     };
 
-    public static int Pending { get; private set; }
+    private static int _pending;
+
+    /// <summary>Samples still rendering (tests wait for them).</summary>
+    public static int Pending => Volatile.Read(ref _pending);
 
     /// <summary>Sets <paramref name="image"/>'s source now (cached) or when the render is done.</summary>
     public static void Load(string family, Image image)
@@ -61,7 +64,7 @@ internal static class FontSamples
         var values = new[] { new PreviewSensor(Sample, 54) };
         var culture = Loc.I.Culture;
         var dispatcher = image.Dispatcher;
-        Pending++;
+        Interlocked.Increment(ref _pending);
         Task.Run(() =>
         {
             try
@@ -76,20 +79,22 @@ internal static class FontSamples
                 Log.Warn($"overlay editor: font sample '{family}' failed: {ex.Message}");
                 return null;
             }
-        }).ContinueWith(t => dispatcher.BeginInvoke(() =>
+        }).ContinueWith(t =>
         {
-            Pending--;
-            if (t.Result is not { } src) return;
-            Cache[key] = src;
-            Show(image, src);
-        }), TaskScheduler.Default);
+            Interlocked.Decrement(ref _pending);
+            dispatcher.BeginInvoke(() =>
+            {
+                if (t.Result is not { } src) return;
+                Cache[key] = src;
+                Show(image, src);
+            });
+        }, TaskScheduler.Default);
     }
 
     private static void Show(Image image, BitmapSource src)
     {
+        // natural size at 96 DPI is pixels / 1.5; a narrow column shrinks it, never stretches it
         image.Source = src;
-        image.Width = src.PixelWidth / Oversample;
-        image.Height = src.PixelHeight / Oversample;
     }
 }
 
@@ -109,7 +114,7 @@ internal sealed class StyleSection : StackPanel
         var group = Ui.NewGroup();
         foreach (var family in BundledFonts.AllFamilies)
         {
-            var image = new Image { Stretch = Stretch.None, HorizontalAlignment = HorizontalAlignment.Left, Height = 22, SnapsToDevicePixels = true };
+            var image = new Image { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, MinHeight = 18, SnapsToDevicePixels = true };
             RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
             var content = new StackPanel();
             content.Children.Add(image);
@@ -157,7 +162,7 @@ internal sealed class StyleSection : StackPanel
         Children.Add(Ui.Line("ovl.style.valueColor", ColorPopover.ColorButton(ctx, () => _ctx.Layout.Style.ValueColor, v => _ctx.Model.Edit(l => l.Style.ValueColor = v), themeColor: () => ThemeManager.I.Current.Text)));
         Children.Add(Ui.Line("ovl.style.unitColor", ColorPopover.ColorButton(ctx, () => _ctx.Layout.Style.UnitColor, v => _ctx.Model.Edit(l => l.Style.UnitColor = v), themeColor: () => ThemeManager.I.Current.TextDim)));
 
-        Loaded += (_, _) => LoadSamples();
+        LoadSamples();
     }
 
     /// <summary>(Re)renders the font samples (theme or language changed).</summary>
