@@ -64,10 +64,9 @@ internal sealed unsafe class ForegroundWatcher : IDisposable
     public void Start()
     {
         _current = this;
-        _fgHook = Win32.SetWinEventHook(Win32.EVENT_SYSTEM_FOREGROUND, Win32.EVENT_SYSTEM_FOREGROUND, 0, &OnWinEvent, 0, 0,
-            Win32.WINEVENT_OUTOFCONTEXT | Win32.WINEVENT_SKIPOWNPROCESS);
-        _minHook = Win32.SetWinEventHook(Win32.EVENT_SYSTEM_MINIMIZESTART, Win32.EVENT_SYSTEM_MINIMIZEEND, 0, &OnWinEvent, 0, 0,
-            Win32.WINEVENT_OUTOFCONTEXT | Win32.WINEVENT_SKIPOWNPROCESS);
+        // Own process included: when the app's own window comes to the front, "a game is in front" must end too.
+        _fgHook = Win32.SetWinEventHook(Win32.EVENT_SYSTEM_FOREGROUND, Win32.EVENT_SYSTEM_FOREGROUND, 0, &OnWinEvent, 0, 0, Win32.WINEVENT_OUTOFCONTEXT);
+        _minHook = Win32.SetWinEventHook(Win32.EVENT_SYSTEM_MINIMIZESTART, Win32.EVENT_SYSTEM_MINIMIZEEND, 0, &OnWinEvent, 0, 0, Win32.WINEVENT_OUTOFCONTEXT);
         TrackForegroundProcess(Win32.GetForegroundWindow());
     }
 

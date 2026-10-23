@@ -32,7 +32,7 @@ internal sealed unsafe class GpuSurface : IDisposable
         PreferWarp = preferWarp;
     }
 
-    /// <summary>Software rendering (WARP) instead of the GPU (tests, or when no hardware device can be created).</summary>
+    /// <summary>Try the WARP software device before the GPU (default; see <see cref="Create"/>).</summary>
     public bool PreferWarp { get; }
 
     public bool Ready => _dc != null && _swap != null;
@@ -64,12 +64,19 @@ internal sealed unsafe class GpuSurface : IDisposable
         var levels = stackalloc int[] { 0xb100, 0xb000, 0xa100, 0xa000, 0x9300, 0x9200, 0x9100 };
         void* dev = null;
         int fl = 0;
-        var hr = -1;
-        if (!PreferWarp)
-            hr = GfxApi.D3D11CreateDevice(null, GfxApi.D3D_DRIVER_TYPE_HARDWARE, 0, GfxApi.D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 7, GfxApi.D3D11_SDK_VERSION, &dev, &fl, null);
-        IsWarp = hr < 0;
+        // WARP first by default: for a few hundred pixels redrawn once a second the software rasterizer is cheaper
+        // than the GPU driver (measured: +5 MB vs +15 MB private working set, +8 MB vs +60 MB commit, less CPU per
+        // frame), never competes with the game for the GPU and is immune to TDRs / driver updates. Hardware is the fallback.
+        var first = PreferWarp ? GfxApi.D3D_DRIVER_TYPE_WARP : GfxApi.D3D_DRIVER_TYPE_HARDWARE;
+        var second = PreferWarp ? GfxApi.D3D_DRIVER_TYPE_HARDWARE : GfxApi.D3D_DRIVER_TYPE_WARP;
+        var type = first;
+        var hr = GfxApi.D3D11CreateDevice(null, first, 0, GfxApi.D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 7, GfxApi.D3D11_SDK_VERSION, &dev, &fl, null);
         if (hr < 0)
-            Com.Check(GfxApi.D3D11CreateDevice(null, GfxApi.D3D_DRIVER_TYPE_WARP, 0, GfxApi.D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 7, GfxApi.D3D11_SDK_VERSION, &dev, &fl, null), "D3D11CreateDevice");
+        {
+            type = second;
+            Com.Check(GfxApi.D3D11CreateDevice(null, second, 0, GfxApi.D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 7, GfxApi.D3D11_SDK_VERSION, &dev, &fl, null), "D3D11CreateDevice");
+        }
+        IsWarp = type == GfxApi.D3D_DRIVER_TYPE_WARP;
         _d3d = dev;
         DeviceCreations++;
 

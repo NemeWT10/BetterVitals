@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Measures the overlay's working set and CPU cost in its own process (window created, never shown by default). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>OverlayHarness</AssemblyName>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>false</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BetterVitals.Overlay\BetterVitals.Overlay.csproj" />
+  </ItemGroup>
+
+</Project>

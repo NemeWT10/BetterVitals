@@ -241,17 +241,27 @@ public class OverlayHostTests
         }
     }
 
-    [Fact]
-    public void Warp_device_also_works()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Both_devices_render_the_same_picture(bool warp)
     {
-        var hub = new FakeHub(Fps);
+        var hub = new FakeHub(Fps, HotSpot);
         hub.Set(Fps, 60);
-        using var host = new OverlayHost(new OverlayHostOptions { NeverShow = true, PreferWarp = true });
+        hub.Set(HotSpot, 101);
+        var layout = new OverlayLayout { Enabled = true, Items = [Item(Fps), Item(HotSpot)] };
+        using var host = new OverlayHost(new OverlayHostOptions { NeverShow = true, PreferWarp = warp });
         host.Start();
-        host.Apply(new OverlayLayout { Enabled = true, Items = [Item(Fps)] }, OverlayTheme.Default, Ctx(hub));
+        host.Apply(layout, OverlayTheme.Default, Ctx(hub));
         var d = host.Diagnostics();
         Assert.True(d.SurfaceReady);
-        Assert.True(d.Warp);
+        if (warp) Assert.True(d.Warp); // the GPU may be missing on a CI box: then WARP is the fallback
+        var back = host.ReadBack()!;
+        var off = OverlayHost.RenderToBitmap(layout, OverlayTheme.Default, [new(Fps, 60), new(HotSpot, 101)],
+            OverlayHost.GetMonitors().First(m => m.IsPrimary).Bounds.Height);
+        long diff = 0;
+        for (var i = 0; i < off.Pixels.Length; i++) diff += Math.Abs(off.Pixels[i] - back.Pixels[i]);
+        Assert.True(diff / (double)off.Pixels.Length < 3);
     }
 
     [Fact]

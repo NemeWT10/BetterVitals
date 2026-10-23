@@ -66,6 +66,8 @@ public sealed unsafe partial class OverlayHost : IDisposable
     private bool _refreshRunning;
     private int _refreshInterval;
     private bool _warnedRefresh;
+    private int _ticks;
+    private int _renders;
 
     // edit mode
     private bool _editing;
@@ -230,7 +232,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
         GetWindowDisplayAffinity(_hwnd, &affinity);
         return new OverlayDiagnostics(_hwnd, _shown, Win32.IsWindowVisible(_hwnd), new PixelRect(r.Left, r.Top, r.Right, r.Bottom), ex, affinity,
             _scene?.Width ?? 0, _scene?.Height ?? 0, _sceneScale, _surface?.Ready ?? false, _surface?.DeviceCreations ?? 0, _surface?.IsWarp ?? false,
-            _editing, _monitor?.Key, _area, _demand is not null, _refreshRunning);
+            _editing, _monitor?.Key, _area, _demand is not null, _refreshRunning, _ticks, _renders);
     });
 
     /// <summary>The swap chain's back buffer (what the window shows), for tests.</summary>
@@ -460,6 +462,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
                 Win32.DestroyWindow(hwnd);
                 return true;
             case Win32.WM_DESTROY:
+                Win32.SetWindowLongPtr(hwnd, Win32.GWLP_USERDATA, 0);
                 Win32.PostQuitMessage(0);
                 return true;
         }
@@ -478,6 +481,8 @@ public sealed unsafe partial class OverlayHost : IDisposable
             _subscribedHub = ctx.Hub;
             _subscribedHub.InventoryChanged += _onInventory;
         }
+        // While editing, keep the position the user is moving (the app may re-apply styles meanwhile).
+        if (_editing && _layout is not null) layout.Placement = _layout.Placement;
         _layout = layout;
         _theme = theme;
         _ctx = ctx;
@@ -486,11 +491,6 @@ public sealed unsafe partial class OverlayHost : IDisposable
             Log.Warn($"overlay: SetWindowDisplayAffinity failed ({Marshal.GetLastPInvokeError()})");
         _scene?.Dispose();
         _scene = null;
-        if (_editing)
-        {
-            // keep the position the user is editing
-            layout.Placement = _layout.Placement;
-        }
         Reconcile();
     }
 
@@ -613,6 +613,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
     {
         if (_scene is null || _surface is null) return;
         if (!_surface.Ready && !EnsureSurface()) return;
+        _renders++;
         var hr = _surface.Render(_scene, _alpha, _editing);
         if (hr >= 0) return;
         Log.Warn($"overlay: render failed 0x{hr:X8}");
@@ -734,6 +735,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
 
     private bool RefreshTick()
     {
+        _ticks++;
         if (_scene is null) return false;
         try
         {
@@ -909,15 +911,16 @@ public sealed unsafe partial class OverlayHost : IDisposable
         var (m, area) = MonitorAt(_x + w / 2, _y + h / 2);
         var cur = _layout!.Placement;
         var p = OverlayPlacementMath.FromPosition(_x, _y, w, h, area, _sceneScale, cur);
-        if (cur.MonitorMode != OverlayMonitorMode.FollowGame && m is not null && !string.Equals(m.Key, _monitor?.Key, StringComparison.OrdinalIgnoreCase))
+        if (m is null || cur.MonitorMode == OverlayMonitorMode.FollowGame) return p;
+        var same = cur.MonitorMode switch
+        {
+            OverlayMonitorMode.Primary => m.IsPrimary,
+            _ => string.Equals(cur.MonitorKey, m.Key, StringComparison.OrdinalIgnoreCase),
+        };
+        if (!same)
         {
             p.MonitorMode = m.IsPrimary ? OverlayMonitorMode.Primary : OverlayMonitorMode.Specific;
             p.MonitorKey = m.IsPrimary ? null : m.Key;
-        }
-        else if (cur.MonitorMode != OverlayMonitorMode.FollowGame && m is not null && cur.MonitorMode == OverlayMonitorMode.Primary && !m.IsPrimary)
-        {
-            p.MonitorMode = OverlayMonitorMode.Specific;
-            p.MonitorKey = m.Key;
         }
         return p;
     }
@@ -1014,6 +1017,8 @@ public sealed unsafe partial class OverlayHost : IDisposable
         _x = x;
         _y = y;
         Win32.SetWindowPos(_hwnd, Win32.HWND_TOPMOST, x, y, w, h, Win32.SWP_NOACTIVATE | Win32.SWP_NOOWNERZORDER);
+        // Keep the placement in sync, so anything that re-lays out meanwhile (value growth, display change) keeps the spot.
+        _layout.Placement = PlacementFromWindow();
         if (_dragging) _guides?.Show(gx, gy, _area, (int)Math.Max(1, Math.Round(_sceneScale)), _options.NeverShow);
         Render();
     }
@@ -1032,12 +1037,15 @@ internal sealed record OverlayHostOptions
     /// <summary>Never call ShowWindow: the window exists and renders / presents, but is never visible (tests).</summary>
     public bool NeverShow { get; init; }
 
-    /// <summary>Use the WARP software device instead of the GPU.</summary>
-    public bool PreferWarp { get; init; }
+    /// <summary>
+    /// Render with the WARP software device (default) instead of the GPU; the other one is the fallback.
+    /// BETTERVITALS_OVERLAY_GPU=1 switches the default to the GPU (troubleshooting).
+    /// </summary>
+    public bool PreferWarp { get; init; } = Environment.GetEnvironmentVariable("BETTERVITALS_OVERLAY_GPU") != "1";
 }
 
 /// <summary>Snapshot of the host state for tests.</summary>
 internal sealed record OverlayDiagnostics(
     nint Hwnd, bool Shown, bool WindowVisible, PixelRect WindowRect, uint ExStyle, uint DisplayAffinity,
     int SceneWidth, int SceneHeight, double Scale, bool SurfaceReady, int DeviceCreations, bool Warp,
-    bool Editing, string? MonitorKey, PixelRect Area, bool HasDemand, bool RefreshRunning);
+    bool Editing, string? MonitorKey, PixelRect Area, bool HasDemand, bool RefreshRunning, int Ticks, int Renders);
