@@ -132,8 +132,9 @@ public class SensorRowView : Border
         nameCell.Children.Add(name);
         var note = new Border { Margin = new Thickness(8, 0, 0, 0), MaxWidth = 210, Style = Ui.Style("Bv.Badge"), Tag = "warn" };
         var noteText = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis };
-        noteText.SetBinding(TextBlock.TextProperty, new Binding(nameof(SensorRowModel.Note)));
+        noteText.SetBinding(TextBlock.TextProperty, new Binding(nameof(SensorRowModel.NoteBadge)));
         note.Child = noteText;
+        note.SetBinding(ToolTipProperty, new Binding(nameof(SensorRowModel.Note)));
         note.SetBinding(VisibilityProperty, new Binding(nameof(SensorRowModel.Note)) { Converter = VisibleWhenSet.I });
         nameCell.Children.Add(note);
         grid.Children.Add(nameCell);

@@ -24,6 +24,7 @@ public sealed class SensorRowModel : ObservableObject
     private string _minMax = "—";
     private string _nowBrush = "Brush.Text";
     private string? _note;
+    private string? _noteBadge;
     private bool _recorded;
     private bool _onOverlay;
     private bool _pinned;
@@ -55,6 +56,9 @@ public sealed class SensorRowModel : ObservableObject
 
     /// <summary>The sensor's note (e.g. the RTX 50 hot spot "unofficial, ±1 °C"), null when it has none.</summary>
     public string? Note { get => _note; private set => Set(ref _note, value); }
+
+    /// <summary>The note as a short row badge ("unofficial"; key + ".short" when there is one), the full note is its tooltip.</summary>
+    public string? NoteBadge { get => _noteBadge; private set => Set(ref _noteBadge, value); }
 
     public string Now { get => _now; private set => Set(ref _now, value); }
 
@@ -158,6 +162,7 @@ public sealed class SensorRowModel : ObservableObject
     public void Relabel()
     {
         Note = Sensor.NoteKey is { Length: > 0 } k && Loc.Has(k) ? Loc.T(k) : null;
+        NoteBadge = Note is null ? null : Loc.Has(Sensor.NoteKey + ".short") ? Loc.T(Sensor.NoteKey + ".short") : Note;
         OnPropertyChanged(nameof(HistoryTip));
         OnPropertyChanged(nameof(OverlayTip));
     }

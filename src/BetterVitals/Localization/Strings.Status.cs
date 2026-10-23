@@ -66,7 +66,8 @@ internal static class StatusStrings
 
         // ── sensor notes (SensorDescriptor.NoteKey) ──
         ["sensor.note.unofficialHotspot"] = (
-            "Odczyt nieoficjalny (nieudokumentowany czujnik), ok. ±1 °C",
+            "Odczyt nieoficjalny (nieudokumentowany czujnik), ok. ±1 °C",
             "Unofficial reading (undocumented sensor), about ±1 °C"),
+        ["sensor.note.unofficialHotspot.short"] = ("nieoficjalny, ±1 °C", "unofficial, ±1 °C"),
     });
 }
