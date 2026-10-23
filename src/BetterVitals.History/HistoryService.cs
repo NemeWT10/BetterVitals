@@ -45,6 +45,8 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     private string[] _watchDemandIds = [];
     private ITimer? _timer;
     private long _lastRetentionDay = long.MinValue;
+    private readonly long _wallStart;
+    private readonly long _stampStart;
     private volatile bool _disposed;
     private int _frameErrors;
 
@@ -58,6 +60,8 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
         _hub = hub;
         _o = options;
         _store = new HistoryStore(Path.GetFullPath(historyDir), _recorder, _ring, options);
+        _wallStart = options.Time.GetUtcNow().UtcTicks;
+        _stampStart = options.Time.GetTimestamp();
         hub.FrameReady += OnFrame;
         hub.InventoryChanged += OnInventoryChanged;
     }
@@ -350,8 +354,14 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
         var day = _o.Time.GetUtcNow().UtcTicks / TimeGrid.Day;
         if (!force && day == _lastRetentionDay) return;
         _lastRetentionDay = day;
-        _store.RunRetention(raw, minute, hour);
+        _store.RunRetention(raw, minute, hour, RetentionNow());
     }
+
+    /// <summary>
+    /// "Now" for retention: the wall clock, but never further ahead than the time that really passed since start, so a
+    /// clock set years ahead cannot delete the history (a clock set back only makes retention keep more).
+    /// </summary>
+    private long RetentionNow() => Math.Min(_o.Time.GetUtcNow().UtcTicks, _wallStart + _o.Time.GetElapsedTime(_stampStart).Ticks);
 
     /// <summary>Test hook: retention now with the configured limits.</summary>
     internal int RunRetentionNow()
@@ -359,7 +369,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
         lock (_store.Gate)
         {
             lock (_config)
-                return _store.RunRetention(_rawDays, _minuteDays, _hourDays);
+                return _store.RunRetention(_rawDays, _minuteDays, _hourDays, RetentionNow());
         }
     }
 
@@ -509,7 +519,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
         {
             (long Bytes, long? Oldest) u;
             lock (_store.Gate) u = _store.Usage();
-            return new HistoryUsage(u.Bytes, EstimateBytesPerDay(), u.Oldest is { } t ? new DateTime(t, DateTimeKind.Utc) : null);
+            return new HistoryUsage(u.Bytes, EstimateBytesPerDay(), u.Oldest is { } t ? new DateTime(t, DateTimeKind.Utc) : null, _store.BytesPerValue);
         }
         catch (Exception ex)
         {

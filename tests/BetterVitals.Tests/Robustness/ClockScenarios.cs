@@ -172,7 +172,9 @@ public sealed class ClockScenarios(ITestOutputHelper output)
         Assert.True(after >= before, $"{after} of {before} points left after a clock detour");
     }
 
-    [Fact(Skip = "Known gap, see the report: retention counts back from the wall clock, so a clock set years ahead followed by the daily retention pass deletes the detailed (7-day) and the minute (1-year) history; only the hourly rollups survive.")]
+    // retention counts back from the wall clock bounded by the time that really passed, so a clock set years ahead
+    // followed by the daily retention pass keeps the detailed (7-day) and the minute (1-year) history
+    [Fact]
     public async Task Retention_after_a_clock_set_years_ahead_keeps_the_detailed_history()
     {
         using var app = new SimApp("clock-retention");

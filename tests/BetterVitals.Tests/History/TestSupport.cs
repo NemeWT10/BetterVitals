@@ -104,6 +104,11 @@ internal sealed class ManualTime(DateTime start) : TimeProvider
 
     public override DateTimeOffset GetUtcNow() => new(Ticks, TimeSpan.Zero);
 
+    // elapsed time follows the settable clock (retention bounds the wall clock by it)
+    public override long GetTimestamp() => Ticks;
+
+    public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
         var t = new ManualTimer(callback, state, dueTime);

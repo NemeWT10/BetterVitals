@@ -312,9 +312,8 @@ internal sealed partial class HistoryStore
     }
 
     /// <summary>Deletes whole files older than the retention. Hour retention 0 = forever.</summary>
-    public int RunRetention(int rawDays, int minuteDays, int hourDays)
+    public int RunRetention(int rawDays, int minuteDays, int hourDays, long now)
     {
-        var now = Now;
         var deleted = 0;
         foreach (var f in HistoryFiles.List(Dir))
         {

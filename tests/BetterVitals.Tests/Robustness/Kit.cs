@@ -36,10 +36,17 @@ internal sealed class SimClock(DateTime start)
     public void Advance(TimeSpan by) => Interlocked.Add(ref _now, by.Ticks);
 }
 
-/// <summary>A <see cref="TimeProvider"/> over a <see cref="SimClock"/>; timers never fire (the tests flush by hand).</summary>
-internal sealed class SimTime(SimClock clock) : TimeProvider
+/// <summary>
+/// A <see cref="TimeProvider"/> over a <see cref="SimClock"/>; timers never fire (the tests flush by hand). Elapsed time
+/// follows <paramref name="monotonic"/> when given (real time that passed, whatever the wall clock does), else the clock.
+/// </summary>
+internal sealed class SimTime(SimClock clock, Func<long>? monotonic = null) : TimeProvider
 {
     public override DateTimeOffset GetUtcNow() => new(clock.Now, TimeSpan.Zero);
+
+    public override long GetTimestamp() => monotonic?.Invoke() ?? clock.Now;
+
+    public override long TimestampFrequency => TimeSpan.TicksPerSecond;
 
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) => new NullTimer();
 
@@ -374,7 +381,7 @@ internal sealed class SimApp : IDisposable
         Warnings = [];
         History = new HistoryService(Pc.Engine, System.IO.Path.Combine(Dir.Path, "history"), new HistoryOptions
         {
-            Time = new SimTime(Pc.Clock),
+            Time = new SimTime(Pc.Clock, () => Interlocked.Read(ref _monotonic)),
             AutoFlush = false,
             BackgroundStart = false,
             FreeSpace = _ => null,
