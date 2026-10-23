@@ -30,7 +30,7 @@ $exe = Join-Path $root 'tools\ReadmeMedia\bin\Release\net10.0-windows\win-x64\Re
 $pictures = [ordered]@{
     'hero'           = 'The tray flyout with CPU and GPU temperature and load next to the Overview page with key values and sparklines'
     'history'        = 'The History page: six hours of CPU, GPU and GPU Hot Spot temperatures with an evening game selected and its min, average and max'
-    'overlay'        = 'The overlay in a game: FPS with a small graph, CPU temperature and core clocks, GPU temperature, GPU Hot Spot and GPU clock'
+    'overlay'        = 'The overlay in a game, a row per component: FPS with a small graph; CPU temperature and core clocks; GPU temperature, GPU Hot Spot and GPU clock'
     'overlay-editor' = 'The overlay editor in simple mode: GPU values picked as tiles, a live preview on a monitor and a close-up of the overlay'
     'sensors'        = 'The Sensors page with History and Overlay switches per sensor and the explanation bubble for GPU Hot Spot'
 }
