@@ -1,0 +1,183 @@
+<Window x:Class="BetterVitals.UI.Flyout.FlyoutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="clr-namespace:BetterVitals.Localization"
+        xmlns:c="clr-namespace:BetterVitals.UI.Controls"
+        xmlns:x2="clr-namespace:BetterVitals.UI.Explain"
+        xmlns:f="clr-namespace:BetterVitals.UI.Flyout"
+        xmlns:ui="clr-namespace:BetterVitals.UI"
+        Title="BetterVitals" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True"
+        ShowInTaskbar="False" ResizeMode="NoResize" SizeToContent="WidthAndHeight" FontFamily="{StaticResource Font.Ui}"
+        UseLayoutRounding="True" Left="-32000" Top="-32000">
+    <Window.Resources>
+        <!-- quick action: icon above a short label -->
+        <Style x:Key="FlyoutAction" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PanelText}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="11" Background="{DynamicResource Brush.PanelHover}" Padding="6,10,6,9"
+                                BorderThickness="1" BorderBrush="Transparent" RenderTransformOrigin="0.5,0.5">
+                            <ContentPresenter HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.PanelPressed}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- a metric tile: lifts a little on hover, opens the panel -->
+        <Style x:Key="FlyoutTile" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PanelText}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="ui:Motion.HoverLift" Value="2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="12" Background="{DynamicResource Brush.PanelHover}" Padding="12,11,12,10"
+                                BorderThickness="1" BorderBrush="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.PanelBorder}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.PanelPressed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="TileTemplate" DataType="{x:Type f:MetricTile}">
+            <Button Style="{StaticResource FlyoutTile}" Click="Tile_Click">
+                <StackPanel>
+                    <DockPanel>
+                        <Border Width="22" Height="22" CornerRadius="7" c:Res.Background="{Binding CategorySoftKey}">
+                            <c:Icon Size="14" c:Res.Icon="{Binding IconKey}" c:Res.Foreground="{Binding CategoryBrushKey}"/>
+                        </Border>
+                        <TextBlock Text="{Binding Label}" Margin="8,0,0,0" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.PanelTextDim}" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal" Margin="1,9,0,0">
+                        <TextBlock Text="{Binding Value}" Style="{StaticResource Text.Value}" FontSize="26" c:Res.Foreground="{Binding ValueBrushKey}"
+                                   VerticalAlignment="Bottom"/>
+                        <TextBlock Text="{Binding Unit}" Style="{StaticResource Text.Unit}" Margin="4,0,0,4" VerticalAlignment="Bottom"
+                                   Foreground="{DynamicResource Brush.PanelTextDim}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Name}" FontSize="11" Margin="1,0,0,0" Foreground="{DynamicResource Brush.TextFaint}"
+                               TextTrimming="CharacterEllipsis" HorizontalAlignment="Left" x2:Explain.Sensor="{Binding Sensor}"/>
+                    <c:Sparkline Height="26" Margin="0,8,0,0" Series="{Binding Series}" c:Res.Stroke="{Binding CategoryBrushKey}" StrokeThickness="1.6"/>
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Border x:Name="Card" CornerRadius="16" Background="{DynamicResource Brush.Panel}" BorderBrush="{DynamicResource Brush.PanelBorder}"
+                BorderThickness="1" Padding="14" Width="372">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="30" ShadowDepth="8" Direction="270" Opacity="0.42" Color="{DynamicResource Color.Shadow}"/>
+            </Border.Effect>
+            <StackPanel>
+                <!-- header -->
+                <DockPanel Margin="2,0,0,0">
+                    <Image Source="{StaticResource Logo.Image}" Width="22" Height="22" VerticalAlignment="Center"/>
+                    <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,3,10,3" VerticalAlignment="Center" Background="{DynamicResource Brush.PanelHover}">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="LiveDot" Width="7" Height="7" Fill="{DynamicResource Brush.Success}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{l:Tr common.live}" FontSize="11" FontWeight="SemiBold" Margin="6,0,0,0" Foreground="{DynamicResource Brush.PanelTextDim}"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="BetterVitals" FontFamily="{StaticResource Font.Display}" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,1"
+                               VerticalAlignment="Center" Foreground="{DynamicResource Brush.PanelText}"/>
+                </DockPanel>
+
+                <!-- tiles -->
+                <ItemsControl x:Name="TileList" Margin="-4,12,-4,0" ItemsSource="{Binding Tiles}" ItemTemplate="{StaticResource TileTemplate}" Focusable="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="2"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <Border x:Name="EmptyState" CornerRadius="12" Margin="0,12,0,0" Padding="14,18" Background="{DynamicResource Brush.PanelHover}" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <c:Icon Data="{StaticResource Icon.Pulse}" Size="18" Foreground="{DynamicResource Brush.AccentText}"/>
+                        <TextBlock Text="{l:Tr flyout.noSensors}" Margin="10,0,0,0" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource Brush.PanelTextDim}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- overlay switch -->
+                <Border CornerRadius="12" Margin="0,8,0,0" Padding="12,10" Background="{DynamicResource Brush.PanelHover}">
+                    <DockPanel>
+                        <CheckBox x:Name="OverlaySwitch" DockPanel.Dock="Right" Style="{StaticResource Switch}" IsChecked="{Binding OverlayEnabled}"
+                                  AutomationProperties.Name="{l:Tr flyout.overlay}"/>
+                        <Border Width="30" Height="30" CornerRadius="9" Background="{DynamicResource Brush.AccentSoft}" VerticalAlignment="Center">
+                            <c:Icon Data="{StaticResource Icon.Overlay}" Size="17" Foreground="{DynamicResource Brush.AccentText}"/>
+                        </Border>
+                        <StackPanel Margin="11,0,12,0" VerticalAlignment="Center">
+                            <TextBlock Text="{l:Tr flyout.overlay}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Brush.PanelText}"/>
+                            <TextBlock Text="{Binding OverlayHint}" FontSize="11.5" Margin="0,1,0,0" Foreground="{DynamicResource Brush.PanelTextDim}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- quick actions -->
+                <UniformGrid Columns="3" Margin="-3,8,-3,0">
+                    <Button Style="{StaticResource FlyoutAction}" Click="Panel_Click">
+                        <StackPanel>
+                            <c:Icon Data="{StaticResource Icon.Dashboard}" Size="19"/>
+                            <TextBlock Text="{l:Tr flyout.panel}" FontSize="11.5" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource FlyoutAction}" Click="EditOverlay_Click">
+                        <StackPanel>
+                            <c:Icon Data="{StaticResource Icon.Sliders}" Size="19"/>
+                            <TextBlock Text="{l:Tr flyout.editOverlay}" FontSize="11.5" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource FlyoutAction}" Click="Settings_Click">
+                        <StackPanel>
+                            <c:Icon Data="{StaticResource Icon.Settings}" Size="19"/>
+                            <TextBlock Text="{l:Tr flyout.settings}" FontSize="11.5" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </UniformGrid>
+
+                <!-- footer -->
+                <Rectangle Style="{StaticResource Ov.Separator}" Margin="2,12,2,10"/>
+                <DockPanel Margin="4,0,4,0">
+                    <c:Icon x:Name="FooterIcon" Data="{StaticResource Icon.Record}" Size="14" Foreground="{DynamicResource Brush.Danger}"/>
+                    <TextBlock Text="{Binding Footer}" Margin="8,0,0,0" FontSize="11.5" VerticalAlignment="Center"
+                               Foreground="{DynamicResource Brush.PanelTextDim}" TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

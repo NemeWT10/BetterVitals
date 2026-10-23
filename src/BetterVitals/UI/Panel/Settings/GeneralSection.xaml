@@ -1,0 +1,84 @@
+<UserControl x:Class="BetterVitals.UI.Panel.GeneralSection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="clr-namespace:BetterVitals.Localization"
+             xmlns:c="clr-namespace:BetterVitals.UI.Controls"
+             xmlns:ui="clr-namespace:BetterVitals.UI">
+    <UserControl.Resources>
+        <!-- a theme as a little window preview; checked = accent ring + check badge that pops -->
+        <Style x:Key="ThemeTile" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Margin" Value="0,0,10,10"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.TextDim}"/>
+            <Setter Property="ui:Motion.HoverLift" Value="2"/>
+            <Setter Property="ui:Motion.Toggle" Value="BadgeScale.ScaleX:0.4&gt;1|1&gt;1:260:back;BadgeScale.ScaleY:0.4&gt;1|1&gt;1:260:back;Ring.Opacity:0&gt;1|1&gt;0:160"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <StackPanel>
+                            <Grid Width="104" Height="70">
+                                <Border x:Name="Frame" CornerRadius="11" BorderThickness="1" BorderBrush="{DynamicResource Brush.Border}" Padding="3">
+                                    <ContentPresenter/>
+                                </Border>
+                                <Border x:Name="Ring" CornerRadius="12" Margin="-2" BorderThickness="2" BorderBrush="{DynamicResource Brush.Accent}" Opacity="0"/>
+                                <Border x:Name="Focus" CornerRadius="13" Margin="-4" BorderThickness="1.5" BorderBrush="{DynamicResource Brush.AccentText}" Opacity="0"/>
+                                <Border x:Name="Badge" Width="20" Height="20" CornerRadius="10" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-6,-6,0"
+                                        Background="{DynamicResource Brush.AccentFill}" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                                    <Border.RenderTransform>
+                                        <ScaleTransform x:Name="BadgeScale"/>
+                                    </Border.RenderTransform>
+                                    <c:Icon Data="{StaticResource Icon.Check}" Size="12" StrokeThickness="1.8" Foreground="{DynamicResource Brush.OnAccent}"/>
+                                </Border>
+                            </Grid>
+                            <TextBlock x:Name="Label" Text="{TemplateBinding Tag}" FontSize="12" Margin="2,7,0,0" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource Brush.BorderStrong}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Focus" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Ring" Property="Opacity" Value="1"/>
+                                <Setter TargetName="Badge" Property="Opacity" Value="1"/>
+                                <Setter TargetName="Frame" Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+                                <Setter TargetName="Label" Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource CardRows}">
+        <StackPanel>
+            <c:SettingRow Title="{l:Tr settings.language}" Description="{l:Tr settings.language.desc}" Icon="{StaticResource Icon.Globe}">
+                <Border Style="{StaticResource SegmentHost}">
+                    <StackPanel x:Name="Languages" Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource Segment}" GroupName="Language" Tag="system" Content="{l:Tr settings.language.system}" Checked="Language_Checked"/>
+                        <RadioButton Style="{StaticResource Segment}" GroupName="Language" Tag="pl" Content="{l:Tr settings.language.pl}" Checked="Language_Checked"/>
+                        <RadioButton Style="{StaticResource Segment}" GroupName="Language" Tag="en" Content="{l:Tr settings.language.en}" Checked="Language_Checked"/>
+                    </StackPanel>
+                </Border>
+            </c:SettingRow>
+
+            <c:SettingRow Title="{l:Tr settings.theme}" Description="{l:Tr settings.theme.desc}" Icon="{StaticResource Icon.Palette}" IsStacked="True">
+                <WrapPanel x:Name="Themes" Margin="0,4,0,-10"/>
+            </c:SettingRow>
+
+            <c:SettingRow Title="{l:Tr settings.animations}" Description="{l:Tr settings.animations.desc}" Icon="{StaticResource Icon.Sparkle}">
+                <CheckBox x:Name="AnimationsSwitch" Style="{StaticResource Switch}" Click="Animations_Click" AutomationProperties.Name="{l:Tr settings.animations}"/>
+            </c:SettingRow>
+
+            <c:SettingRow Title="{l:Tr settings.explanations}" Description="{l:Tr settings.explanations.desc}" Icon="{StaticResource Icon.Explain}"
+                          Info="settings.explanations.info" IsLast="True">
+                <CheckBox x:Name="ExplanationsSwitch" Style="{StaticResource Switch}" Click="Explanations_Click" AutomationProperties.Name="{l:Tr settings.explanations}"/>
+            </c:SettingRow>
+        </StackPanel>
+    </Border>
+</UserControl>
