@@ -6,8 +6,8 @@ public readonly record struct HistoryPoint(long TimeUtcTicks, float Min, float A
 /// <summary>Exact statistics of a time range (from raw samples where they exist, else from rollups).</summary>
 public readonly record struct RangeStats(float Min, float Avg, float Max, long MinTimeUtcTicks, long MaxTimeUtcTicks, long Count);
 
-/// <summary>Disk use of the history.</summary>
-public readonly record struct HistoryUsage(long BytesOnDisk, long EstimatedBytesPerDay, DateTime? OldestUtc);
+/// <summary>Disk use of the history; <paramref name="BytesPerValue"/> is measured this session (null until enough was written).</summary>
+public readonly record struct HistoryUsage(long BytesOnDisk, long EstimatedBytesPerDay, DateTime? OldestUtc, double? BytesPerValue = null);
 
 public enum ExportResolution : byte
 {

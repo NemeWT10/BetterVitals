@@ -165,7 +165,8 @@ internal sealed class RecordingSection : SectionView
         var hub = Context?.Hub ?? AppServices.Hub;
         var count = hub.Sensors.Count > 0 ? RecordingPolicy.CountPresent(r, hub) : r.SensorIds.Count;
         var sensors = Loc.Plural("settings.rec.sensors", count);
-        var perDay = RecordingPolicy.EstimateBytesPerDay(count, r.IntervalSeconds);
+        if (_history is not null) _usage ??= SafeUsage();
+        var perDay = RecordingPolicy.EstimateBytesPerDay(count, r.IntervalSeconds, _usage?.BytesPerValue);
         _summaryRow.Description = r.Enabled ? Loc.T("settings.rec.summary.desc", sensors, DiskBytes(perDay)) : Loc.T("settings.rec.summary.off", sensors);
 
         // disk

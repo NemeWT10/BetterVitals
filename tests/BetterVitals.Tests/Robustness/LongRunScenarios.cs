@@ -91,6 +91,9 @@ public sealed class LongRunScenarios(ITestOutputHelper output)
         Assert.InRange(diskBytes / 1048576.0, 0.3, 40);
         // the figure the Sensors page shows (a fixed 0.4 B per sample) is a guess: for the jittery fake sensors a day costs about 3x that, never 10x
         Assert.InRange(diskBytes / (double)RecordingPolicy.EstimateBytesPerDay(recorded, 2), 0.5, 6);
+        // ... so once the history has measured its bytes per sample, the Sensors page uses that
+        Assert.NotNull(usage.BytesPerValue);
+        Assert.InRange(diskBytes / (double)RecordingPolicy.EstimateBytesPerDay(recorded, 2, usage.BytesPerValue), 0.6, 1.6);
         Assert.Equal(diskBytes, usage.BytesOnDisk);
 
         // the day is all there: two raw files (the UTC day changed), minute and hour rollups, a catalog

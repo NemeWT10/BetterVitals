@@ -32,7 +32,10 @@ public static class RecordingPolicy
         return n;
     }
 
-    /// <summary>Rough disk use per day for the summary line (~0.4 B per sample after compression, plus rollups).</summary>
-    public static long EstimateBytesPerDay(int sensors, int intervalSeconds)
-        => intervalSeconds <= 0 ? 0 : (long)(sensors * (86_400.0 / intervalSeconds) * 0.4 + sensors * 1440 * 2.0);
+    /// <summary>
+    /// Disk use per day for the summary line: samples × bytes per sample after compression (measured by the history once
+    /// it has written enough, else a rough ~0.4 B), plus rollups.
+    /// </summary>
+    public static long EstimateBytesPerDay(int sensors, int intervalSeconds, double? bytesPerSample = null)
+        => intervalSeconds <= 0 ? 0 : (long)(sensors * (86_400.0 / intervalSeconds) * (bytesPerSample ?? 0.4) + sensors * 1440 * 2.0);
 }

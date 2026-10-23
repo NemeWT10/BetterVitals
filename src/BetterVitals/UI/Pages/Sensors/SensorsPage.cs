@@ -48,6 +48,7 @@ public sealed class SensorsPage : UserControl, IPage, IDisposable
     private object? _inventory;
     private int _sensorCount;
     private long? _bytesOnDisk;
+    private double? _bytesPerSample;
     private bool _shown;
     private string _language = Loc.I.Language;
     private bool _syncingMaster;
@@ -284,13 +285,13 @@ public sealed class SensorsPage : UserControl, IPage, IDisposable
     // ───────────── status card ─────────────
 
     /// <summary>"42 czujniki · ~1,7 MB/dzień · co 2 s · zajęte 61 MB" (the disk part only when history is attached).</summary>
-    internal static string Summary(RecordingSettings r, ISensorHub hub, long? bytesOnDisk)
+    internal static string Summary(RecordingSettings r, ISensorHub hub, long? bytesOnDisk, double? bytesPerSample = null)
     {
         var n = RecordingPolicy.CountPresent(r, hub);
         var parts = new List<string> { Loc.Plural("sensors.count", n) };
         if (r.Enabled)
         {
-            var perDay = RecordingPolicy.EstimateBytesPerDay(n, r.IntervalSeconds);
+            var perDay = RecordingPolicy.EstimateBytesPerDay(n, r.IntervalSeconds, bytesPerSample);
             parts.Add(Loc.T("sensors.status.perDay", Ui.Bytes(perDay, Loc.I.Culture)));
             parts.Add(Loc.T("sensors.status.every", r.IntervalSeconds));
         }
@@ -308,7 +309,7 @@ public sealed class SensorsPage : UserControl, IPage, IDisposable
         _syncingMaster = true;
         _master.IsChecked = r.Enabled;
         _syncingMaster = false;
-        _summary.Text = Summary(r, _hub, _bytesOnDisk);
+        _summary.Text = Summary(r, _hub, _bytesOnDisk, _bytesPerSample);
         _liveOnly.Visibility = r.Enabled ? Visibility.Collapsed : Visibility.Visible;
         _recordTile.SetResourceReference(Border.BackgroundProperty, r.Enabled ? "Brush.DangerSoft" : "Brush.SurfaceHover");
         _recordDot.SetResourceReference(Border.BackgroundProperty, r.Enabled ? "Brush.Danger" : "Brush.TextFaint");
@@ -324,18 +325,19 @@ public sealed class SensorsPage : UserControl, IPage, IDisposable
         var dispatcher = Dispatcher;
         Task.Run(() =>
         {
-            long? bytes;
+            HistoryUsage? usage;
             try
             {
-                bytes = h.GetUsage().BytesOnDisk;
+                usage = h.GetUsage();
             }
             catch
             {
-                bytes = null;
+                usage = null;
             }
             dispatcher.BeginInvoke(() =>
             {
-                _bytesOnDisk = bytes;
+                _bytesOnDisk = usage?.BytesOnDisk;
+                _bytesPerSample = usage?.BytesPerValue;
                 UpdateStatus();
             });
         });
