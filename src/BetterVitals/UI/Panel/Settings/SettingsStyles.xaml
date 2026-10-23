@@ -1,0 +1,131 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="clr-namespace:BetterVitals.UI"
+                    xmlns:c="clr-namespace:BetterVitals.UI.Controls">
+    <!--
+      Styles of the Settings sections, About and the first-run guide (on top of Base.xaml). Only DynamicResource here:
+      the dictionary is merged per control, so it must not depend on load order. Keys:
+        OptionCard     (RadioButton) a large selectable card with a check badge (first-run choices)
+        DisclosureRow  (ToggleButton) a row that expands content below it (licenses, release notes); chevron flips
+        DangerButton   (Button) a secondary button in the danger color ("Clear history", "Delete")
+    -->
+
+    <Style x:Key="OptionCard" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Padding" Value="18,16,48,16"/>
+        <Setter Property="ui:Motion.HoverLift" Value="2"/>
+        <Setter Property="ui:Motion.Toggle" Value="BadgeScale.ScaleX:0.4&gt;1|1&gt;1:260:back;BadgeScale.ScaleY:0.4&gt;1|1&gt;1:260:back;Ring.Opacity:0&gt;1|1&gt;0:160;Tint.Opacity:0&gt;1|1&gt;0:180"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid>
+                        <Border x:Name="Bd" CornerRadius="14" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"/>
+                        <Border x:Name="Tint" CornerRadius="14" Background="{DynamicResource Brush.AccentSoft}" Opacity="0"/>
+                        <Border x:Name="Ring" CornerRadius="14" BorderThickness="1.5" BorderBrush="{DynamicResource Brush.Accent}" Opacity="0"/>
+                        <Border x:Name="Focus" CornerRadius="17" Margin="-4" BorderThickness="1.5" BorderBrush="{DynamicResource Brush.AccentText}" Opacity="0"/>
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        <Grid Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,16,16,0">
+                            <Ellipse x:Name="Circle" Stroke="{DynamicResource Brush.BorderStrong}" StrokeThickness="1.5"/>
+                            <Border x:Name="Badge" CornerRadius="11" Background="{DynamicResource Brush.AccentFill}" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform x:Name="BadgeScale"/>
+                                </Border.RenderTransform>
+                                <c:Icon Data="{DynamicResource Icon.Check}" Size="13" StrokeThickness="1.9" Foreground="{DynamicResource Brush.OnAccent}"/>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.BorderStrong}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.SurfaceHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Focus" Property="Opacity" Value="0.8"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Ring" Property="Opacity" Value="1"/>
+                            <Setter TargetName="Tint" Property="Opacity" Value="1"/>
+                            <Setter TargetName="Badge" Property="Opacity" Value="1"/>
+                            <Setter TargetName="Circle" Property="Opacity" Value="0"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DisclosureRow" TargetType="ToggleButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Padding" Value="10,9"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd" CornerRadius="9" Background="Transparent" BorderThickness="1" BorderBrush="Transparent" Padding="{TemplateBinding Padding}">
+                        <DockPanel>
+                            <c:Icon x:Name="Chevron" DockPanel.Dock="Right" Data="{DynamicResource Icon.ChevronDown}" Size="15" Margin="12,0,0,0"
+                                    Foreground="{DynamicResource Brush.TextDim}"/>
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.SurfaceHover}"/>
+                            <Setter TargetName="Chevron" Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Chevron" Property="Data" Value="{DynamicResource Icon.ChevronUp}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DangerButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}"/>
+        <Setter Property="Padding" Value="14,7"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="10" Background="{DynamicResource Brush.DangerSoft}" RenderTransformOrigin="0.5,0.5"
+                            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Danger}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Danger}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>
