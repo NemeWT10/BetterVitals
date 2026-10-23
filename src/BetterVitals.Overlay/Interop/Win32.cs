@@ -166,6 +166,7 @@ internal static unsafe partial class Win32
     public const int OBJID_WINDOW = 0;
 
     public const int VK_SHIFT = 0x10;
+    public const int VK_TAB = 0x09;
     public const int VK_RETURN = 0x0D;
     public const int VK_ESCAPE = 0x1B;
     public const int VK_LEFT = 0x25;

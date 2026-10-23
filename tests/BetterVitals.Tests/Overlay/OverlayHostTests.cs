@@ -165,7 +165,7 @@ public class OverlayHostTests
         {
             OverlayPlacement? committed = null;
             var cancelled = false;
-            host.EnterEditMode(p => committed = p, () => cancelled = true);
+            host.EnterEditMode(p => committed = p[OverlayLayout.MainBoxId], () => cancelled = true);
             var d0 = host.Diagnostics();
             Assert.True(d0.Editing);
             Assert.Equal(0u, d0.ExStyle & Win32.WS_EX_TRANSPARENT);
@@ -229,7 +229,7 @@ public class OverlayHostTests
         using (host)
         {
             var w0 = host.Diagnostics().SceneHeight;
-            layout.Items.Add(Item(Low1));
+            layout.Items!.Add(Item(Low1));
             host.Apply(layout, OverlayTheme.Default, Ctx(hub));
             var w1 = host.Diagnostics().SceneHeight;
             Assert.True(w1 > w0); // shown as "—" with its default label before the sensor exists

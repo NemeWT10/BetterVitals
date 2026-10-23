@@ -114,6 +114,23 @@ public static partial class DefaultLabels
         return true;
     }
 
+    /// <summary>
+    /// Automatic label of a row from its items' labels and hardware kinds: a row of one item is labelled like the item, a
+    /// row of one component by the component ("CPU", "GPU", "FPS"…), a mixed row like its first item. Items whose label
+    /// equals the row label are drawn without it ("GPU  66 °C · GPU HS 76 °C").
+    /// </summary>
+    public static string ForRow(IReadOnlyList<string> itemLabels, IReadOnlyList<HardwareKind> kinds)
+    {
+        if (itemLabels.Count == 0) return "";
+        if (itemLabels.Count == 1) return itemLabels[0];
+        var kind = kinds.Count > 0 ? kinds[0] : HardwareKind.Other;
+        if (kind != HardwareKind.Other && kinds.All(k => k == kind) && Component(kind) is { Length: > 0 } name) return name;
+        return itemLabels[0];
+    }
+
+    /// <summary>Row name of a component: "FPS" for the game's values, else <see cref="Hardware"/>.</summary>
+    public static string Component(HardwareKind hw) => hw == HardwareKind.Game ? "FPS" : Hardware(hw);
+
     /// <summary>"CPU", "GPU", "RAM"… for a component family.</summary>
     public static string Hardware(HardwareKind hw) => hw switch
     {

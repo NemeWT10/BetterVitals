@@ -111,23 +111,23 @@ public sealed class SharedRowTests
         var hot = pc.Sensor("NVIDIA GeForce RTX 5080", SensorKind.Temperature, "GPU Hot Spot");
         var core = pc.Sensor("NVIDIA GeForce RTX 5080", SensorKind.Temperature, "GPU Core");
         var multi = new OverlayItem { SensorIds = [core.Id, hot.Id] };
-        env.Store.Mutate("overlay", s => s.Overlay.Items.Add(multi));
+        env.Store.Mutate("overlay", s => s.Overlay.AddItem(multi, "row-1"));
 
         env.Actions.SetOnOverlay([hot], false);
         Assert.Equal([core.Id], multi.SensorIds);
-        Assert.Single(env.Store.Current.Overlay.Items);
+        Assert.Single(env.Store.Current.Overlay.AllItems());
 
         env.Actions.SetOnOverlay([hot], true);
-        Assert.Equal(2, env.Store.Current.Overlay.Items.Count);
-        Assert.Equal([hot.Id], env.Store.Current.Overlay.Items[^1].SensorIds);
+        Assert.Equal(2, env.Store.Current.Overlay.AllItems().Count());
+        Assert.Equal([hot.Id], env.Store.Current.Overlay.AllItems().Last().SensorIds);
         Assert.Equal("On the overlay: GPU Hot Spot", env.Toasts[^1].Text);
 
         // removing the last sensor of an item removes the item; undo puts the multi item back intact
         env.Actions.SetOnOverlay([hot, core], false);
-        Assert.Empty(env.Store.Current.Overlay.Items);
+        Assert.True(env.Store.Current.Overlay.IsEmpty);
         env.Undo();
-        Assert.Equal(2, env.Store.Current.Overlay.Items.Count);
-        Assert.Same(multi, env.Store.Current.Overlay.Items[0]);
+        Assert.Equal(2, env.Store.Current.Overlay.AllItems().Count());
+        Assert.Same(multi, env.Store.Current.Overlay.AllItems().First());
         Assert.Equal([core.Id], multi.SensorIds);
         Assert.True(SensorToggles.IsOnOverlay(env.Store.Current, hot.Id));
     });

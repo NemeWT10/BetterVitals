@@ -121,7 +121,7 @@ public sealed class SensorsPageTests
         gpu.ToggleOverlay();
         model.Sync(env.Store.Current);
         Assert.True(gpu.OverlayState);
-        Assert.Equal(3, env.Store.Current.Overlay.Items.Count);
+        Assert.Equal(3, env.Store.Current.Overlay.AllItems().Count());
         model.ToggleKind(KindGroup.Temperature);
         Assert.Null(gpu.OverlayState);
     });

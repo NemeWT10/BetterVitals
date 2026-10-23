@@ -15,19 +15,19 @@ using Microsoft.Win32;
 namespace BetterVitals.UI.Pages.OverlayEditor;
 
 /// <summary>
-/// Advanced mode (user requirement: customize everything "once and for all"): items with every per-item option,
-/// the global style, the exact position (drag in the preview, 9 anchors + X / Y, monitor, "Set on screen"),
-/// behavior and profiles.
+/// Advanced mode (user requirement: customize everything "once and for all"): what is on the overlay as boxes, rows and
+/// items (drag items between rows, into new rows and into boxes of their own; every per-item option), the global style,
+/// the exact position of each box (drag in the preview, 9 anchors + X / Y, monitor, "Set on screen"), behavior and
+/// profiles.
 /// </summary>
 internal sealed class AdvancedView : StackPanel
 {
-    /// <summary>The item whose editor is open (kept across rebuilds while the app runs).</summary>
-    private static string? _expanded;
-
     private readonly EditorContext _ctx;
-    private readonly ReorderList _items = new();
-    private readonly TextBlock _itemsEmpty;
-    private readonly List<(OverlayItem Item, TextBlock Title, TextBlock Value)> _rows = [];
+    private readonly LayoutTree _tree;
+    private readonly SegmentBar<OverlayGrouping> _arrange;
+    private readonly Border _placeCard;
+    private readonly FrameworkElement _boxLine;
+    private readonly ComboBox _box;
     private readonly Dictionary<OverlayAnchor, RadioButton> _anchors = [];
     private readonly TextBox _x;
     private readonly TextBox _y;
@@ -39,6 +39,7 @@ internal sealed class AdvancedView : StackPanel
     private readonly Button _onScreen;
     private readonly StackPanel _onScreenActive;
     private readonly TextBlock _onScreenHint;
+    private readonly FrameworkElement _tabKey;
     private readonly ComboBox _profiles;
     private readonly Button _load;
     private readonly Button _delete;
@@ -46,23 +47,33 @@ internal sealed class AdvancedView : StackPanel
     private readonly OverlayProfileStore _store;
     private bool _syncing;
 
+    /// <summary>The box whose placement the Position section edits (kept across rebuilds while the app runs).</summary>
+    private static string _boxId = OverlayLayout.MainBoxId;
+
     public AdvancedView(EditorContext ctx, OverlayProfileStore profiles)
     {
         _ctx = ctx;
         _store = profiles;
         var layout = ctx.Layout;
 
-        // ── items ──
+        // ── on the overlay: boxes, rows, items ──
         var items = new StackPanel();
-        _items.Moved += (id, index) =>
+        _arrange = new SegmentBar<OverlayGrouping>(
+            [(OverlayGrouping.List, "ovl.group.list"), (OverlayGrouping.ByComponent, "ovl.group.byComponent"), (OverlayGrouping.OneLine, "ovl.group.oneLine")],
+            layout.Grouping, OnArrange, fontSize: 12);
+        var arrangeLine = Ui.Above("ovl.tree.arrange", _arrange, "ovl.tree.arrange.hint", top: 0);
+        arrangeLine.Margin = new Thickness(0, 0, 0, 16);
+        items.Children.Add(arrangeLine);
+        _tree = new LayoutTree(ctx);
+        _tree.PositionRequested += ShowPosition;
+        _tree.BoxCreated += id =>
         {
-            _ctx.Model.Move(id, index);
-            BuildItems();
+            _boxId = id;
+            BuildBoxes();
+            Sync();
         };
-        items.Children.Add(_items);
-        _itemsEmpty = Ui.Hint("ovl.items.empty", new Thickness(0, 0, 0, 10));
-        items.Children.Add(_itemsEmpty);
-        var addRow = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+        items.Children.Add(_tree);
+        var addRow = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
         var add = Ui.Button("SecondaryButton", "ovl.items.add", "Icon.Plus", (_, _) => _ctx.OpenPicker(true));
         add.Margin = new Thickness(0, 0, 8, 0);
         addRow.Children.Add(add);
@@ -72,13 +83,24 @@ internal sealed class AdvancedView : StackPanel
         });
         addRow.Children.Add(start);
         items.Children.Add(addRow);
-        Children.Add(Ui.Section("ovl.items.title", "ovl.items.hint", items, iconKey: "Icon.List"));
+        Children.Add(Ui.Section("ovl.tree.title", "ovl.tree.hint", items, iconKey: "Icon.List"));
 
         // ── style ──
         Children.Add(Ui.Section("ovl.style.title", "ovl.style.hint", new StyleSection(ctx), iconKey: "Icon.Palette"));
 
-        // ── placement ──
+        // ── placement (of the box chosen at the top) ──
         var place = new StackPanel();
+        _box = new ComboBox { MinWidth = 240 };
+        _box.SetResourceReference(StyleProperty, "Combo");
+        _box.SelectionChanged += (_, _) =>
+        {
+            if (_syncing || _box.SelectedItem is not Choice<string> c) return;
+            _boxId = c.Value;
+            Sync();
+        };
+        _boxLine = Ui.Stacked("ovl.place.box", _box, top: 0);
+        _boxLine.Margin = new Thickness(0, 0, 0, 14);
+        place.Children.Add(_boxLine);
         place.Children.Add(Ui.Hint("ovl.place.dragHint", new Thickness(0, 0, 0, 12)));
         var grid = new UniformGrid { Rows = 3, Columns = 3, Width = 96, Height = 72 };
         var group = Ui.NewGroup();
@@ -92,11 +114,11 @@ internal sealed class AdvancedView : StackPanel
             rb.Checked += (_, _) =>
             {
                 if (_syncing) return;
-                _ctx.Model.Edit(l =>
+                _ctx.Model.EditPlacement(_boxId, p =>
                 {
-                    l.Placement.Anchor = anchor;
-                    l.Placement.OffsetX = 0;
-                    l.Placement.OffsetY = 0;
+                    p.Anchor = anchor;
+                    p.OffsetX = 0;
+                    p.OffsetY = 0;
                 });
                 Sync();
             };
@@ -107,8 +129,8 @@ internal sealed class AdvancedView : StackPanel
         anchorBox.SetResourceReference(Border.BackgroundProperty, "Brush.BgAlt");
         anchorBox.SetResourceReference(Border.BorderBrushProperty, "Brush.Border");
 
-        _x = Number(v => _ctx.Model.Edit(l => l.Placement.OffsetX = v));
-        _y = Number(v => _ctx.Model.Edit(l => l.Placement.OffsetY = v));
+        _x = Number(v => _ctx.Model.EditPlacement(_boxId, p => p.OffsetX = v));
+        _y = Number(v => _ctx.Model.EditPlacement(_boxId, p => p.OffsetY = v));
         var xy = new StackPanel { Margin = new Thickness(18, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         xy.Children.Add(Field("X", _x));
         xy.Children.Add(Field("Y", _y, top: 8));
@@ -119,7 +141,14 @@ internal sealed class AdvancedView : StackPanel
         anchorRow.Children.Add(anchorBox);
         anchorRow.Children.Add(xy);
         place.Children.Add(Ui.Stacked("ovl.place.anchor", anchorRow, top: 0));
-        _margin = new SliderLine(0, 80, layout.Placement.Margin, 1, v => v.ToString("0", Loc.I.Culture) + " px", v => _ctx.Defer(l => l.Placement.Margin = v));
+        _margin = new SliderLine(0, 80, layout.Placement.Margin, 1, v => v.ToString("0", Loc.I.Culture) + " px", v =>
+        {
+            var id = _boxId;
+            _ctx.Defer(l =>
+            {
+                if (l.PlacementOf(id) is { } p) p.Margin = v;
+            });
+        });
         place.Children.Add(Ui.Line("ovl.place.margin", _margin, "ovl.place.margin.hint", top: 14));
 
         _monitorMode = new SegmentBar<OverlayMonitorMode>(
@@ -131,7 +160,7 @@ internal sealed class AdvancedView : StackPanel
         _monitor.SelectionChanged += (_, _) =>
         {
             if (_syncing || _monitor.SelectedItem is not Choice<string> c) return;
-            _ctx.Model.Edit(l => l.Placement.MonitorKey = c.Value);
+            _ctx.Model.EditPlacement(_boxId, p => p.MonitorKey = c.Value);
         };
         _monitorLine = Ui.Stacked("ovl.monitor.which", _monitor, top: 10);
         place.Children.Add(_monitorLine);
@@ -139,7 +168,7 @@ internal sealed class AdvancedView : StackPanel
         _monitorNote.SetResourceReference(StyleProperty, "Hint");
         place.Children.Add(_monitorNote);
 
-        // "Set on screen": the real overlay becomes draggable; Done / Cancel here while it runs
+        // "Set on screen": every box of the real overlay becomes draggable; Done / Cancel here while it runs
         place.Children.Add(Ui.Divider());
         _onScreen = Ui.Button("PrimaryButton", "ovl.onScreen", "Icon.Monitor", (_, _) => BeginOnScreen());
         _onScreen.HorizontalAlignment = HorizontalAlignment.Left;
@@ -151,8 +180,9 @@ internal sealed class AdvancedView : StackPanel
         var activeBanner = SimpleView.Banner("Icon.Monitor", "ovl.onScreen.active", null, null, "Brush.AccentSoft", "Brush.AccentText");
         _onScreenActive.Children.Add(activeBanner);
         var keys = new StackPanel { Margin = new Thickness(4, 10, 0, 0) };
-        foreach (var (key, textKey) in new[] { ("← ↑ → ↓", "ovl.onScreen.keys.arrows"), ("Shift + ← ↑ → ↓", "ovl.onScreen.keys.shift"), ("Shift + " + Loc.T("ovl.onScreen.mouse"), "ovl.onScreen.keys.free"), ("Enter", "ovl.onScreen.keys.enter"), ("Esc", "ovl.onScreen.keys.esc") })
+        foreach (var (key, textKey) in new[] { ("← ↑ → ↓", "ovl.onScreen.keys.arrows"), ("Shift + ← ↑ → ↓", "ovl.onScreen.keys.shift"), ("Shift + " + Loc.T("ovl.onScreen.mouse"), "ovl.onScreen.keys.free"), ("Tab", "ovl.onScreen.keys.tab"), ("Enter", "ovl.onScreen.keys.enter"), ("Esc", "ovl.onScreen.keys.esc") })
             keys.Children.Add(KeyLine(key, textKey));
+        _tabKey = keys.Children[3] as FrameworkElement ?? new Border();
         _onScreenActive.Children.Add(keys);
         var doneRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
         var done = Ui.Button("PrimaryButton", "ovl.onScreen.done", "Icon.Check", (_, _) => AppServices.Overlay.EndOnScreenEdit(true));
@@ -161,7 +191,8 @@ internal sealed class AdvancedView : StackPanel
         doneRow.Children.Add(Ui.Button("SecondaryButton", "ovl.onScreen.cancel", null, (_, _) => AppServices.Overlay.EndOnScreenEdit(false)));
         _onScreenActive.Children.Add(doneRow);
         place.Children.Add(_onScreenActive);
-        Children.Add(Ui.Section("ovl.place.title", "ovl.place.hint", place, iconKey: "Icon.Monitor"));
+        _placeCard = Ui.Section("ovl.place.title", "ovl.place.hint", place, iconKey: "Icon.Monitor");
+        Children.Add(_placeCard);
 
         // ── behavior ──
         var behavior = new StackPanel();
@@ -218,7 +249,7 @@ internal sealed class AdvancedView : StackPanel
         prof.Children.Add(files);
         Children.Add(Ui.Section("ovl.profiles.title", "ovl.profiles.hint", prof, iconKey: "Icon.Layers"));
 
-        BuildItems();
+        BuildBoxes();
         BuildMonitors();
         BuildProfiles();
         Sync();
@@ -227,16 +258,28 @@ internal sealed class AdvancedView : StackPanel
     /// <summary>"Restore defaults" (the page asks and offers Undo).</summary>
     public event Action? ResetRequested;
 
-    /// <summary>Re-reads placement after a drag / external change, and the item titles.</summary>
+    /// <summary>The "On the overlay" tree (tests).</summary>
+    internal LayoutTree Tree => _tree;
+
+    /// <summary>The box whose placement the Position section edits.</summary>
+    internal string SelectedBox => _boxId;
+
+    /// <summary>Re-reads placement after a drag / external change, the boxes and the item titles.</summary>
     public void Sync()
     {
         _syncing = true;
         try
         {
-            var p = _ctx.Layout.Placement;
+            if (_ctx.Layout.PlacementOf(_boxId) is null) _boxId = OverlayLayout.MainBoxId;
+            if (_box.Items.Count != _ctx.Layout.Boxes.Count + 1) BuildBoxes();
+            _boxLine.Visibility = _ctx.Layout.Boxes.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            _box.SelectedItem = _box.Items.OfType<Choice<string>>().FirstOrDefault(c => c.Value == _boxId);
+            _arrange.Set(_ctx.Layout.Grouping);
+            var p = _ctx.Layout.PlacementOf(_boxId)!;
             foreach (var (a, rb) in _anchors) rb.IsChecked = a == p.Anchor;
             if (!_x.IsKeyboardFocused) _x.Text = Num(p.OffsetX);
             if (!_y.IsKeyboardFocused) _y.Text = Num(p.OffsetY);
+            _margin.Set(p.Margin);
             _monitorMode.Set(p.MonitorMode);
             var monitors = AppServices.Overlay.Monitors;
             _monitorLine.Visibility = p.MonitorMode == OverlayMonitorMode.Specific && monitors.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -251,7 +294,8 @@ internal sealed class AdvancedView : StackPanel
             var editing = AppServices.Overlay.IsEditingOnScreen;
             _onScreen.Visibility = _onScreenHint.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
             _onScreenActive.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
-            foreach (var (item, title, _) in _rows) title.Text = _ctx.Title(item);
+            _tabKey.Visibility = _ctx.Layout.Boxes.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            _tree.RefreshTitles();
         }
         finally
         {
@@ -259,106 +303,59 @@ internal sealed class AdvancedView : StackPanel
         }
     }
 
-    public void UpdateValues()
+    public void UpdateValues() => _tree.UpdateValues();
+
+    /// <summary>Rebuilds the boxes / rows / items tree (after items were added elsewhere, or a reload).</summary>
+    public void BuildItems()
     {
-        foreach (var (item, _, value) in _rows)
+        _tree.Build();
+        BuildBoxes();
+        Sync();
+    }
+
+    /// <summary>A box was dragged on the preview: its placement shows below.</summary>
+    public void OnBoxDragged(string boxId)
+    {
+        _boxId = boxId;
+        Sync();
+        _tree.Build();
+    }
+
+    // ───────────── boxes ─────────────
+
+    private void OnArrange(OverlayGrouping grouping)
+    {
+        if (_syncing) return;
+        var before = LayoutJson.Clone(_ctx.Layout);
+        var custom = _ctx.Layout.Grouping == OverlayGrouping.Custom;
+        _ctx.Model.Regroup(grouping);
+        _tree.Build();
+        if (custom) _ctx.Toast(Loc.T("ovl.toast.regrouped"), ToastKind.Success, Loc.T("common.undo"), () => _ctx.Model.Replace(before));
+    }
+
+    private void BuildBoxes()
+    {
+        var was = _syncing;
+        _syncing = true;
+        try
         {
-            var sensors = _ctx.Sensors(item);
-            if (sensors.Count == 0)
-            {
-                value.Text = "—";
-            }
-            else if (sensors.Count == 1)
-            {
-                value.Text = _ctx.Format(sensors[0], _ctx.Feed.Value(sensors[0].Id));
-            }
-            else
-            {
-                var max = sensors.Select(s => _ctx.Feed.Value(s.Id)).Where(v => !float.IsNaN(v)).DefaultIfEmpty(float.NaN).Max();
-                value.Text = float.IsNaN(max) ? "—" : Loc.T("ovl.tile.max", _ctx.Format(sensors[0], max));
-            }
+            _box.Items.Clear();
+            foreach (var box in _ctx.Layout.AllBoxes()) _box.Items.Add(new Choice<string>(box.Id, _ctx.BoxTitle(box.Id)));
+            _box.SelectedItem = _box.Items.OfType<Choice<string>>().FirstOrDefault(c => c.Value == _boxId);
+        }
+        finally
+        {
+            _syncing = was;
         }
     }
 
-    // ───────────── items ─────────────
-
-    public void BuildItems()
+    /// <summary>The tree's "Position" of a box: that box in the Position section, scrolled into view.</summary>
+    private void ShowPosition(string boxId)
     {
-        _items.Clear();
-        _rows.Clear();
-        var layout = _ctx.Layout;
-        _itemsEmpty.Visibility = layout.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var item in layout.Items)
-        {
-            var row = new Border();
-            row.SetResourceReference(StyleProperty, "OvEd.Row");
-            var stack = new StackPanel();
-            var head = new DockPanel { Margin = new Thickness(4, 6, 6, 6) };
-
-            var handle = new Border { Width = 26, Height = 30, Background = Brushes.Transparent, CornerRadius = new CornerRadius(6), VerticalAlignment = VerticalAlignment.Center };
-            handle.Child = Ui.Icon("OvEd.Icon.Grip", 16, "Brush.TextFaint", 2.6);
-            handle.SetBinding(ToolTipProperty, Ui.Tr("ovl.order.drag"));
-            head.Children.Add(handle);
-
-            var remove = Ui.IconButton("Icon.Trash", "ovl.items.remove", (_, _) =>
-            {
-                var removed = LayoutJson.Clone(item);
-                var index = _ctx.Layout.Items.FindIndex(i => i.Id == item.Id);
-                _ctx.Model.Remove(item.Id);
-                BuildItems();
-                _ctx.Toast(Loc.T("ovl.toast.removed", _ctx.Title(removed)), ToastKind.Info, Loc.T("common.undo"), () =>
-                {
-                    _ctx.Model.Edit(l => l.Items.Insert(Math.Clamp(index, 0, l.Items.Count), LayoutJson.Clone(removed)));
-                    BuildItems();
-                });
-            }, 15);
-            DockPanel.SetDock(remove, Dock.Right);
-            head.Children.Add(remove);
-            var expand = new ToggleButton { IsChecked = _expanded == item.Id, Content = Ui.InheritIcon(_expanded == item.Id ? "Icon.ChevronUp" : "Icon.ChevronDown", 15) };
-            expand.SetResourceReference(StyleProperty, "IconButton");
-            expand.SetBinding(ToolTipProperty, Ui.Tr("ovl.items.edit"));
-            DockPanel.SetDock(expand, Dock.Right);
-            head.Children.Add(expand);
-            var value = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0), FontSize = 12.5 };
-            value.SetResourceReference(TextBlock.ForegroundProperty, "Brush.TextDim");
-            System.Windows.Documents.Typography.SetNumeralAlignment(value, FontNumeralAlignment.Tabular);
-            DockPanel.SetDock(value, Dock.Right);
-            head.Children.Add(value);
-
-            var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) };
-            var title = new TextBlock { Text = _ctx.Title(item), FontSize = 13, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
-            title.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text");
-            texts.Children.Add(title);
-            var sensors = _ctx.Sensors(item);
-            var names = new TextBlock { FontSize = 11.5, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 1, 0, 0) };
-            names.SetResourceReference(TextBlock.ForegroundProperty, "Brush.TextFaint");
-            names.Text = sensors.Count switch
-            {
-                0 => item.SensorIds.FirstOrDefault() ?? "",
-                1 => $"{sensors[0].Name} · {_ctx.Hub.FindHardware(sensors[0].HardwareId)?.Name ?? DefaultLabels.Hardware(sensors[0].HardwareKind)}",
-                // the count first, so trimming a long list never eats it (nor stacks "…" on the trim's own "…")
-                _ => $"{Loc.Plural("sensors.count", sensors.Count)} · {string.Join(", ", sensors.Take(3).Select(s => s.Name))}{(sensors.Count > 3 ? ", …" : "")}",
-            };
-            if (sensors.Count > 0) Explain.Explain.SetSensor(names, sensors[0]);
-            texts.Children.Add(names);
-            head.Children.Add(texts);
-            stack.Children.Add(head);
-
-            if (_expanded == item.Id)
-            {
-                stack.Children.Add(new ItemEditor(_ctx, item, () => title.Text = _ctx.Title(_ctx.Layout.Items.Find(i => i.Id == item.Id) ?? item)));
-                row.SetResourceReference(Border.BorderBrushProperty, "Brush.AccentGlow");
-            }
-            expand.Click += (_, _) =>
-            {
-                _expanded = _expanded == item.Id ? null : item.Id;
-                BuildItems();
-            };
-            row.Child = stack;
-            _items.AddRow(item.Id, row, handle);
-            _rows.Add((item, title, value));
-        }
-        UpdateValues();
+        _boxId = boxId;
+        BuildBoxes();
+        Sync();
+        _placeCard.BringIntoView();
     }
 
     // ───────────── placement ─────────────
@@ -366,13 +363,14 @@ internal sealed class AdvancedView : StackPanel
     private void OnMonitorMode(OverlayMonitorMode mode)
     {
         if (_syncing) return;
+        var current = _ctx.Layout.PlacementOf(_boxId)!;
         var key = mode == OverlayMonitorMode.Specific
-            ? _ctx.Layout.Placement.MonitorKey ?? AppServices.Overlay.Monitors.FirstOrDefault(m => m.IsPrimary)?.Key ?? AppServices.Overlay.Monitors.FirstOrDefault()?.Key
-            : _ctx.Layout.Placement.MonitorKey;
-        _ctx.Model.Edit(l =>
+            ? current.MonitorKey ?? AppServices.Overlay.Monitors.FirstOrDefault(m => m.IsPrimary)?.Key ?? AppServices.Overlay.Monitors.FirstOrDefault()?.Key
+            : current.MonitorKey;
+        _ctx.Model.EditPlacement(_boxId, p =>
         {
-            l.Placement.MonitorMode = mode;
-            l.Placement.MonitorKey = key;
+            p.MonitorMode = mode;
+            p.MonitorKey = key;
         });
         Sync();
     }
@@ -395,19 +393,24 @@ internal sealed class AdvancedView : StackPanel
     private void BeginOnScreen()
     {
         AppServices.Overlay.BeginOnScreenEdit(
-            commit: p =>
+            commit: placements =>
             {
-                var placed = LayoutJson.Clone(p);
+                var placed = placements.ToDictionary(kv => kv.Key, kv => LayoutJson.Clone(kv.Value), StringComparer.Ordinal);
                 _ctx.Model.Edit(l =>
                 {
-                    l.Placement.Anchor = placed.Anchor;
-                    l.Placement.OffsetX = placed.OffsetX;
-                    l.Placement.OffsetY = placed.OffsetY;
-                    l.Placement.Margin = placed.Margin;
-                    l.Placement.MonitorMode = placed.MonitorMode;
-                    l.Placement.MonitorKey = placed.MonitorKey;
+                    foreach (var (id, p) in placed)
+                    {
+                        if (l.PlacementOf(id) is not { } target) continue;
+                        target.Anchor = p.Anchor;
+                        target.OffsetX = p.OffsetX;
+                        target.OffsetY = p.OffsetY;
+                        target.Margin = p.Margin;
+                        target.MonitorMode = p.MonitorMode;
+                        target.MonitorKey = p.MonitorKey;
+                    }
                 });
                 Sync();
+                _tree.Build();
                 _ctx.Toast(Loc.T("ovl.toast.placed"), ToastKind.Success, null, null);
             },
             cancel: Sync);

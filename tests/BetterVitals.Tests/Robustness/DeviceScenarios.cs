@@ -29,6 +29,7 @@ public sealed class DeviceScenarios(ITestOutputHelper output)
     private static Scene SceneFor(ISensorHub hub, params SensorDescriptor[] sensors)
     {
         var layout = new OverlayLayout { Enabled = true, Items = [.. sensors.Select(s => new OverlayItem { SensorIds = [s.Id] })] };
+        layout.Normalize();
         return new Scene(new SceneInput(layout, OverlayTheme.Default, new EngineLookup(hub), CultureInfo.InvariantCulture, TemperatureUnit.Celsius, null, 1));
     }
 

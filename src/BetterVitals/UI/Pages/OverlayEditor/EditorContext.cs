@@ -67,6 +67,37 @@ internal sealed class EditorContext
         return DefaultLabels.ForGroup(sensors);
     }
 
+    /// <summary>The label a row shows on the overlay: its own, else the automatic one (the item's, the component's, the first item's).</summary>
+    public string RowLabel(OverlayRow row)
+    {
+        if (!string.IsNullOrWhiteSpace(row.Label)) return row.Label!;
+        var labels = row.Items.Select(i => string.IsNullOrWhiteSpace(i.Label) ? DefaultLabel(i) : i.Label!).ToList();
+        var kinds = row.Items.Select(i => Sensors(i) is { Count: > 0 } s ? s[0].HardwareKind : OverlayLayoutEdits.ComponentKind(i)).ToList();
+        return DefaultLabels.ForRow(labels, kinds);
+    }
+
+    /// <summary>"Main box", the box's own name, or "Box 2", "Box 3"… by its place in the list.</summary>
+    public string BoxTitle(string boxId)
+    {
+        if (boxId == OverlayLayout.MainBoxId) return Loc.T("ovl.box.main");
+        var i = Layout.Boxes.FindIndex(b => b.Id == boxId);
+        if (i >= 0 && Layout.Boxes[i].Name is { Length: > 0 } name) return name;
+        return Loc.T("ovl.box.n", (Math.Max(0, i) + 2).ToString(Loc.I.Culture));
+    }
+
+    /// <summary>"Top right · Main monitor": where a box sits, in words.</summary>
+    public string PlacementSummary(OverlayPlacement p)
+    {
+        var monitor = p.MonitorMode switch
+        {
+            OverlayMonitorMode.Specific => Services.AppServices.Overlay.Monitors.FirstOrDefault(m => string.Equals(m.Key, p.MonitorKey, StringComparison.OrdinalIgnoreCase))?.FriendlyName
+                                           ?? Loc.T("ovl.monitor.mode.specific"),
+            OverlayMonitorMode.FollowGame => Loc.T("ovl.monitor.game"),
+            _ => Loc.T("ovl.monitor.primary"),
+        };
+        return Loc.T("ovl.anchor." + p.Anchor) + " · " + monitor;
+    }
+
     /// <summary>"54 °C" (UI culture, user's temperature unit); "—" without a value.</summary>
     public string Format(SensorDescriptor s, float value)
     {

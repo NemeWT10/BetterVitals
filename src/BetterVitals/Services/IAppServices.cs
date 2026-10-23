@@ -18,10 +18,11 @@ public interface IOverlayService
     IReadOnlyList<OverlayMonitor> Monitors { get; }
 
     /// <summary>
-    /// "Set on screen": the real overlay becomes draggable (snap guides, arrows 1 px / Shift 10 px, Enter / Esc).
-    /// <paramref name="commit"/> / <paramref name="cancel"/> run on the UI thread.
+    /// "Set on screen": every box of the real overlay becomes draggable (snap guides, arrows 1 px / Shift 10 px, Tab =
+    /// next box, Enter / Esc). <paramref name="commit"/> gets each box's placement by box id
+    /// (<see cref="OverlayLayout.MainBoxId"/> = the main box); it and <paramref name="cancel"/> run on the UI thread.
     /// </summary>
-    void BeginOnScreenEdit(Action<OverlayPlacement> commit, Action cancel);
+    void BeginOnScreenEdit(Action<IReadOnlyDictionary<string, OverlayPlacement>> commit, Action cancel);
 
     /// <summary>Ends the on-screen edit from the editor's Done / Cancel buttons.</summary>
     void EndOnScreenEdit(bool commit);
@@ -38,7 +39,7 @@ public sealed class NullOverlayService : IOverlayService
 
     public IReadOnlyList<OverlayMonitor> Monitors => [];
 
-    public void BeginOnScreenEdit(Action<OverlayPlacement> commit, Action cancel) => cancel();
+    public void BeginOnScreenEdit(Action<IReadOnlyDictionary<string, OverlayPlacement>> commit, Action cancel) => cancel();
 
     public void EndOnScreenEdit(bool commit) { }
 

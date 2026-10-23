@@ -5,41 +5,28 @@ using BetterVitals.Overlay.Rendering;
 namespace BetterVitals.Overlay.Host;
 
 /// <summary>
-/// The window's drawing surface: D3D11 device (BGRA) → DXGI composition swap chain (premultiplied alpha, flip
-/// sequential, 2 buffers) → DirectComposition visual on the HWND, drawn with a Direct2D device context.
-/// Device loss (TDR, driver update, GPU switch) is reported by <see cref="Render"/>; the owner then calls
-/// <see cref="Reset"/> and renders again. Overlay thread only.
+/// The graphics device every overlay window shares: D3D11 device (BGRA), its DXGI factory, one Direct2D device context
+/// (it draws into each window's swap chain in turn) with its brushes, and one DirectComposition device (one target per
+/// window). Device loss (TDR, driver update, GPU switch) shows up as a failed render or present; the owner then releases
+/// every <see cref="SwapSurface"/>, calls <see cref="Create"/> again and recreates them. Overlay thread only.
 /// </summary>
-internal sealed unsafe class GpuSurface : IDisposable
+internal sealed unsafe class GpuDevice : IDisposable
 {
-    private readonly nint _hwnd;
     private void* _d2dFactory;
     private void* _d3d;
     private void* _dxgiDevice;
     private void* _dxgiFactory;
-    private void* _swap;
     private void* _d2dDevice;
     private void* _dc;
-    private void* _target;
     private void* _dcomp;
-    private void* _dcTarget;
-    private void* _visual;
     private DeviceResources? _res;
 
-    public GpuSurface(nint hwnd, bool preferWarp)
-    {
-        _hwnd = hwnd;
-        PreferWarp = preferWarp;
-    }
+    public GpuDevice(bool preferWarp) => PreferWarp = preferWarp;
 
     /// <summary>Try the WARP software device before the GPU (default; see <see cref="Create"/>).</summary>
     public bool PreferWarp { get; }
 
-    public bool Ready => _dc != null && _swap != null;
-
-    public int Width { get; private set; }
-
-    public int Height { get; private set; }
+    public bool Ready => _dc != null && _dcomp != null;
 
     /// <summary>How many times the device was created (1 + recoveries).</summary>
     public int DeviceCreations { get; private set; }
@@ -47,12 +34,20 @@ internal sealed unsafe class GpuSurface : IDisposable
     /// <summary>The device in use is WARP.</summary>
     public bool IsWarp { get; private set; }
 
-    /// <summary>Creates device, swap chain and composition tree for a <paramref name="w"/> × <paramref name="h"/> surface.</summary>
-    public void Create(int w, int h)
+    internal void* D3D => _d3d;
+
+    internal void* DxgiFactory => _dxgiFactory;
+
+    internal void* Dc => _dc;
+
+    internal void* DComp => _dcomp;
+
+    internal DeviceResources? Resources => _res;
+
+    /// <summary>Creates the device, the Direct2D context and the composition device.</summary>
+    public void Create()
     {
         Release();
-        w = Math.Max(1, w);
-        h = Math.Max(1, h);
         if (_d2dFactory == null)
         {
             void* f = null;
@@ -86,6 +81,77 @@ internal sealed unsafe class GpuSurface : IDisposable
         Com.Release(ref adapter);
         Com.Check(hr, "IDXGIAdapter.GetParent(IDXGIFactory2)");
 
+        Com.Check(D2D.CreateDevice(_d2dFactory, _dxgiDevice, out _d2dDevice), "ID2D1Factory1.CreateDevice");
+        Com.Check(D2D.CreateDeviceContext(_d2dDevice, out _dc), "ID2D1Device.CreateDeviceContext");
+        // Keep Direct2D's internal caches small: the overlay draws a few dozen glyphs once a second.
+        D2D.SetMaximumTextureMemory(_d2dDevice, 4 * 1024 * 1024);
+        _res = new DeviceResources(_dc, _d2dFactory);
+
+        void* dcomp = null;
+        var dcompIid = Iid.DCompDevice;
+        Com.Check(GfxApi.DCompositionCreateDevice(_dxgiDevice, &dcompIid, &dcomp), "DCompositionCreateDevice");
+        _dcomp = dcomp;
+        Log.Info($"overlay: {(IsWarp ? "WARP" : "hardware")} device (feature level 0x{fl:X})");
+    }
+
+    /// <summary>DirectComposition still has a valid device (false after a display driver reset).</summary>
+    public bool CheckComposition() => _dcomp == null || Interop.DComp.CheckDeviceState(_dcomp);
+
+    /// <summary>Releases the device objects (the D2D factory is kept). Release the surfaces first.</summary>
+    public void Release()
+    {
+        _res?.Dispose();
+        _res = null;
+        if (_dc != null) RT.SetTarget(_dc, null);
+        if (_dcomp != null) Interop.DComp.Commit(_dcomp);
+        Com.Release(ref _dcomp);
+        Com.Release(ref _dc);
+        Com.Release(ref _d2dDevice);
+        Com.Release(ref _dxgiFactory);
+        Com.Release(ref _dxgiDevice);
+        Com.Release(ref _d3d);
+    }
+
+    /// <summary>Lets Direct2D free cached glyph / texture memory not used for a while.</summary>
+    public void Trim()
+    {
+        if (_d2dDevice != null) D2D.ClearResources(_d2dDevice, 0);
+    }
+
+    public void Dispose()
+    {
+        Release();
+        Com.Release(ref _d2dFactory);
+    }
+}
+
+/// <summary>
+/// One window's drawing surface on the shared <see cref="GpuDevice"/>: a DXGI composition swap chain (premultiplied
+/// alpha, flip sequential, 2 buffers) of exactly the box's size → a DirectComposition visual on the HWND. Overlay
+/// thread only.
+/// </summary>
+internal sealed unsafe class SwapSurface(GpuDevice device, nint hwnd) : IDisposable
+{
+    private void* _swap;
+    private void* _target;
+    private void* _dcTarget;
+    private void* _visual;
+
+    public nint Hwnd { get; } = hwnd;
+
+    public bool Ready => _swap != null && _target != null && device.Ready;
+
+    public int Width { get; private set; }
+
+    public int Height { get; private set; }
+
+    /// <summary>Creates the swap chain and the composition tree for a <paramref name="w"/> × <paramref name="h"/> surface.</summary>
+    public void Create(int w, int h)
+    {
+        Release();
+        if (!device.Ready) throw new InvalidOperationException("graphics device not ready");
+        w = Math.Max(1, w);
+        h = Math.Max(1, h);
         var desc = new DxgiSwapChainDesc1
         {
             Width = (uint)w,
@@ -98,47 +164,35 @@ internal sealed unsafe class GpuSurface : IDisposable
             SwapEffect = 3, // FLIP_SEQUENTIAL
             AlphaMode = 1, // PREMULTIPLIED
         };
-        Com.Check(Dxgi.CreateSwapChainForComposition(_dxgiFactory, _d3d, desc, out _swap), "CreateSwapChainForComposition");
-
-        Com.Check(D2D.CreateDevice(_d2dFactory, _dxgiDevice, out _d2dDevice), "ID2D1Factory1.CreateDevice");
-        Com.Check(D2D.CreateDeviceContext(_d2dDevice, out _dc), "ID2D1Device.CreateDeviceContext");
-        // Keep Direct2D's internal caches small: the overlay draws a few dozen glyphs once a second.
-        D2D.SetMaximumTextureMemory(_d2dDevice, 4 * 1024 * 1024);
+        Com.Check(Dxgi.CreateSwapChainForComposition(device.DxgiFactory, device.D3D, desc, out _swap), "CreateSwapChainForComposition");
         BindTarget();
-        _res = new DeviceResources(_dc, _d2dFactory);
-
-        void* dcomp = null;
-        var dcompIid = Iid.DCompDevice;
-        Com.Check(GfxApi.DCompositionCreateDevice(_dxgiDevice, &dcompIid, &dcomp), "DCompositionCreateDevice");
-        _dcomp = dcomp;
-        Com.Check(DComp.CreateTargetForHwnd(_dcomp, _hwnd, true, out _dcTarget), "CreateTargetForHwnd");
-        Com.Check(DComp.CreateVisual(_dcomp, out _visual), "CreateVisual");
-        Com.Check(DComp.SetContent(_visual, _swap), "IDCompositionVisual.SetContent");
-        Com.Check(DComp.SetRoot(_dcTarget, _visual), "IDCompositionTarget.SetRoot");
-        Com.Check(DComp.Commit(_dcomp), "IDCompositionDevice.Commit");
+        Com.Check(Interop.DComp.CreateTargetForHwnd(device.DComp, Hwnd, true, out _dcTarget), "CreateTargetForHwnd");
+        Com.Check(Interop.DComp.CreateVisual(device.DComp, out _visual), "CreateVisual");
+        Com.Check(Interop.DComp.SetContent(_visual, _swap), "IDCompositionVisual.SetContent");
+        Com.Check(Interop.DComp.SetRoot(_dcTarget, _visual), "IDCompositionTarget.SetRoot");
+        Com.Check(Interop.DComp.Commit(device.DComp), "IDCompositionDevice.Commit");
         Width = w;
         Height = h;
-        Log.Info($"overlay: surface {w}×{h} on {(IsWarp ? "WARP" : "hardware")} device (feature level 0x{fl:X})");
+        Log.Info($"overlay: surface {w}×{h}");
     }
 
     private void BindTarget()
     {
         Com.Check(Dxgi.GetBuffer(_swap, 0, Iid.DxgiSurface, out var surface), "IDXGISwapChain.GetBuffer");
         var props = new D2DBitmapProps1 { Format = 87, AlphaMode = 1, DpiX = 96, DpiY = 96, Options = 1 | 2 };
-        var hr = RT.CreateBitmapFromDxgiSurface(_dc, surface, props, out _target);
+        var hr = RT.CreateBitmapFromDxgiSurface(device.Dc, surface, props, out _target);
         Com.Release(ref surface);
         Com.Check(hr, "CreateBitmapFromDxgiSurface");
-        RT.SetTarget(_dc, _target);
     }
 
-    /// <summary>Resizes the swap chain buffers; returns an HRESULT (device lost → <see cref="Reset"/>).</summary>
+    /// <summary>Resizes the swap chain buffers; returns an HRESULT (device lost → recreate everything).</summary>
     public int Resize(int w, int h)
     {
         w = Math.Max(1, w);
         h = Math.Max(1, h);
         if (!Ready) return -1;
         if (w == Width && h == Height) return 0;
-        RT.SetTarget(_dc, null);
+        RT.SetTarget(device.Dc, null);
         Com.Release(ref _target);
         var hr = Dxgi.ResizeBuffers(_swap, (uint)w, (uint)h);
         if (hr < 0) return hr;
@@ -148,46 +202,18 @@ internal sealed unsafe class GpuSurface : IDisposable
         return 0;
     }
 
-    /// <summary>Draws the scene and presents. Returns an HRESULT; device-lost codes mean "call <see cref="Reset"/>".</summary>
-    public int Render(Scene scene, float alpha, bool edit, bool present = true)
+    /// <summary>Draws the scene and presents. Returns an HRESULT; device-lost codes mean "recreate the device".</summary>
+    public int Render(Scene scene, float alpha, bool edit, float editEmphasis = 1, bool present = true)
     {
-        if (!Ready || _res is null) return -1;
-        RT.BeginDraw(_dc);
-        SceneRenderer.Draw(_res, scene, alpha, edit);
-        var hr = RT.EndDraw(_dc);
+        if (!Ready || device.Resources is not { } res) return -1;
+        var dc = device.Dc;
+        RT.SetTarget(dc, _target);
+        RT.BeginDraw(dc);
+        SceneRenderer.Draw(res, scene, alpha, edit, editEmphasis);
+        var hr = RT.EndDraw(dc);
+        RT.SetTarget(dc, null);
         if (hr < 0 || !present) return hr;
         return Dxgi.Present(_swap, 0, 0);
-    }
-
-    /// <summary>DirectComposition still has a valid device (false after a display driver reset).</summary>
-    public bool CheckComposition() => _dcomp == null || DComp.CheckDeviceState(_dcomp);
-
-    /// <summary>Drops every device-bound object and recreates them at the current size.</summary>
-    public void Reset()
-    {
-        int w = Math.Max(1, Width), h = Math.Max(1, Height);
-        Log.Warn("overlay: graphics device lost, recreating");
-        Create(w, h);
-    }
-
-    /// <summary>Releases device objects (the D2D factory is kept).</summary>
-    public void Release()
-    {
-        _res?.Dispose();
-        _res = null;
-        if (_dc != null) RT.SetTarget(_dc, null);
-        Com.Release(ref _target);
-        Com.Release(ref _visual);
-        Com.Release(ref _dcTarget);
-        if (_dcomp != null) DComp.Commit(_dcomp);
-        Com.Release(ref _dcomp);
-        Com.Release(ref _dc);
-        Com.Release(ref _d2dDevice);
-        Com.Release(ref _swap);
-        Com.Release(ref _dxgiFactory);
-        Com.Release(ref _dxgiDevice);
-        Com.Release(ref _d3d);
-        Width = Height = 0;
     }
 
     /// <summary>
@@ -197,8 +223,9 @@ internal sealed unsafe class GpuSurface : IDisposable
     public OverlayBitmap? ReadBack()
     {
         if (!Ready) return null;
+        var dc = device.Dc;
         var props = new D2DBitmapProps1 { Format = 87, AlphaMode = 1, DpiX = 96, DpiY = 96, Options = 4 | 2 };
-        if (RT.CreateBitmap1(_dc, (uint)Width, (uint)Height, props, out var cpu) < 0) return null;
+        if (RT.CreateBitmap1(dc, (uint)Width, (uint)Height, props, out var cpu) < 0) return null;
         try
         {
             if (Bitmap1.CopyFromBitmap(cpu, _target) < 0) return null;
@@ -216,15 +243,17 @@ internal sealed unsafe class GpuSurface : IDisposable
         }
     }
 
-    /// <summary>Lets Direct2D free cached glyph / texture memory not used for a while.</summary>
-    public void Trim()
+    /// <summary>Releases the swap chain and the composition target (the device stays).</summary>
+    public void Release()
     {
-        if (_d2dDevice != null) D2D.ClearResources(_d2dDevice, 0);
+        var had = _dcTarget != null;
+        Com.Release(ref _target);
+        Com.Release(ref _visual);
+        Com.Release(ref _dcTarget);
+        Com.Release(ref _swap);
+        if (had && device.Ready) Interop.DComp.Commit(device.DComp);
+        Width = Height = 0;
     }
 
-    public void Dispose()
-    {
-        Release();
-        Com.Release(ref _d2dFactory);
-    }
+    public void Dispose() => Release();
 }

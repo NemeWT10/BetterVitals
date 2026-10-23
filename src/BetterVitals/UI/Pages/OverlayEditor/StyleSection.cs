@@ -59,7 +59,7 @@ internal static class FontSamples
                 Padding = 1,
                 AutoScale = true,
             },
-            Items = [new OverlayItem { SensorIds = [Sample.Id], Label = family, Thresholds = [] }],
+            Rows = [new OverlayRow { Items = [new OverlayItem { SensorIds = [Sample.Id], Label = family, Thresholds = [] }] }],
         };
         var values = new[] { new PreviewSensor(Sample, 54) };
         var culture = Loc.I.Culture;
@@ -142,7 +142,7 @@ internal sealed class StyleSection : StackPanel
         var arrangement = new SegmentBar<OverlayArrangement>(
             [(OverlayArrangement.Vertical, "ovl.arr.vertical"), (OverlayArrangement.Horizontal, "ovl.arr.horizontal"), (OverlayArrangement.Compact, "ovl.arr.compact")],
             style.Arrangement, v => _ctx.Model.Edit(l => l.Style.Arrangement = v), fontSize: 12);
-        Children.Add(Ui.Line("ovl.style.arrangement", arrangement));
+        Children.Add(Ui.Above("ovl.style.arrangement", arrangement, "ovl.style.arrangement.hint"));
 
         // ── background and frame ──
         Children.Add(Ui.Divider());

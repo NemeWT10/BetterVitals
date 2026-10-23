@@ -82,7 +82,7 @@ internal sealed class PreviewFeed(ISensorHub hub)
     {
         var result = new List<PreviewSensor>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in layout.Items)
+        foreach (var item in layout.AllItems())
         {
             foreach (var id in item.SensorIds)
             {
@@ -104,7 +104,7 @@ internal sealed class PreviewFeed(ISensorHub hub)
 
     /// <summary>True when the preview shows example game values (no game in the foreground right now).</summary>
     public bool UsesExampleValues(OverlayLayout layout)
-        => layout.Items.SelectMany(i => i.SensorIds).Any(id =>
+        => layout.AllItems().SelectMany(i => i.SensorIds).Any(id =>
         {
             var d = Hub.Find(id) ?? Describe(id);
             return d is not null && Example(d) is not null && (d.Index < 0 || float.IsNaN(Hub.Latest[d.Index]));

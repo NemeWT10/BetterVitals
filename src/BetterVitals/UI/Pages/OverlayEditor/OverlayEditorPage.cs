@@ -146,7 +146,7 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
         _leftScroll = new ScrollViewer { Content = _left, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Focusable = false, Padding = new Thickness(0, 0, 10, 0) };
         _preview = new LivePreview(_ctx);
         _preview.CornerPicked += a => _model.SetCorner(a);
-        _preview.Dragged += () => _advanced?.Sync();
+        _preview.Dragged += id => _advanced?.OnBoxDragged(id);
         _previewCard = Ui.Card(_preview);
         _order = new OrderPanel(_ctx);
         _orderCard = Ui.Card(_order);
@@ -306,7 +306,7 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
     private HashSet<string> DemandedIds()
     {
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in _model.Working.Items) ids.UnionWith(item.SensorIds);
+        foreach (var item in _model.Working.AllItems()) ids.UnionWith(item.SensorIds);
         if (_simple is not null) ids.UnionWith(_simple.VisibleSensorIds);
         if (_picker.IsOpen) ids.UnionWith(_picker.SensorIds);
         return ids;

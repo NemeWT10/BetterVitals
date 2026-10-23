@@ -30,15 +30,16 @@ public sealed class OverlayEditorModelTests
         m.Toggle(f.F("gpu.temp"));
         m.Toggle(f.F("fps.fps"));
         m.Toggle(f.F("cpu.clocks"));
-        Assert.Equal(3, f.Store.Current.Overlay.Items.Count);
-        Assert.Equal(f.F("gpu.temp").SensorIds, f.Store.Current.Overlay.Items[0].SensorIds);
-        Assert.Equal(f.F("fps.fps").SensorIds, f.Store.Current.Overlay.Items[1].SensorIds);
-        Assert.Equal(8, f.Store.Current.Overlay.Items[2].SensorIds.Count); // every core of the 9800X3D
+        var items = f.Store.Current.Overlay.AllItems().ToList();
+        Assert.Equal(3, items.Count);
+        Assert.Equal(f.F("gpu.temp").SensorIds, items[0].SensorIds);
+        Assert.Equal(f.F("fps.fps").SensorIds, items[1].SensorIds);
+        Assert.Equal(8, items[2].SensorIds.Count); // every core of the 9800X3D
         Assert.Equal(1, m.OrderOf(f.F("gpu.temp")));
         Assert.Equal(3, m.OrderOf(f.F("cpu.clocks")));
 
         m.Toggle(f.F("fps.fps")); // off again
-        Assert.Equal(2, f.Store.Current.Overlay.Items.Count);
+        Assert.Equal(2, f.Store.Current.Overlay.AllItems().Count());
         Assert.Equal(0, m.OrderOf(f.F("fps.fps")));
         Assert.Equal(2, m.OrderOf(f.F("cpu.clocks")));
 
@@ -46,7 +47,8 @@ public sealed class OverlayEditorModelTests
         Assert.Equal(3, m.OrderOf(f.F("fps.fps")));
         // working copy and settings agree, and never share objects
         Assert.Equal(LayoutJson.Text(m.Working), LayoutJson.Text(f.Store.Current.Overlay));
-        Assert.NotSame(m.Working.Items[0], f.Store.Current.Overlay.Items[0]);
+        Assert.NotSame(m.Working.AllItems().First(), f.Store.Current.Overlay.AllItems().First());
+        Assert.NotSame(m.Working.Rows[0], f.Store.Current.Overlay.Rows[0]);
     }
 
     [Fact]
@@ -54,14 +56,17 @@ public sealed class OverlayEditorModelTests
     {
         using var f = new EditorFixture();
         var m = new OverlayEditorModel(f.Store);
+        m.SetGrouping(OverlayGrouping.List);
         foreach (var key in new[] { "fps.fps", "cpu.temp", "gpu.temp", "gpu.hotspot" }) m.Toggle(f.F(key));
-        var ids = m.Working.Items.Select(i => i.Id).ToList();
+        var ids = m.Working.AllItems().Select(i => i.Id).ToList();
         m.Move(ids[3], 0);
-        Assert.Equal([ids[3], ids[0], ids[1], ids[2]], f.Store.Current.Overlay.Items.Select(i => i.Id));
+        Assert.Equal([ids[3], ids[0], ids[1], ids[2]], f.Store.Current.Overlay.AllItems().Select(i => i.Id));
+        Assert.All(f.Store.Current.Overlay.Rows, r => Assert.Single(r.Items)); // a list: one item per row
         m.Move(ids[3], 99); // clamped to the end
-        Assert.Equal([ids[0], ids[1], ids[2], ids[3]], f.Store.Current.Overlay.Items.Select(i => i.Id));
+        Assert.Equal([ids[0], ids[1], ids[2], ids[3]], f.Store.Current.Overlay.AllItems().Select(i => i.Id));
         m.Move("missing", 0);
-        Assert.Equal(4, f.Store.Current.Overlay.Items.Count);
+        Assert.Equal(4, f.Store.Current.Overlay.AllItems().Count());
+        Assert.Equal(LayoutJson.Text(m.Working), LayoutJson.Text(f.Store.Current.Overlay));
     }
 
     [Fact]
@@ -71,7 +76,8 @@ public sealed class OverlayEditorModelTests
         var m = new OverlayEditorModel(f.Store);
         Assert.Equal(3, m.AddDefaults(f.Friendly));
         Assert.Equal(0, m.AddDefaults(f.Friendly));
-        Assert.Equal(["fps.fps", "cpu.temp", "gpu.temp"], f.Store.Current.Overlay.Items.Select(i => f.Friendly.First(x => OverlayEditorModel.Matches(i, x)).Key));
+        Assert.Equal(["fps.fps", "cpu.temp", "gpu.temp"], f.Store.Current.Overlay.AllItems().Select(i => f.Friendly.First(x => OverlayEditorModel.Matches(i, x)).Key));
+        Assert.Equal(3, f.Store.Current.Overlay.Rows.Count); // a row per component
     }
 
     [Theory]
@@ -126,7 +132,7 @@ public sealed class OverlayEditorModelTests
         m.SetAdvanced(true);
         m.Toggle(f.F("cpu.temp"));
         m.Toggle(f.F("cpu.loads"));
-        var id = m.Working.Items[1].Id;
+        var id = m.Working.AllItems().ElementAt(1).Id;
         m.Edit(l =>
         {
             l.Style.FontFamily = "Orbitron";
@@ -154,10 +160,11 @@ public sealed class OverlayEditorModelTests
         m.ResetLook();
         var l = f.Store.Current.Overlay;
         Assert.False(OverlayEditorModel.HasCustomizations(l));
-        Assert.Equal(2, l.Items.Count);
-        Assert.Equal(id, l.Items[1].Id);
-        Assert.Equal(8, l.Items[1].SensorIds.Count);
-        Assert.Null(l.Items[1].Label);
+        var items = l.AllItems().ToList();
+        Assert.Equal(2, items.Count);
+        Assert.Equal(id, items[1].Id);
+        Assert.Equal(8, items[1].SensorIds.Count);
+        Assert.Null(items[1].Label);
         Assert.Equal(OverlayAnchor.TopRight, l.Placement.Anchor);
         Assert.Equal("Inter", l.Style.FontFamily);
     }
@@ -210,7 +217,7 @@ public sealed class OverlayEditorModelTests
         Assert.Equal(1000, l.RefreshMs);
         Assert.True(l.HideFromCapture);
         Assert.Equal(OverlayArrangement.Vertical, l.Style.Arrangement);
-        Assert.Equal(3, l.Items.Count);
+        Assert.Equal(3, l.AllItems().Count());
         Assert.Equal(1, reloads);
         Assert.Equal(LayoutJson.Text(m.Working), LayoutJson.Text(l));
     }
@@ -235,7 +242,7 @@ public sealed class OverlayEditorModelTests
             l.Placement.Anchor = OverlayAnchor.BottomCenter;
             l.Placement.OffsetY = 30.5;
         });
-        m.EditItem(m.Working.Items[1].Id, i =>
+        m.EditItem(m.Working.AllItems().ElementAt(1).Id, i =>
         {
             i.MultiDisplay = MultiValueDisplay.Rows;
             i.Aggregation = ValueAggregation.Average;
@@ -268,8 +275,8 @@ public sealed class OverlayEditorModelTests
         Assert.True(now.Advanced);
         Assert.Equal(OverlayVisibility.GamesOnly, now.Visibility);
         Assert.Equal("Rajdhani", now.Style.FontFamily);
-        Assert.Equal(2, now.Items.Count);
-        Assert.Equal(5400, now.Items[1].Thresholds![1].Value);
+        Assert.Equal(2, now.AllItems().Count());
+        Assert.Equal(5400, now.AllItems().ElementAt(1).Thresholds![1].Value);
 
         // named profiles on disk
         var store = new OverlayProfileStore(f.ProfileDir);
@@ -285,8 +292,11 @@ public sealed class OverlayEditorModelTests
     {
         var bare = """{ "items": [ { "id": "a", "sensorIds": ["x/y/0/fps/fps"] }, { "id": "a", "sensorIds": ["x/y/0/fps/1-low"] } ], "refreshMs": 99999, "style": { "scalePercent": 900 } }""";
         var (_, layout) = LayoutJson.ReadProfile(bare);
-        Assert.Equal(2, layout.Items.Count);
-        Assert.NotEqual(layout.Items[0].Id, layout.Items[1].Id); // duplicate editor ids repaired
+        var items = layout.AllItems().ToList();
+        Assert.Equal(2, items.Count);
+        Assert.NotEqual(items[0].Id, items[1].Id); // duplicate editor ids repaired
+        Assert.Equal(2, layout.Rows.Count); // a flat v1 list: a row per item, as it always looked
+        Assert.Equal(OverlayGrouping.List, layout.Grouping);
         Assert.Equal(2000, layout.RefreshMs); // normalized
         Assert.Equal(200, layout.Style.ScalePercent);
 
@@ -377,12 +387,14 @@ public sealed class OverlayEditorModelTests
         using var f = new EditorFixture();
         var m = new OverlayEditorModel(f.Store);
         m.Toggle(f.F("cpu.temp"));
-        var id = m.Working.Items[0].Id;
-        var rows = ThresholdEditing.Seed(f.Engine.Find(m.Working.Items[0].SensorIds[0]), OverlayTheme.Default);
+        var mine = m.Working.AllItems().First();
+        var id = mine.Id;
+        var rows = ThresholdEditing.Seed(f.Engine.Find(mine.SensorIds[0]), OverlayTheme.Default);
         m.EditItem(id, i => i.Thresholds = ThresholdEditing.Copy(rows));
-        Assert.NotSame(m.Working.Items[0].Thresholds, f.Store.Current.Overlay.Items[0].Thresholds);
-        m.Working.Items[0].Thresholds![0].Value = 1; // a stray in-place change of the working copy
-        Assert.Equal(80, f.Store.Current.Overlay.Items[0].Thresholds![0].Value);
+        var stored = f.Store.Current.Overlay.AllItems().First();
+        Assert.NotSame(mine.Thresholds, stored.Thresholds);
+        mine.Thresholds![0].Value = 1; // a stray in-place change of the working copy
+        Assert.Equal(80, stored.Thresholds![0].Value);
     }
 
     [Fact]
@@ -390,14 +402,14 @@ public sealed class OverlayEditorModelTests
     {
         using var f = new EditorFixture();
         var feed = new PreviewFeed(f.Engine);
-        var layout = new OverlayLayout();
+        var layout = new OverlayLayout { Items = [] };
         layout.Items.Add(new OverlayItem { SensorIds = [.. f.F("cpu.temp").SensorIds] });
         layout.Items.Add(new OverlayItem { SensorIds = [.. f.F("cpu.clocks").SensorIds] });
         layout.Items.Add(new OverlayItem { SensorIds = ["game/foreground/0/fps/framerate-not-there"] });
         for (var i = 0; i < 5; i++)
         {
             f.Advance(1);
-            feed.Sample(layout.Items.SelectMany(x => x.SensorIds));
+            feed.Sample(layout.AllItems().SelectMany(x => x.SensorIds));
         }
         var values = feed.Build(layout);
         Assert.Equal(1 + 8 + 1, values.Count);

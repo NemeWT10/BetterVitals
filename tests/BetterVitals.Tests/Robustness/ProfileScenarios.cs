@@ -11,12 +11,17 @@ namespace BetterVitals.Tests.Robustness;
 /// <summary>PROJEKT §7 / §8: overlay profiles are files the user saves, copies, shares and edits — the editor must take any of them.</summary>
 public sealed class ProfileScenarios(ITestOutputHelper output)
 {
-    private static OverlayLayout Sample() => new()
+    private static OverlayLayout Sample()
     {
-        Enabled = true,
-        Placement = { Anchor = OverlayAnchor.BottomRight, OffsetX = 12 },
-        Items = [new OverlayItem { SensorIds = ["cpu/x/0/temperature/a"], Label = "CPU" }, new OverlayItem { SensorIds = ["gpu/y/0/load/b", "gpu/y/0/load/c"], MultiDisplay = MultiValueDisplay.Grid }],
-    };
+        var layout = new OverlayLayout
+        {
+            Enabled = true,
+            Placement = { Anchor = OverlayAnchor.BottomRight, OffsetX = 12 },
+            Items = [new OverlayItem { SensorIds = ["cpu/x/0/temperature/a"], Label = "CPU" }, new OverlayItem { SensorIds = ["gpu/y/0/load/b", "gpu/y/0/load/c"], MultiDisplay = MultiValueDisplay.Grid }],
+        };
+        layout.Normalize(); // as the editor saves it: rows
+        return layout;
+    }
 
     [Fact]
     public void Any_mangled_profile_text_is_either_read_or_refused_with_FormatException_never_anything_else()
@@ -55,7 +60,7 @@ public sealed class ProfileScenarios(ITestOutputHelper output)
             {
                 var (_, layout) = LayoutJson.ReadProfile(sb.ToString());
                 Assert.NotNull(layout);
-                Assert.All(layout.Items, item => Assert.NotNull(item.SensorIds));
+                Assert.All(layout.AllItems(), item => Assert.NotNull(item.SensorIds));
                 read++;
             }
             catch (FormatException)
@@ -110,7 +115,7 @@ public sealed class ProfileScenarios(ITestOutputHelper output)
         Assert.NotEmpty(store.List());
         var loaded = store.Load(name);
         Assert.NotNull(loaded);
-        Assert.Equal(2, loaded!.Items.Count);
+        Assert.Equal(2, loaded!.AllItems().Count());
         store.Delete(name);
         Assert.False(File.Exists(path));
     }
@@ -157,14 +162,14 @@ public sealed class ProfileScenarios(ITestOutputHelper output)
         node["version"] = 7;
         node["layout"]!["Hologram"] = JsonValue.Create(true);
         node["layout"]!["Style"]!["Arrangement"] = 12; // a layout mode this version does not know
-        node["layout"]!["Items"]![0]!["MultiDisplay"] = "Constellation";
+        node["layout"]!["Rows"]![0]!["Items"]![0]!["MultiDisplay"] = "Constellation";
         var ex = Record.Exception(() => LayoutJson.ReadProfile(node.ToJsonString()));
         Assert.True(ex is null or FormatException);
 
-        node["layout"]!["Items"]![0]!["MultiDisplay"] = 9;
+        node["layout"]!["Rows"]![0]!["Items"]![0]!["MultiDisplay"] = 9;
         var (_, layout) = LayoutJson.ReadProfile(node.ToJsonString());
         Assert.Equal(OverlayArrangement.Vertical, layout.Style.Arrangement);
-        Assert.Equal(MultiValueDisplay.Bars, layout.Items[0].MultiDisplay);
+        Assert.Equal(MultiValueDisplay.Bars, layout.Rows[0].Items[0].MultiDisplay);
         Assert.Equal(OverlayAnchor.BottomRight, layout.Placement.Anchor);
     }
 }

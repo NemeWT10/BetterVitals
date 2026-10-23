@@ -26,7 +26,7 @@ public sealed class SettingsScenarios(ITestOutputHelper output)
         Overlay =
         {
             Enabled = true, RefreshMs = 500, Placement = { Anchor = OverlayAnchor.BottomRight, OffsetX = 12.5 },
-            Items = [new OverlayItem { SensorIds = ["cpu/x/0/temperature/a"], Label = "CPU" }],
+            Rows = [new OverlayRow { Items = [new OverlayItem { SensorIds = ["cpu/x/0/temperature/a"], Label = "CPU" }] }],
         },
         Flyout = { PinnedSensorIds = ["gpu/y/0/load/b"] },
         Updates = { Mode = UpdateMode.Off },
@@ -53,7 +53,7 @@ public sealed class SettingsScenarios(ITestOutputHelper output)
         Assert.Equal("system", s.General.Theme);
         Assert.Equal(2, s.Recording.IntervalSeconds);
         Assert.Empty(s.Recording.SensorIds);
-        Assert.Empty(s.Overlay.Items);
+        Assert.True(s.Overlay.IsEmpty);
         Assert.Equal(UpdateMode.Ask, s.Updates.Mode);
         Assert.Equal(ReadMode.Full, s.Driver.Mode);
     }
@@ -174,7 +174,7 @@ public sealed class SettingsScenarios(ITestOutputHelper output)
         node["BrandNewSection"] = new JsonObject { ["Deep"] = new JsonArray(1, 2, 3) };
         node["General"]!["HolographicTheme"] = "yes";
         node["Overlay"]!["Placement"]!["Warp"] = 9.5;
-        node["Overlay"]!["Items"]![0]!["Hologram"] = true;
+        node["Overlay"]!["Rows"]![0]!["Items"]![0]!["Hologram"] = true;
         var path = dir.File_("settings.json");
         File.WriteAllText(path, node.ToJsonString());
 
@@ -183,7 +183,7 @@ public sealed class SettingsScenarios(ITestOutputHelper output)
         Assert.Equal("neon", s.General.Theme);
         Assert.Equal(5, s.Recording.IntervalSeconds);
         Assert.Equal(OverlayAnchor.BottomRight, s.Overlay.Placement.Anchor);
-        Assert.Equal("CPU", s.Overlay.Items[0].Label);
+        Assert.Equal("CPU", s.Overlay.Rows[0].Items[0].Label);
         Assert.Equal(ReadMode.Basic, s.Driver.Mode);
         Assert.True(s.FirstRunDone);
         Assert.False(File.Exists(dir.File_("settings.bad.json")), "a newer file is not a damaged file");

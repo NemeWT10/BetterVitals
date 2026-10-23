@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace BetterVitals.Core.Overlay;
 
 /// <summary>Nine anchor points of a monitor's work area.</summary>
@@ -22,16 +24,39 @@ public enum OverlayVisibility : byte
     GamesOnly,
 }
 
+/// <summary>
+/// How the items of a row are drawn (every row of every box). The names are the ones of settings schema 1, where the
+/// overlay was a flat list: Vertical = one item per line, Horizontal / Compact = all items in one line.
+/// </summary>
 public enum OverlayArrangement : byte
 {
-    /// <summary>One item per row: label | value unit.</summary>
+    /// <summary>
+    /// Row label in a column on the left, then the row's values side by side: "GPU  66 °C · GPU HS 76 °C · 2856 MHz".
+    /// A row with one item is the classic list line "label | value unit".
+    /// </summary>
     Vertical,
 
-    /// <summary>Items side by side.</summary>
+    /// <summary>Every item with its label above the value, side by side, dividers between.</summary>
     Horizontal,
 
-    /// <summary>One line, separated: "CPU 45° | GPU 60° | 144 FPS".</summary>
+    /// <summary>Compact cells with dividers: "CPU 45° | GPU 60° | FPS 144".</summary>
     Compact,
+}
+
+/// <summary>How Simple mode puts the main box's items into rows. Moving items by hand (Advanced mode) makes it Custom.</summary>
+public enum OverlayGrouping : byte
+{
+    /// <summary>One item per row.</summary>
+    List,
+
+    /// <summary>One row per component (CPU, GPU, RAM, FPS…), in the order the components first appear.</summary>
+    ByComponent,
+
+    /// <summary>Every item in one row.</summary>
+    OneLine,
+
+    /// <summary>Rows arranged by hand; nothing regroups them.</summary>
+    Custom,
 }
 
 /// <summary>How an item with several sensors (e.g. 16 core clocks) is drawn.</summary>
@@ -195,9 +220,56 @@ public sealed class OverlayItem
     public double? ValueSize { get; set; }
 }
 
-/// <summary>Everything about the on-screen overlay (part of <see cref="Settings.AppSettings"/>).</summary>
+/// <summary>A line of the overlay: one or more items side by side ("GPU  66 °C · GPU HS 76 °C · 2856 MHz").</summary>
+public sealed class OverlayRow
+{
+    /// <summary>Editor identity.</summary>
+    public string Id { get; set; } = OverlayLayout.NewId();
+
+    /// <summary>
+    /// Row label; null = automatic: the item's own label for a row of one, the component ("CPU", "GPU", "FPS"…) for a row
+    /// of one component, else the first item's label. Items whose label equals the row label do not repeat it.
+    /// </summary>
+    public string? Label { get; set; }
+
+    public List<OverlayItem> Items { get; set; } = [];
+}
+
+/// <summary>A detached overlay box: its own window with its own place on screen and its own rows.</summary>
+public sealed class OverlayBox
+{
+    public string Id { get; set; } = OverlayLayout.NewId();
+
+    /// <summary>Name in the editor ("GPU"); null = "Box 2", "Box 3"… Never drawn on the overlay.</summary>
+    public string? Name { get; set; }
+
+    public OverlayPlacement Placement { get; set; } = new();
+
+    public List<OverlayRow> Rows { get; set; } = [];
+}
+
+/// <summary>One box of a layout: the main one (the layout's own placement and rows) or a detached one.</summary>
+public readonly record struct OverlayBoxRef(string Id, OverlayPlacement Placement, List<OverlayRow> Rows)
+{
+    public bool IsMain => Id == OverlayLayout.MainBoxId;
+}
+
+/// <summary>
+/// Everything about the on-screen overlay (part of <see cref="Settings.AppSettings"/>). Items sit in rows; the rows of
+/// the main box are <see cref="Rows"/> (placed by <see cref="Placement"/>), detached boxes are <see cref="Boxes"/>, each
+/// with its own placement. Schema 1 had one flat <see cref="Items"/> list: <see cref="Normalize"/> turns it into rows
+/// that draw exactly as before.
+/// </summary>
 public sealed class OverlayLayout
 {
+    /// <summary>Id of the main box (the layout's own <see cref="Placement"/> and <see cref="Rows"/>).</summary>
+    public const string MainBoxId = "main";
+
+    /// <summary>Boxes including the main one: every box is a window, so a hand-edited file cannot ask for hundreds.</summary>
+    public const int MaxBoxes = 8;
+
+    public static string NewId() => Guid.NewGuid().ToString("N");
+
     /// <summary>Shown right now (toggled from the tray).</summary>
     public bool Enabled { get; set; }
 
@@ -215,41 +287,121 @@ public sealed class OverlayLayout
     /// <summary>Refresh interval of the overlay's values, 250–2000 ms.</summary>
     public int RefreshMs { get; set; } = 1000;
 
+    /// <summary>Where the main box sits.</summary>
     public OverlayPlacement Placement { get; set; } = new();
 
     public OverlayStyle Style { get; set; } = new();
 
-    public List<OverlayItem> Items { get; set; } = [];
+    /// <summary>How Simple mode groups the main box (new layouts: by component; schema 1 files: from their arrangement).</summary>
+    public OverlayGrouping Grouping { get; set; } = OverlayGrouping.ByComponent;
 
-    /// <summary>Repairs nulls and clamps ranges after loading a file (hand-edited or from an older version).</summary>
+    /// <summary>The main box's rows, top to bottom.</summary>
+    public List<OverlayRow> Rows { get; set; } = [];
+
+    /// <summary>Detached boxes (each its own window and placement), at most <see cref="MaxBoxes"/> − 1.</summary>
+    public List<OverlayBox> Boxes { get; set; } = [];
+
+    /// <summary>
+    /// Flat item list of settings schema 1 / profile v1 (also a short way to build a layout in code). <see cref="Normalize"/>
+    /// moves these items into the main box — one row each for <see cref="OverlayArrangement.Vertical"/>, one row for the
+    /// others, which draws exactly like the flat list did — and clears it. Never written.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OverlayItem>? Items { get; set; }
+
+    /// <summary>The main box, then the detached ones.</summary>
+    public IEnumerable<OverlayBoxRef> AllBoxes()
+    {
+        yield return new OverlayBoxRef(MainBoxId, Placement, Rows);
+        foreach (var b in Boxes) yield return new OverlayBoxRef(b.Id, b.Placement, b.Rows);
+    }
+
+    /// <summary>Every item of every box, in order (main box first, row by row).</summary>
+    public IEnumerable<OverlayItem> AllItems()
+    {
+        foreach (var row in Rows)
+            foreach (var item in row.Items) yield return item;
+        foreach (var box in Boxes)
+            foreach (var row in box.Rows)
+                foreach (var item in row.Items) yield return item;
+        if (Items is { } legacy)
+            foreach (var item in legacy) yield return item;
+    }
+
+    /// <summary>Nothing to show in any box.</summary>
+    [JsonIgnore]
+    public bool IsEmpty => !AllItems().Any();
+
+    /// <summary>Repairs nulls, clamps ranges and upgrades the flat schema-1 list after loading a file (hand-edited or from an older version).</summary>
     public void Normalize()
     {
         Placement ??= new OverlayPlacement();
         Style ??= new OverlayStyle();
-        Items ??= [];
-        Items.RemoveAll(i => i is null);
+        Rows ??= [];
+        Boxes ??= [];
         // a number in the file that is no known option (hand-edited, or from a newer version) must not reach the renderer
         if (!Enum.IsDefined(Visibility)) Visibility = OverlayVisibility.Always;
-        if (!Enum.IsDefined(Placement.Anchor)) Placement.Anchor = OverlayAnchor.TopLeft;
-        if (!Enum.IsDefined(Placement.MonitorMode)) Placement.MonitorMode = OverlayMonitorMode.Primary;
         if (!Enum.IsDefined(Style.Arrangement)) Style.Arrangement = OverlayArrangement.Vertical;
-        foreach (var item in Items)
+        if (!Enum.IsDefined(Grouping)) Grouping = OverlayGrouping.Custom;
+        Rows.RemoveAll(r => r is null);
+        Boxes.RemoveAll(b => b is null);
+
+        if (Items is { } legacy)
         {
-            item.SensorIds ??= [];
-            item.SensorIds.RemoveAll(string.IsNullOrEmpty);
-            if (string.IsNullOrEmpty(item.Id)) item.Id = Guid.NewGuid().ToString("N");
-            if (!Enum.IsDefined(item.MultiDisplay)) item.MultiDisplay = MultiValueDisplay.Bars;
-            if (!Enum.IsDefined(item.Aggregation)) item.Aggregation = ValueAggregation.Current;
-            if (item.Label is { Length: > 64 } label) item.Label = label[..64];
-            item.AggregationSeconds = Math.Clamp(item.AggregationSeconds, 1, 120);
-            if (item.Decimals is { } d) item.Decimals = Math.Clamp(d, 0, 3);
-            if (item.ValueSize is { } v) item.ValueSize = Fit(v, 6, 96, 16);
+            var fresh = Rows.Count == 0 && Boxes.Count == 0;
+            var items = legacy.Where(i => i is not null).ToList();
+            if (Style.Arrangement == OverlayArrangement.Vertical)
+                foreach (var item in items) Rows.Add(new OverlayRow { Items = [item] });
+            else if (items.Count > 0)
+                Rows.Add(new OverlayRow { Items = items });
+            if (fresh) Grouping = Style.Arrangement == OverlayArrangement.Vertical ? OverlayGrouping.List : OverlayGrouping.OneLine;
+            Items = null;
         }
+
+        var ids = new HashSet<string>(StringComparer.Ordinal) { MainBoxId };
+        string Unique(string? id)
+        {
+            if (!string.IsNullOrEmpty(id) && id.Length <= 64 && ids.Add(id)) return id;
+            var fresh = NewId();
+            ids.Add(fresh);
+            return fresh;
+        }
+
+        foreach (var box in Boxes)
+        {
+            box.Id = Unique(box.Id);
+            box.Name = Text(box.Name);
+            box.Placement ??= new OverlayPlacement();
+            box.Rows ??= [];
+            box.Rows.RemoveAll(r => r is null);
+        }
+        // more windows than anyone needs: their rows go to the main box (nothing is lost)
+        while (Boxes.Count > MaxBoxes - 1)
+        {
+            Rows.AddRange(Boxes[^1].Rows);
+            Boxes.RemoveAt(Boxes.Count - 1);
+        }
+        foreach (var box in AllBoxes())
+        {
+            FixPlacement(box.Placement);
+            foreach (var row in box.Rows)
+            {
+                row.Id = Unique(row.Id);
+                row.Label = Text(row.Label);
+                row.Items ??= [];
+                row.Items.RemoveAll(i => i is null);
+                foreach (var item in row.Items)
+                {
+                    item.Id = Unique(item.Id);
+                    FixItem(item);
+                }
+            }
+            // a row without items draws nothing, a detached box without rows is no window
+            box.Rows.RemoveAll(r => r.Items.Count == 0);
+        }
+        Boxes.RemoveAll(b => b.Rows.Count == 0);
+
         RefreshMs = Math.Clamp(RefreshMs, 250, 2000);
-        // numbers from a hand-edited file (or a NaN from some calculation) must not blow the window up or off the screen
-        Placement.OffsetX = Fit(Placement.OffsetX, -10_000, 10_000, 0);
-        Placement.OffsetY = Fit(Placement.OffsetY, -10_000, 10_000, 0);
-        Placement.Margin = Fit(Placement.Margin, 0, 1_000, 24);
         Style.ScalePercent = Fit(Style.ScalePercent, 50, 200, 100);
         Style.BackgroundOpacity = Fit(Style.BackgroundOpacity, 0, 1, 0.7);
         Style.LabelSize = Fit(Style.LabelSize, 6, 72, 12);
@@ -259,6 +411,36 @@ public sealed class OverlayLayout
         Style.Spacing = Fit(Style.Spacing, 0, 100, 4);
         Style.CornerRadius = Fit(Style.CornerRadius, 0, 100, 10);
         Style.FontFamily = string.IsNullOrWhiteSpace(Style.FontFamily) ? "Inter" : Style.FontFamily;
+    }
+
+    private static void FixPlacement(OverlayPlacement p)
+    {
+        if (!Enum.IsDefined(p.Anchor)) p.Anchor = OverlayAnchor.TopLeft;
+        if (!Enum.IsDefined(p.MonitorMode)) p.MonitorMode = OverlayMonitorMode.Primary;
+        // numbers from a hand-edited file (or a NaN from some calculation) must not blow the window up or off the screen
+        p.OffsetX = Fit(p.OffsetX, -10_000, 10_000, 0);
+        p.OffsetY = Fit(p.OffsetY, -10_000, 10_000, 0);
+        p.Margin = Fit(p.Margin, 0, 1_000, 24);
+    }
+
+    private static void FixItem(OverlayItem item)
+    {
+        item.SensorIds ??= [];
+        item.SensorIds.RemoveAll(string.IsNullOrEmpty);
+        if (!Enum.IsDefined(item.MultiDisplay)) item.MultiDisplay = MultiValueDisplay.Bars;
+        if (!Enum.IsDefined(item.Aggregation)) item.Aggregation = ValueAggregation.Current;
+        if (item.Label is { Length: > 64 } label) item.Label = label[..64];
+        item.AggregationSeconds = Math.Clamp(item.AggregationSeconds, 1, 120);
+        if (item.Decimals is { } d) item.Decimals = Math.Clamp(d, 0, 3);
+        if (item.ValueSize is { } v) item.ValueSize = Fit(v, 6, 96, 16);
+    }
+
+    /// <summary>A user name / label: trimmed, at most 64 characters, blank = null (automatic).</summary>
+    private static string? Text(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        s = s.Trim();
+        return s.Length > 64 ? s[..64] : s;
     }
 
     private static double Fit(double value, double min, double max, double fallback) => double.IsFinite(value) ? Math.Clamp(value, min, max) : fallback;

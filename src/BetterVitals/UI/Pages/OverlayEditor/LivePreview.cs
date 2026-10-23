@@ -65,27 +65,42 @@ internal sealed class AspectBox : Decorator
 }
 
 /// <summary>
-/// The live preview: a monitor mock with the artificial game scene and the real overlay renderer's output
-/// (<see cref="OverlayHost.RenderToBitmap"/> at the chosen screen's real height, shown scaled down — so it is truthful
-/// about the share of the screen it takes), corner buttons (simple mode), dragging with snapping (advanced mode, Shift =
-/// free), a resolution switch and a close-up at reference size. Renders on a worker thread into one reused
-/// <see cref="WriteableBitmap"/>; only while the page runs it (<see cref="Start"/> / <see cref="Stop"/>).
+/// The live preview: a monitor mock with the artificial game scene and the real overlay renderer's output for every box
+/// (<see cref="OverlayHost.RenderBoxesToBitmaps"/> at the chosen screen's real height, shown scaled down — so it is
+/// truthful about the share of the screen it takes), corner buttons (simple mode), dragging any box with snapping
+/// (advanced mode, Shift = free), a resolution switch and a close-up of the main box at reference size. Renders on a
+/// worker thread into one reused <see cref="WriteableBitmap"/> per box; only while the page runs it
+/// (<see cref="Start"/> / <see cref="Stop"/>).
 /// </summary>
 internal sealed class LivePreview : StackPanel
 {
     private const double MinRenderGapMs = 90;
+
+    /// <summary>One box on the mock: its picture and where it was rendered.</summary>
+    private sealed class PreviewBox(string id, Rectangle rect, ImageBrush brush)
+    {
+        public string Id { get; } = id;
+
+        public Rectangle Rect { get; } = rect;
+
+        public ImageBrush Brush { get; } = brush;
+
+        public WriteableBitmap? Bitmap;
+        public int W, H;
+        public double Scale = 1;
+        public int RenderedHeight;
+    }
 
     private readonly EditorContext _ctx;
     private readonly AspectBox _box;
     private readonly Grid _screen;
     private readonly GameScene _scene;
     private readonly Canvas _layer;
-    private readonly Rectangle _overlay;
     private readonly Rectangle _outline;
     private readonly Rectangle _guideX;
     private readonly Rectangle _guideY;
-    private readonly ImageBrush _brush;
     private readonly ImageBrush _closeBrush;
+    private readonly List<PreviewBox> _boxes = [];
     private readonly Dictionary<OverlayAnchor, RadioButton> _corners = [];
     private readonly Grid _cornerLayer;
     private readonly Border _emptyPill;
@@ -103,11 +118,6 @@ internal sealed class LivePreview : StackPanel
     private readonly TextBlock _closeTitle;
     private readonly DispatcherTimer _again;
 
-    private WriteableBitmap? _bitmap;
-    private int _bw;
-    private int _bh;
-    private double _bScale = 1;
-    private int _renderedHeight;
     private bool _active;
     private bool _busy;
     private bool _pending;
@@ -117,9 +127,10 @@ internal sealed class LivePreview : StackPanel
     private PreviewResolution? _mine;
     private PreviewResolution _selected = PreviewResolution.P1080;
     private bool _userPicked;
+    private bool _dragEnabled;
 
     // dragging
-    private bool _dragging;
+    private PreviewBox? _dragging;
     private Point _dragStart;
     private (int X, int Y) _dragOrigin;
     private (int X, int Y) _dragPos;
@@ -151,22 +162,11 @@ internal sealed class LivePreview : StackPanel
 
         // ── monitor mock ──
         _scene = new GameScene();
-        _brush = new ImageBrush { ViewboxUnits = BrushMappingMode.Absolute, Stretch = Stretch.Fill };
-        RenderOptions.SetBitmapScalingMode(_brush, BitmapScalingMode.HighQuality);
-        _overlay = new Rectangle { Fill = _brush, Visibility = Visibility.Collapsed, Cursor = Cursors.Arrow };
-        _overlay.MouseLeftButtonDown += OnDragStart;
-        _overlay.MouseMove += OnDragMove;
-        _overlay.MouseLeftButtonUp += OnDragEnd;
-        _overlay.LostMouseCapture += (_, _) =>
-        {
-            if (_dragging) EndDrag(commit: false);
-        };
         _guideX = Guide(vertical: true);
         _guideY = Guide(vertical: false);
         _layer = new Canvas { ClipToBounds = true };
         _layer.Children.Add(_guideX);
         _layer.Children.Add(_guideY);
-        _layer.Children.Add(_overlay);
         _outline = new Rectangle { RadiusX = 3, RadiusY = 3, StrokeThickness = 1.5, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
         _outline.SetResourceReference(Shape.StrokeProperty, "Brush.Accent2");
         _layer.Children.Add(_outline);
@@ -301,13 +301,14 @@ internal sealed class LivePreview : StackPanel
         set => _cornerLayer.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>Advanced mode: the overlay can be dragged on the mock.</summary>
+    /// <summary>Advanced mode: every box can be dragged on the mock.</summary>
     public bool DragEnabled
     {
-        get => _overlay.Cursor == Cursors.SizeAll;
+        get => _dragEnabled;
         set
         {
-            _overlay.Cursor = value ? Cursors.SizeAll : Cursors.Arrow;
+            _dragEnabled = value;
+            foreach (var b in _boxes) b.Rect.Cursor = value ? Cursors.SizeAll : Cursors.Arrow;
             _dragHint.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
         }
     }
@@ -315,8 +316,14 @@ internal sealed class LivePreview : StackPanel
     /// <summary>The screen the preview shows.</summary>
     public PreviewResolution Resolution => _selected;
 
-    /// <summary>Size of the last render (tests).</summary>
-    public (int Width, int Height) RenderedSize => (_bw, _bh);
+    /// <summary>The main box (or the first box with content): what the close-up shows.</summary>
+    private PreviewBox? Lead => _boxes.Find(b => b.Id == OverlayLayout.MainBoxId && b.W > 0) ?? _boxes.Find(b => b.W > 0);
+
+    /// <summary>Size of the last render of the main box (tests).</summary>
+    public (int Width, int Height) RenderedSize => Lead is { } b ? (b.W, b.H) : (0, 0);
+
+    /// <summary>Boxes on the mock right now and their rendered size (tests).</summary>
+    public IReadOnlyList<(string BoxId, int Width, int Height)> RenderedBoxes => [.. _boxes.Where(b => b.W > 0).Select(b => (b.Id, b.W, b.H))];
 
     public int RenderCount { get; private set; }
 
@@ -381,7 +388,7 @@ internal sealed class LivePreview : StackPanel
         foreach (var (a, b) in _corners)
         {
             b.IsChecked = a == corner;
-            b.Visibility = a == corner && _ctx.Layout.Items.Count > 0 ? Visibility.Hidden : Visibility.Visible;
+            b.Visibility = a == corner && _ctx.Layout.Rows.Count > 0 ? Visibility.Hidden : Visibility.Visible;
         }
     }
 
@@ -416,7 +423,7 @@ internal sealed class LivePreview : StackPanel
         var height = _selected.Height;
         _exampleNote.Visibility = _ctx.Feed.UsesExampleValues(layout) ? Visibility.Visible : Visibility.Collapsed;
         UpdateCaption();
-        if (layout.Items.Count == 0)
+        if (layout.IsEmpty)
         {
             ShowEmpty(true);
             _lastRender = DateTime.UtcNow;
@@ -429,19 +436,19 @@ internal sealed class LivePreview : StackPanel
         {
             try
             {
-                return (Bitmap: OverlayHost.RenderToBitmap(layout, theme, values, height, culture, unit), Error: (Exception?)null);
+                return (Bitmaps: OverlayHost.RenderBoxesToBitmaps(layout, theme, values, height, culture, unit), Error: (Exception?)null);
             }
             catch (Exception ex)
             {
-                return (Bitmap: (OverlayBitmap?)null, Error: ex);
+                return (Bitmaps: (IReadOnlyList<(string BoxId, OverlayBitmap Bitmap)>?)null, Error: ex);
             }
         }).ContinueWith(t =>
         {
-            var (bitmap, error) = t.Result;
+            var (bitmaps, error) = t.Result;
             dispatcher.BeginInvoke(() =>
             {
                 _busy = false;
-                if (bitmap is not null) Apply(bitmap, OverlayPlacementMath.Scale(layout.Style, height), height);
+                if (bitmaps is not null) Apply(bitmaps, OverlayPlacementMath.Scale(layout.Style, height), height);
                 else if (!_failedLogged)
                 {
                     _failedLogged = true;
@@ -452,34 +459,68 @@ internal sealed class LivePreview : StackPanel
         }, TaskScheduler.Default);
     }
 
-    private void Apply(OverlayBitmap bmp, double scale, int monitorHeight)
+    private void Apply(IReadOnlyList<(string BoxId, OverlayBitmap Bitmap)> bitmaps, double scale, int monitorHeight)
     {
-        if (bmp.Width <= 0 || bmp.Height <= 0) return;
-        if (_bitmap is null || _bitmap.PixelWidth < bmp.Width || _bitmap.PixelHeight < bmp.Height)
+        // boxes that are gone leave the mock
+        foreach (var gone in _boxes.Where(b => !bitmaps.Any(x => x.BoxId == b.Id)).ToList())
         {
-            // grow-only, with headroom: a slider drag never allocates a new bitmap per frame
-            var w = Math.Max(bmp.Width + bmp.Width / 4, _bitmap?.PixelWidth ?? 0);
-            var h = Math.Max(bmp.Height + bmp.Height / 4, _bitmap?.PixelHeight ?? 0);
-            _bitmap = new WriteableBitmap(w, h, 96, 96, PixelFormats.Pbgra32, null);
-            _brush.ImageSource = _bitmap;
-            _closeBrush.ImageSource = _bitmap;
+            if (_dragging == gone) EndDrag(commit: false);
+            _layer.Children.Remove(gone.Rect);
+            _boxes.Remove(gone);
         }
-        _bitmap.WritePixels(new Int32Rect(0, 0, bmp.Width, bmp.Height), bmp.Pixels, bmp.Stride, 0);
-        _bw = bmp.Width;
-        _bh = bmp.Height;
-        _bScale = scale;
-        _renderedHeight = monitorHeight;
-        _brush.Viewbox = new Rect(0, 0, _bw, _bh);
-        _closeBrush.Viewbox = new Rect(0, 0, _bw, _bh);
+        foreach (var (id, bmp) in bitmaps)
+        {
+            if (bmp.Width <= 0 || bmp.Height <= 0) continue;
+            var box = _boxes.Find(b => b.Id == id) ?? AddBox(id);
+            if (box.Bitmap is null || box.Bitmap.PixelWidth < bmp.Width || box.Bitmap.PixelHeight < bmp.Height)
+            {
+                // grow-only, with headroom: a slider drag never allocates a new bitmap per frame
+                var w = Math.Max(bmp.Width + bmp.Width / 4, box.Bitmap?.PixelWidth ?? 0);
+                var h = Math.Max(bmp.Height + bmp.Height / 4, box.Bitmap?.PixelHeight ?? 0);
+                box.Bitmap = new WriteableBitmap(w, h, 96, 96, PixelFormats.Pbgra32, null);
+                box.Brush.ImageSource = box.Bitmap;
+            }
+            box.Bitmap.WritePixels(new Int32Rect(0, 0, bmp.Width, bmp.Height), bmp.Pixels, bmp.Stride, 0);
+            box.W = bmp.Width;
+            box.H = bmp.Height;
+            box.Scale = scale;
+            box.RenderedHeight = monitorHeight;
+            box.Brush.Viewbox = new Rect(0, 0, box.W, box.H);
+        }
+        // the main box (or the first one) in the close-up
+        if (Lead is { } lead)
+        {
+            _closeBrush.ImageSource = lead.Bitmap;
+            _closeBrush.Viewbox = new Rect(0, 0, lead.W, lead.H);
+        }
         RenderCount++;
         ShowEmpty(false);
         Arrange();
     }
 
+    private PreviewBox AddBox(string id)
+    {
+        var brush = new ImageBrush { ViewboxUnits = BrushMappingMode.Absolute, Stretch = Stretch.Fill };
+        RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.HighQuality);
+        var rect = new Rectangle { Fill = brush, Cursor = _dragEnabled ? Cursors.SizeAll : Cursors.Arrow, Tag = id };
+        var box = new PreviewBox(id, rect, brush);
+        rect.MouseLeftButtonDown += (_, e) => OnDragStart(box, e);
+        rect.MouseMove += (_, e) => OnDragMove(e);
+        rect.MouseLeftButtonUp += (_, e) => OnDragEnd(e);
+        rect.LostMouseCapture += (_, _) =>
+        {
+            if (_dragging == box) EndDrag(commit: false);
+        };
+        _boxes.Add(box);
+        // the main box above the others, all below the outline
+        _layer.Children.Insert(_layer.Children.IndexOf(_outline), rect);
+        return box;
+    }
+
     private void ShowEmpty(bool empty)
     {
         _emptyPill.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
-        _overlay.Visibility = empty || _bw == 0 ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var b in _boxes) b.Rect.Visibility = empty || b.W == 0 ? Visibility.Collapsed : Visibility.Visible;
         _closeLayer.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
         _closeEmpty.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
         _close.Visibility = _closeTitle.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
@@ -499,44 +540,57 @@ internal sealed class LivePreview : StackPanel
 
     private PixelRect Area => new(0, 0, _selected.Width, _selected.Height);
 
-    private (int X, int Y) PixelPosition()
+    private OverlayPlacement PlacementOf(PreviewBox b) => _ctx.Layout.PlacementOf(b.Id) ?? _ctx.Layout.Placement;
+
+    private (int X, int Y) PixelPosition(PreviewBox b)
     {
+        if (_dragging == b) return _dragPos;
         // the bitmap may be from a different resolution than the one now selected (render pending): scale it
-        return OverlayPlacementMath.Position(_ctx.Layout.Placement, Area, ScaledW, ScaledH, CurrentScale);
+        return OverlayPlacementMath.Position(PlacementOf(b), Area, ScaledW(b), ScaledH(b), CurrentScale);
     }
 
     private double CurrentScale => OverlayPlacementMath.Scale(_ctx.Layout.Style, _selected.Height);
 
-    private int ScaledW => _renderedHeight == _selected.Height ? _bw : (int)Math.Round(_bw * CurrentScale / Math.Max(0.01, _bScale));
+    private int ScaledW(PreviewBox b) => b.RenderedHeight == _selected.Height ? b.W : (int)Math.Round(b.W * CurrentScale / Math.Max(0.01, b.Scale));
 
-    private int ScaledH => _renderedHeight == _selected.Height ? _bh : (int)Math.Round(_bh * CurrentScale / Math.Max(0.01, _bScale));
+    private int ScaledH(PreviewBox b) => b.RenderedHeight == _selected.Height ? b.H : (int)Math.Round(b.H * CurrentScale / Math.Max(0.01, b.Scale));
 
     private void Arrange()
     {
-        if (_bw == 0 || _screen.ActualWidth <= 0) return;
+        if (_screen.ActualWidth <= 0) return;
         var f = Factor;
-        var (x, y) = _dragging ? _dragPos : PixelPosition();
-        _overlay.Width = Math.Max(1, ScaledW * f);
-        _overlay.Height = Math.Max(1, ScaledH * f);
-        Canvas.SetLeft(_overlay, x * f);
-        Canvas.SetTop(_overlay, y * f);
-        _outline.Visibility = CornersVisible && _overlay.Visibility == Visibility.Visible ? Visibility.Visible : Visibility.Collapsed;
-        _outline.Width = _overlay.Width + 6;
-        _outline.Height = _overlay.Height + 6;
-        Canvas.SetLeft(_outline, x * f - 3);
-        Canvas.SetTop(_outline, y * f - 3);
+        foreach (var b in _boxes)
+        {
+            if (b.W == 0) continue;
+            var (x, y) = PixelPosition(b);
+            b.Rect.Width = Math.Max(1, ScaledW(b) * f);
+            b.Rect.Height = Math.Max(1, ScaledH(b) * f);
+            Canvas.SetLeft(b.Rect, x * f);
+            Canvas.SetTop(b.Rect, y * f);
+        }
+        // simple mode outlines the main box (its corner buttons belong to it)
+        var main = _boxes.Find(b => b.Id == OverlayLayout.MainBoxId && b.W > 0);
+        _outline.Visibility = CornersVisible && main is not null && main.Rect.Visibility == Visibility.Visible ? Visibility.Visible : Visibility.Collapsed;
+        if (main is not null)
+        {
+            var (mx, my) = PixelPosition(main);
+            _outline.Width = main.Rect.Width + 6;
+            _outline.Height = main.Rect.Height + 6;
+            Canvas.SetLeft(_outline, mx * f - 3);
+            Canvas.SetTop(_outline, my * f - 3);
+        }
         ArrangeCloseUp();
     }
 
-    /// <summary>The overlay at reference size (its 1080p look) over the part of the scene behind it.</summary>
+    /// <summary>The main box at reference size (its 1080p look) over the part of the scene behind it.</summary>
     private void ArrangeCloseUp()
     {
-        if (_bw == 0 || _closeEmpty.Visibility == Visibility.Visible) return;
-        var s = Math.Max(0.01, _bScale);
+        if (Lead is not { } lead || _closeEmpty.Visibility == Visibility.Visible) return;
+        var s = Math.Max(0.01, lead.Scale);
         var pad = 22 * s;
-        var (x, y) = _dragging ? _dragPos : PixelPosition();
-        var bw = ScaledW;
-        var bh = ScaledH;
+        var (x, y) = PixelPosition(lead);
+        var bw = ScaledW(lead);
+        var bh = ScaledH(lead);
         // the window into the scene: the overlay plus a margin, kept inside the monitor
         var vw = Math.Min(_selected.Width, bw + 2 * pad);
         var vh = Math.Min(_selected.Height, bh + 2 * pad);
@@ -565,33 +619,39 @@ internal sealed class LivePreview : StackPanel
 
     // ───────────── dragging (advanced) ─────────────
 
-    private void OnDragStart(object sender, MouseButtonEventArgs e)
+    private void OnDragStart(PreviewBox box, MouseButtonEventArgs e)
     {
-        if (!DragEnabled || _bw == 0) return;
-        _dragging = true;
+        if (!DragEnabled || box.W == 0 || _dragging is not null) return;
         _dragStart = e.GetPosition(_screen);
-        _dragOrigin = PixelPosition();
+        _dragOrigin = PixelPosition(box);
         _dragPos = _dragOrigin;
-        _overlay.CaptureMouse();
+        _dragging = box;
+        box.Rect.CaptureMouse();
         e.Handled = true;
     }
 
-    private void OnDragMove(object sender, MouseEventArgs e)
+    private void OnDragMove(MouseEventArgs e)
     {
-        if (!_dragging) return;
+        if (_dragging is not { } box) return;
         var f = Factor;
         var p = e.GetPosition(_screen);
         var x = (int)Math.Round(_dragOrigin.X + (p.X - _dragStart.X) / f);
         var y = (int)Math.Round(_dragOrigin.Y + (p.Y - _dragStart.Y) / f);
         var area = Area;
-        x = Math.Clamp(x, area.Left, Math.Max(area.Left, area.Right - ScaledW));
-        y = Math.Clamp(y, area.Top, Math.Max(area.Top, area.Bottom - ScaledH));
+        int w = ScaledW(box), h = ScaledH(box);
+        x = Math.Clamp(x, area.Left, Math.Max(area.Left, area.Right - w));
+        y = Math.Clamp(y, area.Top, Math.Max(area.Top, area.Bottom - h));
         int? gx = null, gy = null;
         if ((Keyboard.Modifiers & ModifierKeys.Shift) == 0)
         {
-            var margin = (int)Math.Round(_ctx.Layout.Placement.Margin * CurrentScale);
+            var margin = (int)Math.Round(PlacementOf(box).Margin * CurrentScale);
             var threshold = Math.Max(2, (int)Math.Round(8 / f));
-            var snap = OverlayPlacementMath.Snap(x, y, ScaledW, ScaledH, area, margin, threshold);
+            var others = _boxes.Where(o => o != box && o.W > 0).Select(o =>
+            {
+                var (ox, oy) = PixelPosition(o);
+                return new PixelRect(ox, oy, ox + ScaledW(o), oy + ScaledH(o));
+            }).ToList();
+            var snap = OverlayPlacementMath.Snap(x, y, w, h, area, margin, threshold, others, (int)Math.Round(8 * CurrentScale));
             (x, y, gx, gy) = (snap.X, snap.Y, snap.GuideX, snap.GuideY);
         }
         _dragPos = (x, y);
@@ -600,36 +660,36 @@ internal sealed class LivePreview : StackPanel
         Arrange();
     }
 
-    private void OnDragEnd(object sender, MouseButtonEventArgs e)
+    private void OnDragEnd(MouseButtonEventArgs e)
     {
-        if (!_dragging) return;
+        if (_dragging is null) return;
         e.Handled = true;
         EndDrag(commit: true);
     }
 
     private void EndDrag(bool commit)
     {
-        if (!_dragging) return;
-        _dragging = false;
-        if (_overlay.IsMouseCaptured) _overlay.ReleaseMouseCapture();
+        if (_dragging is not { } box) return;
+        _dragging = null;
+        if (box.Rect.IsMouseCaptured) box.Rect.ReleaseMouseCapture();
         _guideX.Visibility = Visibility.Collapsed;
         _guideY.Visibility = Visibility.Collapsed;
         if (commit && _dragPos != _dragOrigin)
         {
-            var placed = OverlayPlacementMath.FromPosition(_dragPos.X, _dragPos.Y, ScaledW, ScaledH, Area, CurrentScale, _ctx.Layout.Placement);
-            _ctx.Model.Edit(l =>
+            var placed = OverlayPlacementMath.FromPosition(_dragPos.X, _dragPos.Y, ScaledW(box), ScaledH(box), Area, CurrentScale, PlacementOf(box));
+            _ctx.Model.EditPlacement(box.Id, p =>
             {
-                l.Placement.Anchor = placed.Anchor;
-                l.Placement.OffsetX = placed.OffsetX;
-                l.Placement.OffsetY = placed.OffsetY;
+                p.Anchor = placed.Anchor;
+                p.OffsetX = placed.OffsetX;
+                p.OffsetY = placed.OffsetY;
             });
-            Dragged?.Invoke();
+            Dragged?.Invoke(box.Id);
         }
         Arrange();
     }
 
-    /// <summary>The overlay was dropped at a new place (the placement fields re-read).</summary>
-    public event Action? Dragged;
+    /// <summary>A box was dropped at a new place (argument: its id; the placement fields re-read).</summary>
+    public event Action<string>? Dragged;
 
     private void ShowGuide(Rectangle guide, int? at, double f, bool vertical)
     {

@@ -14,8 +14,9 @@ namespace BetterVitals.UI.Pages.OverlayEditor;
 
 /// <summary>
 /// Simple mode (PROJEKT §8, user requirement: a normal user changes no sizes or colors): (1) what to show — friendly
-/// parameter tiles per component with live values, click = on / off, order = click order; (2) where — a screen corner
-/// (+ monitor); (3) when — always / only in games. Everything else stays at the defaults with automatic scaling.
+/// parameter tiles per component with live values, click = on / off, order = click order; (2) layout — a list, a row
+/// per component, or one line; (3) where — a screen corner (+ monitor); (4) when — always / only in games. Everything
+/// else stays at the defaults with automatic scaling.
 /// </summary>
 internal sealed class SimpleView : StackPanel
 {
@@ -30,6 +31,8 @@ internal sealed class SimpleView : StackPanel
     private readonly TileGrid _tiles;
     private readonly Dictionary<HardwareKind, (RadioButton Chip, TextBlock Count)> _chipMap = [];
     private readonly List<Tile> _tileList = [];
+    private readonly Dictionary<OverlayGrouping, RadioButton> _groupings = [];
+    private readonly TextBlock _groupingNote;
     private readonly Dictionary<OverlayAnchor, RadioButton> _corners = [];
     private readonly StackPanel _monitorHost;
     private readonly ComboBox _monitor;
@@ -98,7 +101,50 @@ internal sealed class SimpleView : StackPanel
         what.Children.Add(_tiles);
         Children.Add(Ui.Section("ovl.simple.what", "ovl.simple.what.hint", what, step: "1"));
 
-        // ── 2. where ──
+        // ── 2. layout: a list, a row per component, one line ──
+        var arrange = new StackPanel();
+        var options = new StackPanel();
+        var arrangeGroup = Ui.NewGroup();
+        foreach (var (g, icon, key) in new[]
+                 {
+                     (OverlayGrouping.List, "OvEd.Icon.List", "ovl.group.list"),
+                     (OverlayGrouping.ByComponent, "OvEd.Icon.Rows", "ovl.group.byComponent"),
+                     (OverlayGrouping.OneLine, "OvEd.Icon.Line", "ovl.group.oneLine"),
+                 })
+        {
+            // a card per choice: icon, name, and what it does in one line
+            var content = new DockPanel();
+            var i = Ui.InheritIcon(icon, 20);
+            i.Margin = new Thickness(0, 0, 12, 0);
+            i.VerticalAlignment = VerticalAlignment.Center;
+            content.Children.Add(i);
+            var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var t = Ui.Text(key, size: 13);
+            t.FontWeight = FontWeights.SemiBold;
+            texts.Children.Add(t);
+            var sub = Ui.Text(key + ".hint", size: 11.5, wrap: true);
+            sub.SetResourceReference(TextBlock.ForegroundProperty, "Brush.TextDim");
+            sub.Margin = new Thickness(0, 1, 0, 0);
+            texts.Children.Add(sub);
+            content.Children.Add(texts);
+            var rb = new RadioButton { GroupName = arrangeGroup, Content = content, HorizontalContentAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(14, 9, 12, 9) };
+            rb.SetResourceReference(StyleProperty, "OvEd.Option");
+            rb.SetBinding(System.Windows.Automation.AutomationProperties.NameProperty, Ui.Tr(key));
+            var grouping = g;
+            rb.Checked += (_, _) =>
+            {
+                if (!_syncing) OnGrouping(grouping);
+            };
+            _groupings[g] = rb;
+            options.Children.Add(rb);
+        }
+        arrange.Children.Add(options);
+        _groupingNote = new TextBlock { Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap };
+        _groupingNote.SetResourceReference(StyleProperty, "Hint");
+        arrange.Children.Add(_groupingNote);
+        Children.Add(Ui.Section("ovl.simple.layout", "ovl.simple.layout.hint", arrange, step: "2"));
+
+        // ── 3. where ──
         var where = new StackPanel();
         // four corners as a 2 × 2 grid, laid out like the screen
         var cornerGrid = new UniformGrid { Columns = 2, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 300 };
@@ -130,9 +176,9 @@ internal sealed class SimpleView : StackPanel
         _monitor.SelectionChanged += (_, _) => OnMonitorPicked();
         _monitorHost = Ui.Stacked("ovl.monitor", _monitor, 14);
         where.Children.Add(_monitorHost);
-        Children.Add(Ui.Section("ovl.simple.where", "ovl.simple.where.hint", where, step: "2"));
+        Children.Add(Ui.Section("ovl.simple.where", "ovl.simple.where.hint", where, step: "3"));
 
-        // ── 3. when ──
+        // ── 4. when ──
         var when = new StackPanel();
         _when = new SegmentBar<OverlayVisibility>(
             [(OverlayVisibility.Always, "ovl.when.always"), (OverlayVisibility.GamesOnly, "ovl.when.games")],
@@ -141,7 +187,7 @@ internal sealed class SimpleView : StackPanel
         _whenHint = new TextBlock { Margin = new Thickness(0, 8, 0, 0) };
         _whenHint.SetResourceReference(StyleProperty, "Hint");
         when.Children.Add(_whenHint);
-        Children.Add(Ui.Section("ovl.simple.when", null, when, step: "3"));
+        Children.Add(Ui.Section("ovl.simple.when", null, when, step: "4"));
 
         // the last viewed category, or the first one this PC has
         _category = _lastCategory;
@@ -186,7 +232,9 @@ internal sealed class SimpleView : StackPanel
                 tile.Button.IsChecked = order > 0;
                 tile.Button.Tag = order > 0 ? order.ToString(Loc.I.Culture) : "";
             }
-            _emptyBanner.Visibility = layout.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            _emptyBanner.Visibility = layout.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var (g, rb) in _groupings) rb.IsChecked = g == layout.Grouping;
+            _groupingNote.Text = Loc.T(layout.Grouping == OverlayGrouping.Custom ? "ovl.group.custom" : "ovl.group.note");
             _startButton.Visibility = FriendlyCatalog.DefaultOverlayKeys.Any(k => _ctx.Friendly.Any(f => f.Key == k)) ? Visibility.Visible : Visibility.Collapsed;
             _customBanner.Visibility = OverlayEditorModel.HasCustomizations(layout) ? Visibility.Visible : Visibility.Collapsed;
             var corner = OverlayEditorModel.NearestCorner(layout.Placement.Anchor);
@@ -318,6 +366,16 @@ internal sealed class SimpleView : StackPanel
         return new Tile(f, button, value, unit, bars);
     }
 
+    /// <summary>List / rows by component / one line: the main box is grouped again (hand-made rows can be brought back with Undo).</summary>
+    private void OnGrouping(OverlayGrouping grouping)
+    {
+        var before = LayoutJson.Clone(_ctx.Layout);
+        var custom = _ctx.Layout.Grouping == OverlayGrouping.Custom;
+        _ctx.Model.SetGrouping(grouping);
+        Sync();
+        if (custom) _ctx.Toast(Loc.T("ovl.toast.regrouped"), ToastKind.Success, Loc.T("common.undo"), () => _ctx.Model.Replace(before));
+    }
+
     // ───────────── monitors ─────────────
 
     private sealed record MonitorChoice(OverlayMonitorMode Mode, string? Key, string Text)
@@ -407,13 +465,17 @@ internal sealed class SimpleView : StackPanel
     }
 }
 
-/// <summary>Simple mode, next to the preview: the overlay's items in order, reordered by dragging, removable.</summary>
+/// <summary>
+/// Simple mode, next to the preview: the overlay's items in reading order, reordered by dragging, removable. Items that
+/// share a row sit close together; boxes detached in Advanced mode get a list of their own under their name.
+/// </summary>
 internal sealed class OrderPanel : StackPanel
 {
     private readonly EditorContext _ctx;
-    private readonly ReorderList _list = new();
+    private readonly StackPanel _lists = new();
     private readonly TextBlock _empty;
     private readonly List<(OverlayItem Item, TextBlock Value)> _values = [];
+    private int _count;
 
     public OrderPanel(EditorContext ctx)
     {
@@ -423,65 +485,94 @@ internal sealed class OrderPanel : StackPanel
         title.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text");
         Children.Add(title);
         Children.Add(Ui.Hint("ovl.order.hint", new Thickness(0, 2, 0, 12)));
-        _list.Moved += (id, index) =>
-        {
-            _ctx.Model.Move(id, index);
-            Rebuild();
-        };
-        Children.Add(_list);
+        Children.Add(_lists);
         _empty = Ui.Hint("ovl.order.empty", new Thickness(0, 0, 0, 0));
         Children.Add(_empty);
         Rebuild();
     }
 
-    public int ListCount => _list.Count;
+    public int ListCount => _count;
 
     public void Rebuild()
     {
-        _list.Clear();
+        _lists.Children.Clear();
         _values.Clear();
-        var items = _ctx.Layout.Items;
-        _empty.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        for (var i = 0; i < items.Count; i++)
+        _count = 0;
+        var layout = _ctx.Layout;
+        _empty.Visibility = layout.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+        var number = 0;
+        foreach (var box in layout.AllBoxes())
         {
-            var item = items[i];
-            var row = new Border { Padding = new Thickness(4, 5, 4, 5) };
-            row.SetResourceReference(StyleProperty, "OvEd.Row");
-            var dock = new DockPanel();
-
-            var handle = new Border { Width = 26, Height = 28, Background = Brushes.Transparent, CornerRadius = new CornerRadius(6) };
-            handle.Child = Ui.Icon("OvEd.Icon.Grip", 16, "Brush.TextFaint", 2.6);
-            handle.SetBinding(ToolTipProperty, Ui.Tr("ovl.order.drag"));
-            dock.Children.Add(handle);
-
-            var remove = Ui.IconButton("Icon.Close", "ovl.order.remove", (_, _) =>
+            if (box.Rows.Count == 0) continue;
+            if (layout.Boxes.Count > 0)
             {
-                _ctx.Model.Remove(item.Id);
+                var caption = new TextBlock { Text = _ctx.BoxTitle(box.Id), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2, _lists.Children.Count == 0 ? 0 : 10, 0, 6) };
+                caption.SetResourceReference(TextBlock.ForegroundProperty, "Brush.TextDim");
+                _lists.Children.Add(caption);
+            }
+            var list = new ReorderList();
+            list.Moved += (id, index) =>
+            {
+                _ctx.Model.Move(id, index);
                 Rebuild();
-            }, 14);
-            remove.Width = 28;
-            remove.Height = 28;
-            DockPanel.SetDock(remove, Dock.Right);
-            dock.Children.Add(remove);
-
-            var value = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0), FontSize = 12.5 };
-            value.SetResourceReference(TextBlock.ForegroundProperty, "Brush.TextDim");
-            System.Windows.Documents.Typography.SetNumeralAlignment(value, FontNumeralAlignment.Tabular);
-            DockPanel.SetDock(value, Dock.Right);
-            dock.Children.Add(value);
-            _values.Add((item, value));
-
-            var number = new TextBlock { Text = (i + 1).ToString(Loc.I.Culture), Width = 18, FontSize = 12, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-            number.SetResourceReference(TextBlock.ForegroundProperty, "Brush.AccentText");
-            dock.Children.Add(number);
-            var name = new TextBlock { Text = _ctx.Title(item), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-            name.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text");
-            if (_ctx.Sensors(item) is { Count: > 0 } sensors) Explain.Explain.SetSensor(name, sensors[0]);
-            dock.Children.Add(name);
-            row.Child = dock;
-            _list.AddRow(item.Id, row, handle);
+            };
+            for (var r = 0; r < box.Rows.Count; r++)
+            {
+                var items = box.Rows[r].Items;
+                for (var k = 0; k < items.Count; k++)
+                {
+                    var row = ItemRow(items[k], ++number);
+                    // items of one row stay together; a row of several is set apart from the next one
+                    var bottom = k < items.Count - 1 ? 2 : items.Count > 1 || (r + 1 < box.Rows.Count && box.Rows[r + 1].Items.Count > 1) ? 12 : 6;
+                    row.Margin = new Thickness(0, 0, 0, bottom);
+                    list.AddRow(items[k].Id, row, (FrameworkElement)row.Tag);
+                }
+            }
+            _count += list.Count;
+            _lists.Children.Add(list);
         }
         UpdateValues();
+    }
+
+    /// <summary>One line: handle, number, name, live value, remove (the handle is in <see cref="FrameworkElement.Tag"/>).</summary>
+    private Border ItemRow(OverlayItem item, int i)
+    {
+        var row = new Border { Padding = new Thickness(4, 5, 4, 5) };
+        row.SetResourceReference(StyleProperty, "OvEd.Row");
+        var dock = new DockPanel();
+
+        var handle = new Border { Width = 26, Height = 28, Background = Brushes.Transparent, CornerRadius = new CornerRadius(6) };
+        handle.Child = Ui.Icon("OvEd.Icon.Grip", 16, "Brush.TextFaint", 2.6);
+        handle.SetBinding(ToolTipProperty, Ui.Tr("ovl.order.drag"));
+        dock.Children.Add(handle);
+
+        var remove = Ui.IconButton("Icon.Close", "ovl.order.remove", (_, _) =>
+        {
+            _ctx.Model.Remove(item.Id);
+            Rebuild();
+        }, 14);
+        remove.Width = 28;
+        remove.Height = 28;
+        DockPanel.SetDock(remove, Dock.Right);
+        dock.Children.Add(remove);
+
+        var value = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0), FontSize = 12.5 };
+        value.SetResourceReference(TextBlock.ForegroundProperty, "Brush.TextDim");
+        System.Windows.Documents.Typography.SetNumeralAlignment(value, FontNumeralAlignment.Tabular);
+        DockPanel.SetDock(value, Dock.Right);
+        dock.Children.Add(value);
+        _values.Add((item, value));
+
+        var number = new TextBlock { Text = i.ToString(Loc.I.Culture), Width = 18, FontSize = 12, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        number.SetResourceReference(TextBlock.ForegroundProperty, "Brush.AccentText");
+        dock.Children.Add(number);
+        var name = new TextBlock { Text = _ctx.Title(item), FontSize = 13, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+        name.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text");
+        if (_ctx.Sensors(item) is { Count: > 0 } sensors) Explain.Explain.SetSensor(name, sensors[0]);
+        dock.Children.Add(name);
+        row.Child = dock;
+        row.Tag = handle;
+        return row;
     }
 
     public void UpdateValues()

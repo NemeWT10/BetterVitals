@@ -71,6 +71,22 @@ public sealed class OverlayScenarios(ITestOutputHelper output)
                 UnitColor = Color(),
             },
         };
+        OverlayPlacement RandomPlacement() => new()
+        {
+            Anchor = (OverlayAnchor)rnd.Next(0, 12),
+            MonitorMode = (OverlayMonitorMode)rnd.Next(0, 4),
+            MonitorKey = rnd.Next(2) == 0 ? null : "\\\\?\\DISPLAY#Y#4&0&UID2",
+            OffsetX = D(),
+            OffsetY = D(),
+            Margin = D(),
+        };
+        string? RowId() => rnd.Next(6) switch { 0 => null, 1 => "", 2 => "main", 3 => "same", _ => Guid.NewGuid().ToString("N") };
+        // the items go into the flat list of schema 1, into rows of the main box or into detached boxes (of any count)
+        var rows = new List<OverlayRow>();
+        var boxes = Enumerable.Range(0, rnd.Next(4) == 0 ? rnd.Next(0, 14) : 0)
+            .Select(_ => rnd.Next(12) == 0 ? null! : new OverlayBox { Id = RowId()!, Name = rnd.Next(3) == 0 ? new string('B', rnd.Next(0, 120)) : null, Placement = rnd.Next(8) == 0 ? null! : RandomPlacement(), Rows = rnd.Next(8) == 0 ? null! : [] })
+            .ToList();
+        var legacy = rnd.Next(3) == 0 ? new List<OverlayItem>() : null;
         for (var i = rnd.Next(0, 12); i > 0; i--)
         {
             var item = new OverlayItem
@@ -89,9 +105,25 @@ public sealed class OverlayScenarios(ITestOutputHelper output)
                 FontFamily = fonts[rnd.Next(fonts.Length)],
                 ValueSize = rnd.Next(2) == 0 ? null : D(),
             };
-            layout.Items.Add(item);
+            if (rnd.Next(10) == 0) item.Id = rnd.Next(2) == 0 ? "" : "same";
+            if (legacy is not null && rnd.Next(2) == 0)
+            {
+                legacy.Add(item);
+                continue;
+            }
+            var box = boxes.Count > 0 && rnd.Next(3) == 0 ? boxes[rnd.Next(boxes.Count)] : null;
+            var target = box is null ? rows : box.Rows;
+            if (target is null) continue;
+            if (target.Count == 0 || rnd.Next(3) == 0) target.Add(new OverlayRow { Id = RowId()!, Label = rnd.Next(4) == 0 ? new string('R', rnd.Next(0, 100)) : null, Items = rnd.Next(10) == 0 ? null! : [] });
+            target[^1].Items?.Add(item);
         }
-        if (rnd.Next(10) == 0) layout.Items.Add(null!);
+        if (rnd.Next(10) == 0) rows.Add(null!);
+        if (rnd.Next(10) == 0) rows.Add(new OverlayRow()); // an empty row
+        if (rnd.Next(10) == 0) legacy?.Add(null!);
+        layout.Rows = rows;
+        layout.Boxes = boxes;
+        layout.Items = legacy;
+        layout.Grouping = (OverlayGrouping)rnd.Next(0, 6);
         return layout;
     }
 
@@ -108,14 +140,47 @@ public sealed class OverlayScenarios(ITestOutputHelper output)
             layout.Normalize(); // what loading settings does
             var heights = new[] { 1080, 1440, 2160, 720, 0, -5 };
             var h = heights[rnd.Next(heights.Length)];
-            var values = layout.Items.SelectMany(it => it.SensorIds).Distinct().Take(30).Select(id => pc.Engine.Find(id)).Where(d => d is not null)
+            AssertSane(layout);
+            var values = layout.AllItems().SelectMany(it => it.SensorIds).Distinct().Take(30).Select(id => pc.Engine.Find(id)).Where(d => d is not null)
                 .Select(d => new PreviewSensor(d!, (float)Nasty[rnd.Next(Nasty.Length)])).ToList();
-            var bmp = OverlayHost.RenderToBitmap(layout, OverlayTheme.Default, values, h, culture: rnd.Next(2) == 0 ? CultureInfo.InvariantCulture : new CultureInfo("pl-PL"),
-                temperatureUnit: rnd.Next(2) == 0 ? TemperatureUnit.Celsius : TemperatureUnit.Fahrenheit);
+            var culture = rnd.Next(2) == 0 ? CultureInfo.InvariantCulture : new CultureInfo("pl-PL");
+            var unit = rnd.Next(2) == 0 ? TemperatureUnit.Celsius : TemperatureUnit.Fahrenheit;
+            var bmp = OverlayHost.RenderToBitmap(layout, OverlayTheme.Default, values, h, culture, unit);
             biggest = Math.Max(biggest, Math.Max(bmp.Width, bmp.Height));
             Assert.True(bmp.Width > 0 && bmp.Height > 0);
+            foreach (var (_, box) in OverlayHost.RenderBoxesToBitmaps(layout, OverlayTheme.Default, values, h, culture, unit))
+                Assert.True(box.Width > 0 && box.Height > 0);
         }
         output.WriteLine($"120 random layouts rendered; the biggest edge was {biggest} px"); // a hand-made layout of hundreds of rows is huge, but it renders
+    }
+
+    /// <summary>What Normalize promises: no nulls, no empty rows or boxes, unique ids, sane numbers, a known enum everywhere.</summary>
+    private static void AssertSane(OverlayLayout l)
+    {
+        Assert.Null(l.Items);
+        Assert.True(Enum.IsDefined(l.Grouping) && Enum.IsDefined(l.Style.Arrangement) && Enum.IsDefined(l.Visibility));
+        Assert.InRange(l.Boxes.Count, 0, OverlayLayout.MaxBoxes - 1);
+        Assert.All(l.Boxes, b => Assert.NotEmpty(b.Rows));
+        var ids = new HashSet<string>(StringComparer.Ordinal) { OverlayLayout.MainBoxId };
+        foreach (var box in l.AllBoxes())
+        {
+            if (!box.IsMain) Assert.True(ids.Add(box.Id), "box id " + box.Id);
+            var p = box.Placement;
+            Assert.True(Enum.IsDefined(p.Anchor) && Enum.IsDefined(p.MonitorMode));
+            Assert.True(double.IsFinite(p.OffsetX) && Math.Abs(p.OffsetX) <= 10_000 && double.IsFinite(p.OffsetY) && Math.Abs(p.OffsetY) <= 10_000);
+            Assert.InRange(p.Margin, 0, 1_000);
+            foreach (var row in box.Rows)
+            {
+                Assert.True(ids.Add(row.Id), "row id " + row.Id);
+                Assert.NotEmpty(row.Items);
+                Assert.True(row.Label is null || row.Label.Length is > 0 and <= 64);
+                foreach (var item in row.Items)
+                {
+                    Assert.True(ids.Add(item.Id), "item id " + item.Id);
+                    Assert.DoesNotContain(item.SensorIds, string.IsNullOrEmpty);
+                }
+            }
+        }
     }
 
     [Fact]
@@ -175,7 +240,7 @@ public sealed class OverlayScenarios(ITestOutputHelper output)
             // the overlay asks the engine for exactly what its items show, and for nothing when it is off
             var normalized = BetterVitals.Overlay.Host.LayoutCopy.Clone(layout);
             normalized.Normalize();
-            var wanted = normalized.Items.SelectMany(it => it.SensorIds).Distinct().Count();
+            var wanted = normalized.AllItems().SelectMany(it => it.SensorIds).Distinct().Count();
             var asked = pc.Engine.Demands.Where(x => x.Consumer == "overlay").Sum(x => x.Sensors);
             if (!d.HasDemand) Assert.Equal(0, asked);
             else Assert.Equal(wanted, asked);

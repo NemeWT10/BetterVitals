@@ -79,14 +79,15 @@ internal static unsafe class SceneRenderer
     /// <summary>Draws the whole panel. Call between BeginDraw / EndDraw.</summary>
     /// <param name="alpha">Fade multiplier 0–1.</param>
     /// <param name="edit">Edit-mode chrome (accent dashed outline).</param>
-    public static void Draw(DeviceResources res, Scene scene, float alpha, bool edit)
+    /// <param name="editEmphasis">1 = the box the keys move, less = the other boxes in edit mode.</param>
+    public static void Draw(DeviceResources res, Scene scene, float alpha, bool edit, float editEmphasis = 1)
     {
         RT.Clear(res.Rt, new D2DColor(0, 0, 0, 0));
-        DrawContent(res, scene, alpha, edit);
+        DrawContent(res, scene, alpha, edit, editEmphasis);
     }
 
     /// <summary>Draws the panel over whatever is in the target (no clear).</summary>
-    public static void DrawContent(DeviceResources res, Scene scene, float alpha, bool edit)
+    public static void DrawContent(DeviceResources res, Scene scene, float alpha, bool edit, float editEmphasis = 1)
     {
         var rt = res.Rt;
         RT.SetTextAntialiasMode(rt, 2);
@@ -107,10 +108,23 @@ internal static unsafe class SceneRenderer
         }
         if (scene.HasBorder) RT.DrawRoundedRectangle(rt, rr, res.Solid(scene.BorderColor, alpha), b);
 
-        foreach (var x in scene.Dividers)
-            RT.DrawLine(rt, new D2DPoint(x, scene.DividerTop), new D2DPoint(x, scene.DividerBottom), res.Solid(scene.BorderColor, alpha * 0.9f), MathF.Max(1, MathF.Round(scene.S)));
+        foreach (var d in scene.Dividers)
+            RT.DrawLine(rt, new D2DPoint(d.X, d.Top), new D2DPoint(d.X, d.Bottom), res.Solid(scene.BorderColor, alpha * 0.9f), MathF.Max(1, MathF.Round(scene.S)));
 
-        foreach (var item in scene.Items) DrawItem(res, scene, item, alpha);
+        if (scene.Arrangement == OverlayArrangement.Vertical)
+        {
+            foreach (var row in scene.Rows)
+            {
+                if (row.Label is { } label) Text(res, scene, label, row.LabelX, row.Baseline, row.LabelColor, alpha);
+                if (row.Dots.Count > 0) Dots(res, scene, row, alpha);
+                foreach (var item in row.Items) DrawItem(res, scene, row, item, alpha);
+            }
+        }
+        else
+        {
+            foreach (var row in scene.Rows)
+                foreach (var item in row.Items) DrawItem(res, scene, row, item, alpha);
+        }
 
         if (edit)
         {
@@ -122,18 +136,34 @@ internal static unsafe class SceneRenderer
                 RadiusX = scene.Radius,
                 RadiusY = scene.Radius,
             };
-            RT.FillRoundedRectangle(rt, er, res.Solid(accent, alpha * 0.10f));
-            RT.DrawRoundedRectangle(rt, er, res.Solid(accent, alpha), e, res.DashStroke);
+            RT.FillRoundedRectangle(rt, er, res.Solid(accent, alpha * 0.10f * editEmphasis));
+            RT.DrawRoundedRectangle(rt, er, res.Solid(accent, alpha * editEmphasis), e, res.DashStroke);
         }
     }
 
-    private static void DrawItem(DeviceResources res, Scene scene, SceneItem it, float alpha)
+    /// <summary>The small dots between the values of a Vertical row, centered on the digits.</summary>
+    private static void Dots(DeviceResources res, Scene scene, SceneRow row, float alpha)
+    {
+        var d = scene.DotSize;
+        var first = row.Items[0];
+        var cy = row.Baseline - scene.CapPx(first, first.ValuePx) / 2;
+        foreach (var x in row.Dots)
+        {
+            var r = new D2DRoundedRect { Rect = new D2DRect(x - d / 2, cy - d / 2, x + d / 2, cy + d / 2), RadiusX = d / 2, RadiusY = d / 2 };
+            RT.FillRoundedRectangle(res.Rt, r, res.Solid(scene.UnitColor, alpha * 0.55f));
+        }
+    }
+
+    private static void DrawItem(DeviceResources res, Scene scene, SceneRow row, SceneItem it, float alpha)
     {
         var rt = res.Rt;
         var horizontal = scene.Arrangement == OverlayArrangement.Horizontal;
+        var vertical = scene.Arrangement == OverlayArrangement.Vertical;
         var rows = it.IsMulti && it.Display == MultiValueDisplay.Rows;
 
+        // Vertical: the row draws the label column; an item only its own small label when it differs
         if (horizontal) Text(res, scene, it.Label, it.LabelX, it.LabelBaseline, it.LabelColor, alpha);
+        else if (vertical) { if (it.Tag is { } tag) Text(res, scene, tag, it.TagX, it.Baseline, it.LabelColor, alpha * 0.9f); }
         else if (!rows) Text(res, scene, it.Label, it.LabelX, it.Baseline, it.LabelColor, alpha);
 
         var rowH = Scene.RowHeight(it.ValuePx);
@@ -158,9 +188,9 @@ internal static unsafe class SceneRenderer
             for (var k = 0; k < it.Cells!.Length; k++)
             {
                 var col = k % cols;
-                var row = k / cols;
+                var line = k / cols;
                 var right = it.GridX + (col + 1) * (it.CellColW + gap) - gap;
-                var baseline = firstBaseline + row * subH;
+                var baseline = firstBaseline + line * subH;
                 var cell = it.Cells[k];
                 Value(res, scene, cell, MathF.Round(right - cell.Width), baseline, it.CellColors![k], alpha);
             }
@@ -174,7 +204,8 @@ internal static unsafe class SceneRenderer
             {
                 var baseline = MathF.Round(it.Top + k * subH + (subH + cap) / 2);
                 var label = it.SubLabels![k];
-                Text(res, scene, label, horizontal ? it.SubLabelX : it.LabelX, baseline, it.LabelColor, alpha * 0.9f);
+                var x = horizontal ? it.SubLabelX : vertical && !row.SubLabelsInColumn ? it.TagX : it.LabelX;
+                Text(res, scene, label, x, baseline, it.LabelColor, alpha * 0.9f);
                 var cell = it.Cells[k];
                 Value(res, scene, cell, it.ValueRight - cell.Width, baseline, it.CellColors![k], alpha);
                 Unit(res, scene, it, baseline, alpha);

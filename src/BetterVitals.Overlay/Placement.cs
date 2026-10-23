@@ -123,10 +123,12 @@ public static class OverlayPlacementMath
     }
 
     /// <summary>
-    /// Snaps a dragged overlay to the area's edges, the default margin from them and the center (both axes)
-    /// when within <paramref name="threshold"/> px.
+    /// Snaps a dragged overlay box to the area's edges, the default margin from them and the center (both axes) when
+    /// within <paramref name="threshold"/> px; with <paramref name="others"/> also to the other boxes: edges in line, or
+    /// side by side <paramref name="gap"/> px apart.
     /// </summary>
-    public static SnapResult Snap(int x, int y, int width, int height, PixelRect area, int margin, int threshold)
+    public static SnapResult Snap(int x, int y, int width, int height, PixelRect area, int margin, int threshold,
+        IReadOnlyList<PixelRect>? others = null, int gap = 0)
     {
         int? gx = null, gy = null;
         var bestX = threshold + 1;
@@ -142,6 +144,13 @@ public static class OverlayPlacementMath
         TryX(area.Right - margin - width, area.Right - margin - 1);
         var center = area.Left + (area.Width - width) / 2;
         TryX(center, area.Left + area.Width / 2);
+        foreach (var o in others ?? [])
+        {
+            TryX(o.Left, o.Left);
+            TryX(o.Right - width, o.Right - 1);
+            TryX(o.Right + gap, o.Right + gap);
+            TryX(o.Left - gap - width, o.Left - gap - 1);
+        }
         if (bestX > threshold) { sx = x; gx = null; }
 
         var bestY = threshold + 1;
@@ -157,6 +166,13 @@ public static class OverlayPlacementMath
         TryY(area.Bottom - margin - height, area.Bottom - margin - 1);
         var middle = area.Top + (area.Height - height) / 2;
         TryY(middle, area.Top + area.Height / 2);
+        foreach (var o in others ?? [])
+        {
+            TryY(o.Top, o.Top);
+            TryY(o.Bottom - height, o.Bottom - 1);
+            TryY(o.Bottom + gap, o.Bottom + gap);
+            TryY(o.Top - gap - height, o.Top - gap - 1);
+        }
         if (bestY > threshold) { sy = y; gy = null; }
 
         return new SnapResult(sx, sy, gx, gy);

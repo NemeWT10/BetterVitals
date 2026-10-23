@@ -16,7 +16,8 @@ internal static class LayoutJson
     /// <summary>Marks a BetterVitals overlay profile file.</summary>
     public const string Kind = "BetterVitals.OverlayProfile";
 
-    public const int Version = 1;
+    /// <summary>2: rows and boxes. Version 1 files (one flat "items" list) load and look as before (<see cref="OverlayLayout.Normalize"/>).</summary>
+    public const int Version = 2;
 
     public static readonly JsonSerializerOptions Options = new()
     {
@@ -89,7 +90,7 @@ internal static class LayoutJson
         {
             layoutNode = fromSettings; // a whole settings.json
         }
-        if (layoutNode is not JsonObject lo || (Get(lo, "items") is null && Get(lo, "style") is null && Get(lo, "placement") is null))
+        if (layoutNode is not JsonObject lo || (Get(lo, "items") is null && Get(lo, "rows") is null && Get(lo, "boxes") is null && Get(lo, "style") is null && Get(lo, "placement") is null))
             throw new FormatException("Not an overlay profile.");
 
         OverlayLayout? layout;
@@ -102,11 +103,8 @@ internal static class LayoutJson
             throw new FormatException("The overlay profile is damaged.", ex);
         }
         if (layout is null) throw new FormatException("Not an overlay profile.");
+        // flat v1 items become rows; two items, rows or boxes with the same editor id get new ones
         layout.Normalize();
-        // a profile never brings two items with the same editor id
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in layout.Items)
-            if (!seen.Add(item.Id)) item.Id = Guid.NewGuid().ToString("N");
         return (string.IsNullOrWhiteSpace(name) ? null : name.Trim(), layout);
     }
 

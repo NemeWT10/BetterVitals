@@ -10,7 +10,8 @@ namespace BetterVitals.Core.Settings;
 /// </summary>
 public sealed class AppSettings
 {
-    public const int CurrentSchema = 1;
+    /// <summary>2: the overlay's flat item list became rows and boxes (see <see cref="OverlayLayout.Normalize"/>).</summary>
+    public const int CurrentSchema = 2;
 
     public int SchemaVersion { get; set; } = CurrentSchema;
 

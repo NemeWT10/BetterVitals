@@ -17,7 +17,7 @@ internal interface ISensorLookup
     int Slot(SensorDescriptor sensor);
 }
 
-/// <summary>Everything a <see cref="Scene"/> is built from.</summary>
+/// <summary>Everything a <see cref="Scene"/> is built from: one box of a layout.</summary>
 internal sealed record SceneInput(
     OverlayLayout Layout,
     OverlayTheme Theme,
@@ -25,17 +25,24 @@ internal sealed record SceneInput(
     CultureInfo Culture,
     TemperatureUnit TemperatureUnit,
     Func<OverlayItem, string?>? Labels,
-    double Scale);
+    double Scale,
+    string BoxId = OverlayLayout.MainBoxId);
+
+/// <summary>A vertical divider between two cells (Horizontal / Compact), px.</summary>
+internal readonly record struct Divider(float X, float Top, float Bottom);
 
 /// <summary>
-/// The overlay's content at one scale: resolved items, fonts, measured text and the arranged geometry, plus the
-/// per-refresh value pipeline (aggregation, formatting into reusable buffers, thresholds, sparklines). Owns its
+/// One box of the overlay at one scale: resolved rows and items, fonts, measured text and the arranged geometry, plus
+/// the per-refresh value pipeline (aggregation, formatting into reusable buffers, thresholds, sparklines). Owns its
 /// DirectWrite objects; device-independent (drawn by <see cref="SceneRenderer"/> into any render target).
 /// Single-threaded.
 /// </summary>
 internal sealed unsafe class Scene : IDisposable
 {
     private const int SparkCapacity = 40;
+
+    /// <summary>Size of an item's own label inside a row, relative to the label size.</summary>
+    private const float TagScale = 0.92f;
 
     private readonly Dictionary<(string?, int, int), nint> _formats = [];
     private readonly Dictionary<string, TextLine> _units = new(StringComparer.Ordinal);
@@ -50,6 +57,7 @@ internal sealed unsafe class Scene : IDisposable
         S = (float)input.Scale;
         Arrangement = Style.Arrangement;
         RefreshMs = Math.Clamp(layout.RefreshMs, 250, 2000);
+        BoxId = input.BoxId;
 
         var bg = Rgba.TryParse(Style.BackgroundColor) ?? Theme.Background;
         Background = bg.WithAlpha(bg.A / 255.0 * Math.Clamp(Style.BackgroundOpacity, 0, 1));
@@ -66,15 +74,30 @@ internal sealed unsafe class Scene : IDisposable
         UnitPx = (float)Style.UnitSize * S;
         ValueFamily = Style.ValueFontFamily ?? Style.FontFamily;
 
-        foreach (var src in layout.Items ?? [])
+        foreach (var src in layout.RowsOf(input.BoxId) ?? [])
         {
-            if (src is null) continue;
-            Items.Add(BuildItem(src));
+            if (src?.Items is not { Count: > 0 } items) continue;
+            var row = new SceneRow(src);
+            foreach (var item in items)
+            {
+                if (item is null) continue;
+                var built = BuildItem(item);
+                row.Items.Add(built);
+                Items.Add(built);
+            }
+            if (row.Items.Count == 0) continue;
+            if (Arrangement == OverlayArrangement.Vertical) LabelRow(row);
+            Rows.Add(row);
         }
         Arrange();
     }
 
     public SceneInput Input { get; }
+
+    /// <summary>The box this scene draws.</summary>
+    public string BoxId { get; }
+
+    public List<SceneRow> Rows { get; } = [];
 
     public OverlayStyle Style { get; }
 
@@ -120,14 +143,40 @@ internal sealed unsafe class Scene : IDisposable
     /// <summary>Some sensor ids are not known to the hub yet (rebuild when the inventory changes).</summary>
     public bool HasUnresolved { get; private set; }
 
-    /// <summary>Divider x positions (Horizontal / Compact), px.</summary>
-    public List<float> Dividers { get; } = [];
+    /// <summary>Dividers between cells (Horizontal / Compact), px.</summary>
+    public List<Divider> Dividers { get; } = [];
 
-    public float DividerTop { get; private set; }
-
-    public float DividerBottom { get; private set; }
+    /// <summary>Diameter of the dot between the values of a row (Vertical), px.</summary>
+    public float DotSize => MathF.Max(2, MathF.Round(3 * S));
 
     // ── build ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Vertical rows: the row label for the label column and, for items whose label differs from it, a small label of
+    /// their own in front of the value. A row of one item draws exactly like the old list line.
+    /// </summary>
+    private void LabelRow(SceneRow row)
+    {
+        var first = row.Items[0];
+        row.LabelColor = first.LabelColor;
+        var custom = string.IsNullOrWhiteSpace(row.Source.Label) ? null : row.Source.Label.Trim();
+        if (row.Items.Count == 1 && custom is null)
+        {
+            // the classic line: the item's own label in the label column (rows of a multi-value item: their sub-labels)
+            row.Label = first.SubLabels is null ? first.Label : null;
+            row.SubLabelsInColumn = first.SubLabels is not null;
+            return;
+        }
+        var text = custom ?? DefaultLabels.ForRow([.. row.Items.Select(i => i.Label.Text)], [.. row.Items.Select(i => i.Hw)]);
+        row.Label = string.Equals(text, first.Label.Text, StringComparison.Ordinal) && first.SubLabels is null
+            ? first.Label
+            : Line(text, Format(first.Source.FontFamily ?? Style.FontFamily, Style.LabelWeight, LabelPx));
+        foreach (var it in row.Items)
+        {
+            if (it.SubLabels is not null || string.Equals(it.Label.Text, text, StringComparison.OrdinalIgnoreCase)) continue;
+            it.Tag = Line(it.Label.Text, Format(it.Source.FontFamily ?? Style.FontFamily, Style.LabelWeight, LabelPx * TagScale));
+        }
+    }
 
     private SceneItem BuildItem(OverlayItem src)
     {
@@ -501,148 +550,240 @@ internal sealed unsafe class Scene : IDisposable
 
     private float UnitWidth(SceneItem it) => it.ShowUnit && it.UnitColW > 0 ? UnitGap + it.UnitColW : 0;
 
+    /// <summary>Width of an item's own label in front of its value (Vertical rows), with its gap; 0 without one.</summary>
+    private float TagWidth(SceneItem it, SceneRow row)
+    {
+        float w = 0;
+        if (it.Tag is { } tag) w = tag.Width;
+        else if (it.SubLabels is { } subs && !row.SubLabelsInColumn)
+            foreach (var s in subs) w = MathF.Max(w, s.Width);
+        return w > 0 ? w + TagGap : 0;
+    }
+
+    private float TagGap => MathF.Round(5 * S);
+
+    private float CellGap2 => MathF.Round(20 * S);
+
+    /// <summary>
+    /// Rows with a label column. The label column, the first value column (right-aligned numbers, then units, then
+    /// sparklines) and the start of the second value are shared by all rows; further values follow at their own width
+    /// (grow-only, so nothing jitters). Rows of one item give exactly the old list.
+    /// </summary>
     private void ArrangeVertical()
     {
         var p = P;
-        float labelCol = 0, valueCol = 0, unitCol = 0;
+        float labelCol = 0, tagCol = 0, valueCol = 0, unitCol = 0;
         var graph = false;
-        foreach (var it in Items)
+        foreach (var row in Rows)
         {
-            labelCol = MathF.Max(labelCol, it.Label.Width);
-            if (it.SubLabels is { } subs)
-                foreach (var s in subs) labelCol = MathF.Max(labelCol, s.Width);
-            valueCol = MathF.Max(valueCol, BlockWidth(it));
-            unitCol = MathF.Max(unitCol, it.ShowUnit ? it.UnitColW : 0);
-            graph |= it.Spark is not null;
+            if (row.Label is { } label) labelCol = MathF.Max(labelCol, label.Width);
+            var first = row.Items[0];
+            if (row.SubLabelsInColumn)
+            {
+                // as the list always did: the item's own label (not drawn) still widens the column
+                labelCol = MathF.Max(labelCol, first.Label.Width);
+                foreach (var s in first.SubLabels!) labelCol = MathF.Max(labelCol, s.Width);
+            }
+            tagCol = MathF.Max(tagCol, TagWidth(first, row));
+            valueCol = MathF.Max(valueCol, BlockWidth(first));
+            unitCol = MathF.Max(unitCol, first.ShowUnit ? first.UnitColW : 0);
+            graph |= first.Spark is not null;
         }
-        var gapLv = MathF.Round(14 * S);
-        var valueRight = MathF.Round(p + labelCol + gapLv + valueCol);
+        var gapLv = labelCol > 0 ? MathF.Round(14 * S) : 0;
+        var tagX = MathF.Round(p + labelCol + gapLv);
+        var valueRight = MathF.Round(p + labelCol + gapLv + tagCol + valueCol);
         var unitX = valueRight + UnitGap;
         var end = unitCol > 0 ? unitX + unitCol : valueRight;
         var graphX = end + GraphGap;
-        if (graph) end = graphX + GraphW;
+        var right = graph ? graphX + GraphW : end;
 
-        var firstRow = Items.Count > 0 ? RowHeight(Items[0].ValuePx) : RowHeight(ValuePx);
-        var firstCap = Items.Count > 0 ? CapPx(Items[0], Items[0].ValuePx) : ValuePx * 0.7f;
+        // the second value starts at the same x in every row that has one (a row whose first value has a sparkline
+        // starts it after the sparkline instead of pushing every other row that far)
+        float second = 0;
+        foreach (var row in Rows)
+            if (row.Items.Count > 1 && row.Items[0].Spark is null)
+                second = MathF.Max(second, end + CellGap2);
+
+        var firstItem = Rows.Count > 0 ? Rows[0].Items[0] : null;
+        var firstRow = firstItem is not null ? RowHeight(firstItem.ValuePx) : RowHeight(ValuePx);
+        var firstCap = firstItem is not null ? CapPx(firstItem, firstItem.ValuePx) : ValuePx * 0.7f;
         var pv = MathF.Round(MathF.Max(3 * S, p - (firstRow - firstCap) / 2));
         var y = pv;
-        foreach (var it in Items)
+        foreach (var row in Rows)
         {
-            var h = BlockHeight(it);
-            it.Top = y;
-            it.Height = h;
-            it.LabelX = MathF.Round(p);
-            it.ValueRight = valueRight;
-            it.UnitX = unitX;
-            it.GraphX = graphX;
-            it.GraphW = GraphW;
-            var rowH = RowHeight(it.ValuePx);
-            it.Baseline = MathF.Round(y + (rowH + CapPx(it, it.ValuePx)) / 2);
-            if (it.IsMulti && it.Display == MultiValueDisplay.Bars) it.BarsX = valueRight - it.TextColW - MathF.Round(7 * S) - BarsWidth(it);
-            if (it.Display == MultiValueDisplay.Grid && it.IsMulti) it.GridX = valueRight - BlockWidth(it);
+            // the row's baseline comes from its largest value (one size in a normal row)
+            var big = row.Items[0];
+            foreach (var it in row.Items)
+                if (it.ValuePx > big.ValuePx) big = it;
+            var h = 0f;
+            foreach (var it in row.Items) h = MathF.Max(h, BlockHeight(it));
+            var baseline = MathF.Round(y + (RowHeight(big.ValuePx) + CapPx(big, big.ValuePx)) / 2);
+            row.Top = y;
+            row.Height = h;
+            row.Baseline = baseline;
+            row.LabelX = MathF.Round(p);
+            row.Dots.Clear();
+
+            for (var k = 0; k < row.Items.Count; k++)
+            {
+                var it = row.Items[k];
+                it.Top = y;
+                it.Height = BlockHeight(it);
+                it.Baseline = baseline;
+                it.LabelX = MathF.Round(p);
+                it.GraphW = GraphW;
+                if (k == 0)
+                {
+                    it.TagX = tagX;
+                    it.ValueRight = valueRight;
+                    it.UnitX = unitX;
+                    it.GraphX = graphX;
+                }
+                else
+                {
+                    var x = k == 1 ? MathF.Max(second, row.Items[0].CellEnd + CellGap2) : row.Items[k - 1].CellEnd + CellGap2;
+                    row.Dots.Add(MathF.Round(x - CellGap2 / 2));
+                    it.TagX = x;
+                    it.ValueRight = MathF.Round(x + TagWidth(it, row) + BlockWidth(it));
+                    it.UnitX = it.ValueRight + UnitGap;
+                    var cellEnd = it.ValueRight + UnitWidth(it);
+                    it.GraphX = cellEnd + GraphGap;
+                }
+                it.CellEnd = k == 0
+                    ? it.Spark is not null ? graphX + GraphW : end
+                    : it.Spark is not null ? it.GraphX + GraphW : it.ValueRight + UnitWidth(it);
+                if (it.IsMulti && it.Display == MultiValueDisplay.Bars) it.BarsX = it.ValueRight - it.TextColW - MathF.Round(7 * S) - BarsWidth(it);
+                if (it.Display == MultiValueDisplay.Grid && it.IsMulti) it.GridX = it.ValueRight - BlockWidth(it);
+                right = MathF.Max(right, it.CellEnd);
+            }
             y += h + Gap;
         }
-        if (Items.Count > 0) y -= Gap;
-        Width = (int)MathF.Ceiling(end + p);
+        if (Rows.Count > 0) y -= Gap;
+        Width = (int)MathF.Ceiling(right + p);
         Height = (int)MathF.Ceiling(y + pv);
-        if (Items.Count == 0)
+        if (Rows.Count == 0)
         {
             Width = (int)MathF.Ceiling(2 * p + 40 * S);
             Height = (int)MathF.Ceiling(2 * pv + firstRow);
         }
     }
 
+    /// <summary>Every item with its label above the value, side by side; one band per row.</summary>
     private void ArrangeHorizontal()
     {
         var p = P;
         var labelLine = MathF.Ceiling(LabelPx * 1.25f);
-        var firstRow = Items.Count > 0 ? RowHeight(Items[0].ValuePx) : RowHeight(ValuePx);
         var pv = MathF.Round(MathF.Max(4 * S, p - LabelPx * 0.2f));
         var cellGap = MathF.Round(22 * S);
-        var x = MathF.Round(p);
-        float maxH = 0;
+        var rowGap = Gap + MathF.Round(6 * S);
         var top = pv;
-        for (var i = 0; i < Items.Count; i++)
+        var right = MathF.Round(p);
+        foreach (var row in Rows)
         {
-            var it = Items[i];
-            var block = BlockWidth(it);
-            var valueW = block + UnitWidth(it) + (it.Spark is not null ? GraphGap + GraphW : 0);
-            var subW = 0f;
-            if (it.SubLabels is { } subs)
-                foreach (var s in subs) subW = MathF.Max(subW, s.Width);
-            var subColW = subW > 0 ? subW + MathF.Round(8 * S) : 0;
-            var w = MathF.Max(it.Label.Width, subColW + valueW);
-            it.LabelX = x;
-            it.LabelBaseline = MathF.Round(top + labelLine * 0.8f);
-            var valueTop = top + labelLine + MathF.Round(2 * S);
-            it.Top = valueTop;
-            it.Height = BlockHeight(it);
-            it.ValueRight = MathF.Round(x + subColW + block);
-            it.UnitX = it.ValueRight + UnitGap;
-            it.GraphX = it.ValueRight + UnitWidth(it) + GraphGap;
-            it.GraphW = GraphW;
-            it.SubLabelX = x;
-            var rowH = RowHeight(it.ValuePx);
-            it.Baseline = MathF.Round(valueTop + (rowH + CapPx(it, it.ValuePx)) / 2);
-            if (it.IsMulti && it.Display == MultiValueDisplay.Bars) it.BarsX = x;
-            if (it.IsMulti && it.Display == MultiValueDisplay.Grid) it.GridX = x;
-            maxH = MathF.Max(maxH, labelLine + MathF.Round(2 * S) + it.Height);
-            x += MathF.Ceiling(w);
-            if (i < Items.Count - 1)
+            var x = MathF.Round(p);
+            float maxH = 0;
+            for (var i = 0; i < row.Items.Count; i++)
             {
-                Dividers.Add(MathF.Round(x + cellGap / 2) + 0.5f);
-                x += cellGap;
+                var it = row.Items[i];
+                var block = BlockWidth(it);
+                var valueW = block + UnitWidth(it) + (it.Spark is not null ? GraphGap + GraphW : 0);
+                var subW = 0f;
+                if (it.SubLabels is { } subs)
+                    foreach (var s in subs) subW = MathF.Max(subW, s.Width);
+                var subColW = subW > 0 ? subW + MathF.Round(8 * S) : 0;
+                var w = MathF.Max(it.Label.Width, subColW + valueW);
+                it.LabelX = x;
+                it.LabelBaseline = MathF.Round(top + labelLine * 0.8f);
+                var valueTop = top + labelLine + MathF.Round(2 * S);
+                it.Top = valueTop;
+                it.Height = BlockHeight(it);
+                it.ValueRight = MathF.Round(x + subColW + block);
+                it.UnitX = it.ValueRight + UnitGap;
+                it.GraphX = it.ValueRight + UnitWidth(it) + GraphGap;
+                it.GraphW = GraphW;
+                it.SubLabelX = x;
+                var rowH = RowHeight(it.ValuePx);
+                it.Baseline = MathF.Round(valueTop + (rowH + CapPx(it, it.ValuePx)) / 2);
+                if (it.IsMulti && it.Display == MultiValueDisplay.Bars) it.BarsX = x;
+                if (it.IsMulti && it.Display == MultiValueDisplay.Grid) it.GridX = x;
+                maxH = MathF.Max(maxH, labelLine + MathF.Round(2 * S) + it.Height);
+                x += MathF.Ceiling(w);
+                if (i < row.Items.Count - 1)
+                {
+                    row.DividerXs.Add(MathF.Round(x + cellGap / 2) + 0.5f);
+                    x += cellGap;
+                }
             }
+            foreach (var d in row.DividerXs) Dividers.Add(new Divider(d, top + MathF.Round(2 * S), top + maxH - MathF.Round(2 * S)));
+            row.DividerXs.Clear();
+            row.Top = top;
+            row.Height = MathF.Max(maxH, RowHeight(row.Items[0].ValuePx));
+            right = MathF.Max(right, x);
+            top += row.Height + rowGap;
         }
-        DividerTop = top + MathF.Round(2 * S);
-        DividerBottom = top + maxH - MathF.Round(2 * S);
-        Width = (int)MathF.Ceiling(x + p);
-        Height = (int)MathF.Ceiling(top + MathF.Max(maxH, firstRow) + pv);
+        if (Rows.Count > 0) top -= rowGap;
+        else top += RowHeight(ValuePx);
+        Width = (int)MathF.Ceiling(right + p);
+        Height = (int)MathF.Ceiling(top + pv);
     }
 
+    /// <summary>Compact cells "CPU 45° | GPU 60°", one line per row.</summary>
     private void ArrangeCompact()
     {
         var p = P;
-        var rowH = Items.Count > 0 ? Items.Max(i => RowHeight(i.ValuePx)) : RowHeight(ValuePx);
-        var cap = Items.Count > 0 ? CapPx(Items[0], Items[0].ValuePx) : ValuePx * 0.7f;
-        var pv = MathF.Round(MathF.Max(3 * S, p * 0.8f - (rowH - cap) / 2));
+        float RowH(SceneRow r) => r.Items.Max(i => RowHeight(i.ValuePx));
+        var rowH0 = Rows.Count > 0 ? RowH(Rows[0]) : RowHeight(ValuePx);
+        var cap0 = Rows.Count > 0 ? CapPx(Rows[0].Items[0], Rows[0].Items[0].ValuePx) : ValuePx * 0.7f;
+        var pv = MathF.Round(MathF.Max(3 * S, p * 0.8f - (rowH0 - cap0) / 2));
         var sep = MathF.Round(11 * S);
         var labelGap = MathF.Round(6 * S);
-        var x = MathF.Round(p);
-        var baseline = MathF.Round(pv + (rowH + cap) / 2);
-        for (var i = 0; i < Items.Count; i++)
+        var top = pv;
+        var right = MathF.Round(p);
+        foreach (var row in Rows)
         {
-            var it = Items[i];
-            it.Top = pv;
-            it.Height = rowH;
-            it.LabelX = x;
-            it.Baseline = baseline;
-            x += it.Label.Width + labelGap;
-            if (it.IsMulti)
+            var rowH = RowH(row);
+            var cap = CapPx(row.Items[0], row.Items[0].ValuePx);
+            var x = MathF.Round(p);
+            var baseline = MathF.Round(top + (rowH + cap) / 2);
+            for (var i = 0; i < row.Items.Count; i++)
             {
-                it.BarsX = MathF.Round(x);
-                x += BarsWidth(it) + MathF.Round(6 * S);
+                var it = row.Items[i];
+                it.Top = top;
+                it.Height = rowH;
+                it.LabelX = x;
+                it.Baseline = baseline;
+                x += it.Label.Width + labelGap;
+                if (it.IsMulti)
+                {
+                    it.BarsX = MathF.Round(x);
+                    x += BarsWidth(it) + MathF.Round(6 * S);
+                }
+                x += it.TextColW;
+                it.ValueRight = MathF.Round(x);
+                it.UnitX = it.ValueRight + UnitGap;
+                x = it.ValueRight + UnitWidth(it);
+                if (it.Spark is not null)
+                {
+                    it.GraphW = MathF.Round(30 * S);
+                    it.GraphX = x + MathF.Round(7 * S);
+                    x = it.GraphX + it.GraphW;
+                }
+                if (i < row.Items.Count - 1)
+                {
+                    Dividers.Add(new Divider(MathF.Round(x + sep) + 0.5f, top + rowH * 0.22f, top + rowH * 0.78f));
+                    x += 2 * sep;
+                }
             }
-            x += it.TextColW;
-            it.ValueRight = MathF.Round(x);
-            it.UnitX = it.ValueRight + UnitGap;
-            x = it.ValueRight + UnitWidth(it);
-            if (it.Spark is not null)
-            {
-                it.GraphW = MathF.Round(30 * S);
-                it.GraphX = x + MathF.Round(7 * S);
-                x = it.GraphX + it.GraphW;
-            }
-            if (i < Items.Count - 1)
-            {
-                Dividers.Add(MathF.Round(x + sep) + 0.5f);
-                x += 2 * sep;
-            }
+            row.Top = top;
+            row.Height = rowH;
+            row.Baseline = baseline;
+            right = MathF.Max(right, x);
+            top += rowH + Gap;
         }
-        DividerTop = pv + rowH * 0.22f;
-        DividerBottom = pv + rowH * 0.78f;
-        Width = (int)MathF.Ceiling(x + p);
-        Height = (int)MathF.Ceiling(pv * 2 + rowH);
+        if (Rows.Count > 0) top -= Gap;
+        else top += rowH0;
+        Width = (int)MathF.Ceiling(right + p);
+        Height = (int)MathF.Ceiling(top + pv);
     }
 
     public void Dispose()
@@ -658,6 +799,30 @@ internal sealed unsafe class Scene : IDisposable
         }
         _formats.Clear();
     }
+}
+
+/// <summary>One row of a <see cref="Scene"/>.</summary>
+internal sealed class SceneRow(OverlayRow source)
+{
+    public OverlayRow Source { get; } = source;
+
+    public List<SceneItem> Items { get; } = [];
+
+    /// <summary>Vertical: what the label column shows (null for a lone multi-value item drawn as rows: its sub-labels go there).</summary>
+    public TextLine? Label;
+
+    public Rgba LabelColor;
+
+    /// <summary>A lone multi-value item drawn as rows puts its sub-labels into the label column (the classic list).</summary>
+    public bool SubLabelsInColumn;
+
+    public float Top, Height, Baseline, LabelX;
+
+    /// <summary>Vertical: x of the dot between two values.</summary>
+    public List<float> Dots { get; } = [];
+
+    /// <summary>Scratch list while arranging.</summary>
+    public List<float> DividerXs { get; } = [];
 }
 
 /// <summary>One overlay entry inside a <see cref="Scene"/>.</summary>
@@ -699,6 +864,10 @@ internal sealed class SceneItem
     public bool DegreeSuffix;
 
     public TextLine Label = null!;
+
+    /// <summary>Vertical rows: the item's own label in front of its value, when it differs from the row label.</summary>
+    public TextLine? Tag;
+
     public TextLine[]? SubLabels;
     public FontFace Face = null!;
     public float ValuePx, SubPx;
@@ -721,7 +890,7 @@ internal sealed class SceneItem
     public float TemplateW, CellTemplateW, TextColW, CellColW, UnitColW;
 
     // geometry (px)
-    public float Top, Height, LabelX, LabelBaseline, SubLabelX, Baseline, ValueRight, UnitX, GraphX, GraphW, BarsX, GridX;
+    public float Top, Height, LabelX, LabelBaseline, SubLabelX, Baseline, ValueRight, UnitX, GraphX, GraphW, BarsX, GridX, TagX, CellEnd;
 
     /// <summary>Pushes a raw reading and returns the displayed value (current / max / average over the window).</summary>
     public float Aggregate(int k, float raw)

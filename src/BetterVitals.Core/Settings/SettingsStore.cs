@@ -139,7 +139,8 @@ public sealed class SettingsStore
     /// <summary>Upgrades older schema versions in place. A file from a NEWER version is used as far as it is understood.</summary>
     internal static AppSettings Migrate(AppSettings s)
     {
-        // schema 1 is the first; future: if (s.SchemaVersion < 2) { … s.SchemaVersion = 2; }
+        // 1 → 2: Overlay.Items (one flat list) became rows in boxes; Overlay.Normalize() below converts it so that it
+        // draws exactly as before (one row per item for the vertical arrangement, one row of all items otherwise).
         s.General ??= new GeneralSettings();
         s.Recording ??= new RecordingSettings();
         s.Recording.SensorIds ??= new HashSet<string>(StringComparer.Ordinal);

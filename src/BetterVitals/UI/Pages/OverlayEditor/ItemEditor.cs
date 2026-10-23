@@ -104,14 +104,13 @@ internal sealed class ItemEditor : StackPanel
         Children.Add(Ui.Line("ovl.item.size", size, "ovl.item.size.hint"));
     }
 
-    private OverlayItem? Item => _ctx.Layout.Items.Find(i => i.Id == _id);
+    private OverlayItem? Item => _ctx.Layout.FindItem(_id);
 
     private void Edit(Action<OverlayItem> change) => _ctx.Model.EditItem(_id, change);
 
     private void Defer(Action<OverlayItem> change) => _ctx.Defer(l =>
     {
-        var item = l.Items.Find(i => i.Id == _id);
-        if (item is not null) change(item);
+        if (l.FindItem(_id) is { } item) change(item);
     });
 
     private static Color CategoryColor(SensorDescriptor? s) => s is null ? ThemeManager.I.Current.TextDim : ThemeManager.I.CategoryColor(s.HardwareKind);
@@ -165,7 +164,7 @@ internal sealed class ThresholdsEditor : StackPanel
         Build();
     }
 
-    private OverlayItem? Item => _ctx.Layout.Items.Find(i => i.Id == _id);
+    private OverlayItem? Item => _ctx.Layout.FindItem(_id);
 
     private void OnMode(ThresholdMode mode)
     {

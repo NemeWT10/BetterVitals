@@ -22,7 +22,7 @@ internal sealed class OverlayController : IOverlayService, IDisposable
     private readonly ISensorHub _hub;
     private readonly Dispatcher _ui;
     private OverlayHost? _host;
-    private Action<OverlayPlacement>? _commit;
+    private Action<IReadOnlyDictionary<string, OverlayPlacement>>? _commit;
     private Action? _cancel;
     private readonly HashSet<uint> _tippedPids = [];
     private uint? _pendingTipPid;
@@ -57,27 +57,27 @@ internal sealed class OverlayController : IOverlayService, IDisposable
     /// <summary>The app saw WM_DISPLAYCHANGE (resolution / monitor layout).</summary>
     public void OnDisplayChanged() => _ui.BeginInvoke(() => MonitorsChanged?.Invoke());
 
-    public void BeginOnScreenEdit(Action<OverlayPlacement> commit, Action cancel)
+    public void BeginOnScreenEdit(Action<IReadOnlyDictionary<string, OverlayPlacement>> commit, Action cancel)
     {
         var host = EnsureHost();
         _commit = commit;
         _cancel = cancel;
         IsEditingOnScreen = true;
         host.EnterEditMode(
-            placement => _ui.BeginInvoke(() => Finish(placement)),
+            placements => _ui.BeginInvoke(() => Finish(placements)),
             () => _ui.BeginInvoke(() => Finish(null)));
     }
 
     public void EndOnScreenEdit(bool commit) => _host?.ExitEditMode(commit);
 
-    private void Finish(OverlayPlacement? placement)
+    private void Finish(IReadOnlyDictionary<string, OverlayPlacement>? placements)
     {
         IsEditingOnScreen = false;
         var commit = _commit;
         var cancel = _cancel;
         _commit = null;
         _cancel = null;
-        if (placement is not null) commit?.Invoke(placement);
+        if (placements is not null) commit?.Invoke(placements);
         else cancel?.Invoke();
     }
 
@@ -148,7 +148,7 @@ internal sealed class OverlayController : IOverlayService, IDisposable
         _ui.BeginInvoke(ApplyDefaultItems);
     }
 
-    /// <summary>First run: FPS, CPU and GPU temperature at the top-left (the user's own example), once.</summary>
+    /// <summary>First run: FPS, CPU and GPU temperature at the top-left (the user's own example), once, one row per component.</summary>
     private void ApplyDefaultItems()
     {
         var overlay = SettingsStore.I.Current.Overlay;
@@ -163,8 +163,8 @@ internal sealed class OverlayController : IOverlayService, IDisposable
         SettingsStore.I.Mutate("overlay", st =>
         {
             if (st.Overlay.DefaultsApplied) return;
-            if (st.Overlay.Items.Count == 0)
-                foreach (var i in picked) st.Overlay.Items.Add(new OverlayItem { SensorIds = [.. i!.SensorIds] });
+            if (st.Overlay.IsEmpty)
+                foreach (var i in picked) st.Overlay.AddItem(new OverlayItem { SensorIds = [.. i!.SensorIds] }, OverlayLayout.NewId());
             st.Overlay.DefaultsApplied = true;
         });
     }

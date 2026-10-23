@@ -103,11 +103,12 @@ internal static class Showcase
         });
         store.Mutate("overlay", s =>
         {
+            // the default arrangement: a row per component (FPS | CPU, core clocks | GPU, hot spot, clock)
             var layout = new OverlayLayout();
             foreach (var key in OverlayKeys)
             {
                 var item = friendly.FirstOrDefault(f => f.Key == key) ?? throw new InvalidOperationException("no friendly item " + key);
-                layout.Items.Add(new OverlayItem { Id = "readme-" + key, SensorIds = [.. item.SensorIds] });
+                layout.AddItem(new OverlayItem { Id = "readme-" + key, SensorIds = [.. item.SensorIds] }, "readme-row-" + key);
             }
             layout.Placement.Anchor = OverlayAnchor.TopLeft;
             s.Overlay = layout;
@@ -255,7 +256,7 @@ internal static class Showcase
 
         // the overlay of the other pictures, with a small FPS graph (an advanced option)
         var layout = LayoutJson.Clone(SettingsStore.I.Current.Overlay);
-        layout.Items[0].ShowGraph = true;
+        layout.Rows[0].Items[0].ShowGraph = true;
         var values = PreviewValues(layout);
         var theme = ThemeManager.I.ResolveOverlayTheme();
         var monitorHeight = (int)Math.Round(OverlayPlacementMath.ReferenceHeight * overlayScale);
@@ -283,7 +284,7 @@ internal static class Showcase
     private static List<PreviewSensor> PreviewValues(OverlayLayout layout)
     {
         var result = new List<PreviewSensor>();
-        foreach (var id in layout.Items.SelectMany(i => i.SensorIds).Distinct(StringComparer.Ordinal))
+        foreach (var id in layout.AllItems().SelectMany(i => i.SensorIds).Distinct(StringComparer.Ordinal))
         {
             var s = _rig.Engine.Find(id) ?? throw new InvalidOperationException("unknown sensor " + id);
             var value = _rig.Engine.Latest[s.Index];

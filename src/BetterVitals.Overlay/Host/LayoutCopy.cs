@@ -13,14 +13,32 @@ internal static class LayoutCopy
             Visibility = src.Visibility,
             HideFromCapture = src.HideFromCapture,
             Advanced = src.Advanced,
+            DefaultsApplied = src.DefaultsApplied,
             RefreshMs = src.RefreshMs,
+            Grouping = src.Grouping,
             Placement = Clone(src.Placement ?? new OverlayPlacement()),
             Style = Clone(src.Style ?? new OverlayStyle()),
-            Items = (src.Items ?? []).Where(i => i is not null).Select(Clone).ToList(),
+            Rows = Clone(src.Rows),
+            Boxes = (src.Boxes ?? []).Where(b => b is not null).Select(b => new OverlayBox
+            {
+                Id = b.Id,
+                Name = b.Name,
+                Placement = Clone(b.Placement ?? new OverlayPlacement()),
+                Rows = Clone(b.Rows),
+            }).ToList(),
+            Items = src.Items?.Where(i => i is not null).Select(Clone).ToList(),
         };
         l.Normalize();
         return l;
     }
+
+    private static List<OverlayRow> Clone(List<OverlayRow>? rows)
+        => (rows ?? []).Where(r => r is not null).Select(r => new OverlayRow
+        {
+            Id = r.Id,
+            Label = r.Label,
+            Items = (r.Items ?? []).Where(i => i is not null).Select(Clone).ToList(),
+        }).ToList();
 
     public static OverlayPlacement Clone(OverlayPlacement p) => new()
     {

@@ -260,6 +260,7 @@ public class OverlayLogicTests
     public void Formatting_follows_culture_and_units()
     {
         var layout = new OverlayLayout { Items = [Item(FrameTime), Item(Vram), Item(CpuTemp)] };
+        layout.Normalize();
         var lookup = new PreviewLookup([new(FrameTime, 6.94f), new(Vram, 11234), new(CpuTemp, 50)]);
         using var s = new Scene(new SceneInput(layout, OverlayTheme.Default, lookup, new CultureInfo("pl-PL"), TemperatureUnit.Fahrenheit, null, 1));
         lookup.Feed(s);
@@ -335,14 +336,24 @@ public class OverlayLogicTests
     [Fact]
     public void Layout_copy_is_deep()
     {
-        var layout = new OverlayLayout { Items = [new() { SensorIds = ["a"], Thresholds = [new() { Value = 1 }] }] };
+        var layout = new OverlayLayout
+        {
+            Rows = [new() { Items = [new() { SensorIds = ["a"], Thresholds = [new() { Value = 1 }] }] }],
+            Boxes = [new() { Placement = new() { Anchor = OverlayAnchor.BottomRight }, Rows = [new() { Label = "GPU", Items = [new() { SensorIds = ["g"] }] }] }],
+        };
         var copy = LayoutCopy.Clone(layout);
-        layout.Items[0].SensorIds.Add("b");
-        layout.Items[0].Thresholds![0].Value = 5;
+        layout.Rows[0].Items[0].SensorIds.Add("b");
+        layout.Rows[0].Items[0].Thresholds![0].Value = 5;
         layout.Style.FontFamily = "Geist";
-        Assert.Single(copy.Items[0].SensorIds);
-        Assert.Equal(1, copy.Items[0].Thresholds![0].Value);
+        layout.Boxes[0].Placement.Anchor = OverlayAnchor.TopLeft;
+        layout.Boxes[0].Rows[0].Label = "x";
+        layout.Boxes[0].Rows[0].Items.Clear();
+        Assert.Single(copy.Rows[0].Items[0].SensorIds);
+        Assert.Equal(1, copy.Rows[0].Items[0].Thresholds![0].Value);
         Assert.Equal("Inter", copy.Style.FontFamily);
+        Assert.Equal(OverlayAnchor.BottomRight, copy.Boxes[0].Placement.Anchor);
+        Assert.Equal("GPU", copy.Boxes[0].Rows[0].Label);
+        Assert.Single(copy.Boxes[0].Rows[0].Items);
     }
 
     [Fact]

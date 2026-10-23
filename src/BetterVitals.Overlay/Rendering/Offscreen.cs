@@ -57,12 +57,13 @@ internal static unsafe class Offscreen
     internal readonly record struct Backdrop(Rgba Top, Rgba Bottom, int Margin);
 
     public static OverlayBitmap Render(OverlayLayout layout, OverlayTheme theme, IReadOnlyList<PreviewSensor> values, int monitorHeightPx,
-        CultureInfo? culture, TemperatureUnit unit, Func<OverlayItem, string?>? labels, bool edit = false, Backdrop? backdrop = null)
+        CultureInfo? culture, TemperatureUnit unit, Func<OverlayItem, string?>? labels, bool edit = false, Backdrop? backdrop = null,
+        string boxId = OverlayLayout.MainBoxId)
     {
-        var style = layout.Style ?? new OverlayStyle();
-        var scale = OverlayPlacementMath.Scale(style, monitorHeightPx);
+        layout = Host.LayoutCopy.Clone(layout); // normalized: rows from a flat list, sane numbers
+        var scale = OverlayPlacementMath.Scale(layout.Style, monitorHeightPx);
         var lookup = new PreviewLookup(values);
-        using var scene = new Scene(new SceneInput(layout, theme, lookup, culture ?? CultureInfo.InvariantCulture, unit, labels, scale));
+        using var scene = new Scene(new SceneInput(layout, theme, lookup, culture ?? CultureInfo.InvariantCulture, unit, labels, scale, boxId));
         lookup.Feed(scene);
         return Render(scene, edit, backdrop);
     }

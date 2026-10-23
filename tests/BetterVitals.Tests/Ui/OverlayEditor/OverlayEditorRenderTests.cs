@@ -25,7 +25,7 @@ public sealed class OverlayEditorRenderTests
     {
         Offscreen.Layout(host);
         page.Preview.RequestRender();
-        Assert.True(Sta.PumpUntil(() => !page.Preview.IsRendering && (page.Model.Working.Items.Count == 0 || page.Preview.RenderCount > 0), 15000), "preview render");
+        Assert.True(Sta.PumpUntil(() => !page.Preview.IsRendering && (page.Model.Working.IsEmpty || page.Preview.RenderCount > 0), 15000), "preview render");
         Offscreen.Layout(host);
         Sta.PumpUntil(() => FontSamples.Pending == 0, 15000);
         Sta.Pump(60);
@@ -59,7 +59,7 @@ public sealed class OverlayEditorRenderTests
         var path = Shot(f, page, "simple_empty_aurora_en");
         Assert.True(new FileInfo(path).Length > 20_000);
         Assert.NotNull(page.Simple);
-        Assert.Empty(page.Model.Working.Items);
+        Assert.True(page.Model.Working.IsEmpty);
         page.Dispose();
     });
 
@@ -75,7 +75,7 @@ public sealed class OverlayEditorRenderTests
         SixItems(f, page.Model);
         page.Model.SetCorner(OverlayAnchor.TopRight);
         Shot(f, page, $"simple_six_{theme}_{lang}", 1500);
-        Assert.Equal(6, page.Model.Working.Items.Count);
+        Assert.Equal(6, page.Model.Working.AllItems().Count());
         Assert.Equal(6, page.Order.ListCount);
         Assert.True(page.Preview.RenderedSize.Width > 50);
         page.Dispose();
@@ -103,11 +103,11 @@ public sealed class OverlayEditorRenderTests
         var page = f.Page();
         SixItems(f, page.Model);
         page.Model.SetAdvanced(true);
-        var cores = page.Model.Working.Items.First(i => i.SensorIds.Count > 1);
+        var cores = page.Model.Working.AllItems().First(i => i.SensorIds.Count > 1);
         page.Model.EditItem(cores.Id, i => i.Thresholds = [new() { Value = 5000, Color = "#FBBF24" }, new() { Value = 5300, Color = "#F43F5E" }]);
         page.Model.Edit(l => l.Placement.Anchor = OverlayAnchor.TopRight);
         // open the item editor of the core clocks
-        typeof(AdvancedView).GetField("_expanded", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.SetValue(null, cores.Id);
+        LayoutTree.Expanded = cores.Id;
         page.Model.Reload();
         Shot(f, page, $"advanced_all_{theme}_{lang}", 4600);
         Assert.NotNull(page.Advanced);
@@ -273,12 +273,15 @@ public sealed class OverlayEditorRenderTests
             new(@"\?\DISPLAY#DEL4321#2", @"\.\DISPLAY2", "DELL U2723QE", new PixelRect(2560, 0, 6400, 2160), new PixelRect(2560, 0, 6400, 2112), false),
         ];
 
-        private Action<OverlayPlacement>? _commit;
+        private Action<IReadOnlyDictionary<string, OverlayPlacement>>? _commit;
         private Action? _cancel;
 
         public bool IsEditingOnScreen { get; private set; }
 
-        public void BeginOnScreenEdit(Action<OverlayPlacement> commit, Action cancel)
+        /// <summary>What "Done" reports for detached boxes (by id), next to the main box's bottom-right placement.</summary>
+        public Dictionary<string, OverlayPlacement> Others { get; } = [];
+
+        public void BeginOnScreenEdit(Action<IReadOnlyDictionary<string, OverlayPlacement>> commit, Action cancel)
         {
             IsEditingOnScreen = true;
             _commit = commit;
@@ -288,7 +291,8 @@ public sealed class OverlayEditorRenderTests
         public void EndOnScreenEdit(bool commit)
         {
             IsEditingOnScreen = false;
-            if (commit) _commit?.Invoke(new OverlayPlacement { Anchor = OverlayAnchor.BottomRight, OffsetX = 10, OffsetY = 20, Margin = 24 });
+            var placements = new Dictionary<string, OverlayPlacement>(Others) { [OverlayLayout.MainBoxId] = new() { Anchor = OverlayAnchor.BottomRight, OffsetX = 10, OffsetY = 20, Margin = 24 } };
+            if (commit) _commit?.Invoke(placements);
             else _cancel?.Invoke();
         }
 
