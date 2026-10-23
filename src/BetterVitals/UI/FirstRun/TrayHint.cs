@@ -128,7 +128,7 @@ internal sealed class TrayHint : Grid
     private static Image Logo(double size)
     {
         var img = new Image { Width = size, Height = size };
-        img.SetResourceReference(Image.SourceProperty, "Logo.Image");
+        img.SetResourceReference(Image.SourceProperty, "Logo.Image.Small");
         return img;
     }
 

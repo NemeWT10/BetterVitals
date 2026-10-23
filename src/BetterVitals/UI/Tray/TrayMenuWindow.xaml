@@ -17,7 +17,7 @@
             </Border.RenderTransform>
             <StackPanel>
                 <DockPanel Margin="10,8,10,10">
-                    <Image Source="{StaticResource Logo.Image}" Width="24" Height="24"/>
+                    <Image Source="{StaticResource Logo.Image.Small}" Width="24" Height="24"/>
                     <TextBlock x:Name="VersionText" DockPanel.Dock="Right" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Brush.TextFaint}"/>
                     <TextBlock Text="BetterVitals" FontFamily="{StaticResource Font.Display}" FontWeight="SemiBold" FontSize="14" Margin="10,0,0,0"
                                VerticalAlignment="Center" Foreground="{DynamicResource Brush.PanelText}"/>

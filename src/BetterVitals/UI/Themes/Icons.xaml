@@ -77,23 +77,54 @@
     <StreamGeometry x:Key="Icon.Window.Maximize">M7,6 H17 A1,1 0 0 1 18,7 V17 A1,1 0 0 1 17,18 H7 A1,1 0 0 1 6,17 V7 A1,1 0 0 1 7,6 Z</StreamGeometry>
     <StreamGeometry x:Key="Icon.Window.Restore">M6,9 H15 V18 H6 Z M9,6 H18 V15</StreamGeometry>
 
-    <!-- Brand mark: a pulse line on the accent gradient (fixed colors, theme independent). -->
+    <!-- Brand mark (UI/Brand/BrandMark.cs draws the same shapes for the tray icon and app.ico): fixed colors, theme
+         independent. Logo.Image is the full mark (glass thermometer + pulse, 128 units) for 40 DIP and up; Logo.Image.Small
+         is the small mark (thermometer on a 32 px grid) for headers and the tray hint. Logo.Tile also tints the glow
+         behind the large logo (About, first run). -->
+    <LinearGradientBrush x:Key="Logo.Tile" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#E5194A" Offset="0"/>
+        <GradientStop Color="#F43F3F" Offset="0.55"/>
+        <GradientStop Color="#FF7A45" Offset="1"/>
+    </LinearGradientBrush>
+
     <DrawingImage x:Key="Logo.Image">
         <DrawingImage.Drawing>
             <DrawingGroup>
-                <GeometryDrawing Geometry="M30,0 H98 A30,30 0 0 1 128,30 V98 A30,30 0 0 1 98,128 H30 A30,30 0 0 1 0,98 V30 A30,30 0 0 1 30,0 Z">
-                    <GeometryDrawing.Brush>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#8B5CFF" Offset="0"/>
-                            <GradientStop Color="#5B7BFF" Offset="0.55"/>
-                            <GradientStop Color="#22D3EE" Offset="1"/>
-                        </LinearGradientBrush>
-                    </GeometryDrawing.Brush>
-                </GeometryDrawing>
+                <GeometryDrawing Brush="{StaticResource Logo.Tile}" Geometry="M30,0 H98 A30,30 0 0 1 128,30 V98 A30,30 0 0 1 98,128 H30 A30,30 0 0 1 0,98 V30 A30,30 0 0 1 30,0 Z"/>
                 <GeometryDrawing Brush="#22FFFFFF" Geometry="M30,0 H98 A30,30 0 0 1 128,30 V50 C92,40 40,42 0,60 V30 A30,30 0 0 1 30,0 Z"/>
-                <GeometryDrawing Geometry="M22,68 H44 L54,40 L70,90 L80,60 L86,68 H106">
+                <GeometryDrawing Geometry="M37.5,65.008 V39.5 A11,11 0 0 1 59.5,39.5 V65.008 A19,19 0 1 1 37.5,65.008 Z">
                     <GeometryDrawing.Pen>
-                        <Pen Brush="White" Thickness="10" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                        <Pen Brush="White" Thickness="9" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="White">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="48.5,80.5" RadiusX="11" RadiusY="11"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M48.5,80.5 V57">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="White" Thickness="6" StartLineCap="Round" EndLineCap="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M70,54 H75 L80,39 L87,68 L92,50 L95,54 H100">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="White" Thickness="8" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <DrawingImage x:Key="Logo.Image.Small">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="{StaticResource Logo.Tile}" Geometry="M7.5,0 H24.5 A7.5,7.5 0 0 1 32,7.5 V24.5 A7.5,7.5 0 0 1 24.5,32 H7.5 A7.5,7.5 0 0 1 0,24.5 V7.5 A7.5,7.5 0 0 1 7.5,0 Z"/>
+                <GeometryDrawing Brush="#22FFFFFF" Geometry="M7.5,0 H24.5 A7.5,7.5 0 0 1 32,7.5 V12.5 C23,10 10,10.5 0,15 V7.5 A7.5,7.5 0 0 1 7.5,0 Z"/>
+                <GeometryDrawing Brush="White" Geometry="F1 M12,15 H20 V22 H12 Z M22,22 A6,6 0 1 1 10,22 A6,6 0 1 1 22,22 Z"/>
+                <GeometryDrawing Geometry="M13,22 V8 A3,3 0 0 1 19,8 V22">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="White" Thickness="2"/>
                     </GeometryDrawing.Pen>
                 </GeometryDrawing>
             </DrawingGroup>

@@ -9,6 +9,9 @@
     <AssemblyName>BetterVitals</AssemblyName>
     <RootNamespace>BetterVitals</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- exe icon (Explorer, taskbar, Start, Apps); windows without an Icon of their own take it from the exe.
+         Drawn by tools\IconGen from UI\Brand\BrandMark.cs. -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- Lean runtime (lessons from BetterShot / BetterNotepad, re-measured by perf-guard): workstation GC without the
          background GC thread, conserve memory, no dynamic PGO. -->
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>

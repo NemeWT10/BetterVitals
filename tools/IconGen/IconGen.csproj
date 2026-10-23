@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Draws the BetterVitals mark with WPF and writes src\BetterVitals\Assets\app.ico + app-256.png and preview PNGs in
+       tests\output\icon. The drawing code is the app's own (BrandMark.cs), so the .ico, the tray icon and the previews
+       are always the same mark. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>IconGen</AssemblyName>
+    <RootNamespace>BetterVitals.Tools.IconGen</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\BetterVitals\UI\Brand\BrandMark.cs" Link="BrandMark.cs" />
+  </ItemGroup>
+
+</Project>

@@ -20,7 +20,7 @@
         <!-- navigation rail -->
         <DockPanel Grid.Column="0" Margin="12,0,10,14">
             <DockPanel DockPanel.Dock="Top" Height="54" Margin="8,0,0,6">
-                <Image Source="{StaticResource Logo.Image}" Width="22" Height="22" VerticalAlignment="Center"/>
+                <Image Source="{StaticResource Logo.Image.Small}" Width="22" Height="22" VerticalAlignment="Center"/>
                 <TextBlock Text="BetterVitals" FontFamily="{StaticResource Font.Display}" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,1"
                            VerticalAlignment="Center"/>
             </DockPanel>

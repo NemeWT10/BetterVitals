@@ -33,7 +33,7 @@ internal sealed class AboutView : SectionView
         var heroRow = new DockPanel();
         var logoHost = new Grid { Width = 60, Height = 60, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 0, 18, 0) };
         var glow = new System.Windows.Shapes.Ellipse { Width = 48, Height = 48, Opacity = 0.45, Effect = new System.Windows.Media.Effects.BlurEffect { Radius = 20 } };
-        glow.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "Brush.AccentGradient");
+        glow.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "Logo.Tile");
         logoHost.Children.Add(glow);
         var logo = new Image { Width = 56, Height = 56 };
         logo.SetResourceReference(Image.SourceProperty, "Logo.Image");

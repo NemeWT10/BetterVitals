@@ -48,7 +48,7 @@ internal sealed class FirstRunView : UserControl
         // header: mark + name, step counter (the window's close button sits to the right of it)
         var header = new DockPanel { Margin = new Thickness(28, 18, 64, 0), Height = 30 };
         var logo = new Image { Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center };
-        logo.SetResourceReference(Image.SourceProperty, "Logo.Image");
+        logo.SetResourceReference(Image.SourceProperty, "Logo.Image.Small");
         header.Children.Add(logo);
         _stepText = Text(null, 12, "Brush.TextFaint");
         _stepText.VerticalAlignment = VerticalAlignment.Center;
@@ -146,7 +146,7 @@ internal sealed class FirstRunView : UserControl
         var p = new StackPanel();
         var hero = new Grid { Width = 76, Height = 76, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0) };
         var glow = new Ellipse { Width = 64, Height = 64, Opacity = 0.55, Effect = new BlurEffect { Radius = 26 } };
-        glow.SetResourceReference(Shape.FillProperty, "Brush.AccentGradient");
+        glow.SetResourceReference(Shape.FillProperty, "Logo.Tile");
         hero.Children.Add(glow);
         var mark = new Image { Width = 64, Height = 64 };
         mark.SetResourceReference(Image.SourceProperty, "Logo.Image");
