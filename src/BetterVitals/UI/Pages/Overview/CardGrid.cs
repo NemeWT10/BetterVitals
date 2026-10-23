@@ -47,10 +47,22 @@ public sealed class CardGrid : System.Windows.Controls.Panel
         var row = new List<UIElement>(cols);
         double rowHeight = 0;
 
-        void FlushRow()
+        void FlushRow(bool stretch = false)
         {
             if (row.Count == 0) return;
-            for (var i = 0; i < row.Count; i++) _slots.Add((row[i], new Rect(i * (colWidth + Gap), y, colWidth, rowHeight)));
+            // a row cut short by an expanded card shares the full width, instead of leaving a hole next to it
+            var w = colWidth;
+            if (stretch && row.Count < cols)
+            {
+                w = (width - Gap * (row.Count - 1)) / row.Count;
+                rowHeight = 0;
+                foreach (var c in row)
+                {
+                    if (measure) c.Measure(new Size(w, double.PositiveInfinity));
+                    rowHeight = Math.Max(rowHeight, c.DesiredSize.Height);
+                }
+            }
+            for (var i = 0; i < row.Count; i++) _slots.Add((row[i], new Rect(i * (w + Gap), y, w, rowHeight)));
             y += rowHeight + Gap;
             row.Clear();
             rowHeight = 0;
@@ -61,7 +73,7 @@ public sealed class CardGrid : System.Windows.Controls.Panel
             if (child.Visibility == Visibility.Collapsed) continue;
             if (GetIsWide(child))
             {
-                FlushRow();
+                FlushRow(stretch: true);
                 if (measure) child.Measure(new Size(width, double.PositiveInfinity));
                 _slots.Add((child, new Rect(0, y, width, child.DesiredSize.Height)));
                 y += child.DesiredSize.Height + Gap;
