@@ -147,6 +147,13 @@ internal sealed class Catalog
         }
     }
 
+    /// <summary>Skips <paramref name="count"/> slots (they may be referenced by data whose catalog records were lost).</summary>
+    public void Reserve(int count)
+    {
+        lock (_gate)
+            for (var i = 0; i < count && _bySlot.Count <= ushort.MaxValue; i++) _bySlot.Add(null);
+    }
+
     /// <summary>After the file was deleted: everything must be written again.</summary>
     public void MarkAllUnpersisted()
     {

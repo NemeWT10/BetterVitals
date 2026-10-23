@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Globalization;
 
 namespace BetterVitals.History.Storage;
@@ -91,7 +90,7 @@ internal static class HistoryFiles
 }
 
 /// <summary>
-/// Read-side helper for one query / export: loads files into pooled buffers (CRC-checked block index),
+/// Read-side helper for one query / export: loads whole files (at most 3 kept, CRC-checked block index),
 /// decodes the requested columns and feeds records to a visitor. Corrupted files / blocks are skipped and reported once.
 /// Not thread-safe; dispose to return buffers.
 /// </summary>
@@ -125,11 +124,7 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
         {
             var c = _cache[i];
             var now = current.FirstOrDefault(f => f.Path == c.File.Path);
-            if (now is null || now.Length != c.File.Length)
-            {
-                ArrayPool<byte>.Shared.Return(c.Buffer);
-                _cache.RemoveAt(i);
-            }
+            if (now is null || now.Length != c.File.Length) _cache.RemoveAt(i);
         }
     }
 
@@ -324,13 +319,13 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
         foreach (var c in _cache)
             if (c.File.Path == f.Path) return c;
 
-        byte[]? buffer = null;
         try
         {
             using var fs = new FileStream(f.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
             var len = fs.Length;
             if (len > int.MaxValue / 2) throw new IOException("file too large");
-            buffer = ArrayPool<byte>.Shared.Rent((int)Math.Max(len, 1));
+            // a plain array, dropped with the session: a shared pool would keep megabytes alive in the tray process
+            var buffer = GC.AllocateUninitializedArray<byte>((int)Math.Max(len, 1));
             var read = 0;
             while (read < len)
             {
@@ -341,17 +336,12 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
             var loaded = new Loaded { File = f with { Length = read }, Buffer = buffer, Length = read };
             var bad = BlockScanner.Scan(buffer.AsSpan(0, read), loaded.Blocks);
             if (bad > 0) warnOnce(f.Path + "#scan" + read, $"history: {bad} corrupted region(s) skipped in {Path.GetFileName(f.Path)}");
-            if (_cache.Count >= MaxCached)
-            {
-                ArrayPool<byte>.Shared.Return(_cache[0].Buffer);
-                _cache.RemoveAt(0);
-            }
+            if (_cache.Count >= MaxCached) _cache.RemoveAt(0);
             _cache.Add(loaded);
             return loaded;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            if (buffer is not null) ArrayPool<byte>.Shared.Return(buffer);
             warnOnce(f.Path, $"history: cannot read {Path.GetFileName(f.Path)}: {ex.Message}");
             return null;
         }
@@ -360,7 +350,6 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
     public void Dispose()
     {
         _inflater.End();
-        foreach (var c in _cache) ArrayPool<byte>.Shared.Return(c.Buffer);
         _cache.Clear();
     }
 }

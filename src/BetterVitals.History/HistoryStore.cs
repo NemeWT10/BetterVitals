@@ -93,6 +93,12 @@ internal sealed partial class HistoryStore
             _catalogLoaded = true;
             var bad = Catalog.Load(Dir);
             if (bad > 0) WarnOnce("catalog", $"history: {bad} corrupted catalog record(s) skipped");
+            if (Catalog.Count == 0 && HistoryFiles.List(Dir).Count > 0)
+            {
+                // data without a catalog: its slots are unknown, so never hand them out again
+                Catalog.Reserve(1024);
+                WarnOnce("catalog-missing", "history: catalog missing, older data cannot be attributed");
+            }
         }
     }
 
@@ -193,6 +199,7 @@ internal sealed partial class HistoryStore
             }
 
             Directory.CreateDirectory(Dir);
+            if (blocks.Count > 0 && !File.Exists(Path.Combine(Dir, Catalog.FileName))) Catalog.MarkAllUnpersisted(); // deleted behind our back
             if (blocks.Count > 0 && Catalog.HasUnpersisted) Catalog.Persist(Dir);
 
             // raw blocks, grouped by day file, in order

@@ -342,6 +342,25 @@ public class ServiceTests
     }
 
     [Fact]
+    public async Task Catalog_deleted_while_running_is_written_again()
+    {
+        using var rig = new Rig("catdel", T0);
+        var a = rig.Hub.Add("A", SensorKind.Load);
+        var svc = rig.Open();
+        svc.Configure(Rig.Settings(true, 1, [a]));
+        rig.Feed(T0, 120, 1, (_, _) => 1, interval: 1);
+        svc.Suspend();
+        File.Delete(Path.Combine(rig.Dir.Path, "catalog.bvc"));
+        rig.Feed(T0.AddMinutes(5), 120, 1, (_, _) => 2, interval: 1);
+        svc.Suspend();
+        svc.Dispose();
+        Assert.Contains("catalog.bvc", rig.Dir.Files());
+
+        var svc2 = rig.Open(); // not configured: read only
+        Assert.Equal(240, (await svc2.GetStatsAsync(a.Id, T0, T0.AddMinutes(10)))!.Value.Count);
+    }
+
+    [Fact]
     public async Task Clear_deletes_everything()
     {
         using var rig = new Rig("clear", T0);

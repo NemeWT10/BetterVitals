@@ -30,6 +30,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     private readonly Lock _config = new();
     private readonly List<string[]> _watches = [];
     private readonly Dictionary<string, long> _lastRecorded = new(StringComparer.Ordinal);
+    private readonly List<(string[] Ids, long[] Last)> _retired = []; // not the plans: those hold buffer pools
 
     private bool _enabled;
     private long _step = 2 * TimeGrid.Second;
@@ -247,15 +248,34 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Remembers until when the plan's sensors were recorded, so the live ring adds only newer rows. The engine may
+    /// still store one more sample into the old plan, so the last few retired plans are also read live in <see cref="Resolve"/>.
+    /// </summary>
     private void Retire(RecordPlan p)
     {
         lock (_lastRecorded)
+        {
             for (var c = 0; c < p.Columns; c++)
             {
                 var t = Volatile.Read(ref p.LastSample[c]);
                 if (t == long.MinValue) continue;
                 if (!_lastRecorded.TryGetValue(p.Ids[c], out var cur) || t > cur) _lastRecorded[p.Ids[c]] = t;
             }
+            _retired.Add((p.Ids, p.LastSample));
+            if (_retired.Count > 4) _retired.RemoveAt(0);
+        }
+    }
+
+    private long LastRecorded(string id)
+    {
+        lock (_lastRecorded)
+        {
+            var t = _lastRecorded.GetValueOrDefault(id, long.MinValue);
+            foreach (var (ids, last) in _retired)
+                if (Array.IndexOf(ids, id) is var c and >= 0) t = Math.Max(t, Volatile.Read(ref last[c]));
+            return t;
+        }
     }
 
     private void UpdateDemands(string[] watched)
@@ -393,8 +413,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
         var ringKind = _ring.KindOf(id);
         if (e is null && ringKind is null) return null;
         var d = _hub.Find(id);
-        long after;
-        lock (_lastRecorded) after = _lastRecorded.GetValueOrDefault(id, long.MinValue);
+        var after = LastRecorded(id);
         return new SensorRef
         {
             Id = id,

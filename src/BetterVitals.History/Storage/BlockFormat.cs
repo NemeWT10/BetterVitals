@@ -196,8 +196,16 @@ internal sealed class BlockEncoder
     private byte[] _data = new byte[16 * 1024];
     private byte[] _payload = new byte[16 * 1024];
     private readonly MemoryStream _compressed = new();
-    private readonly int[] _lengths = new int[ushort.MaxValue + 1];
-    private readonly byte[] _modes = new byte[ushort.MaxValue + 1];
+    private int[] _lengths = new int[128];
+    private byte[] _modes = new byte[128];
+
+    private void EnsureColumns(int cols)
+    {
+        if (_lengths.Length >= cols) return;
+        var size = Math.Max(cols, _lengths.Length * 2);
+        _lengths = new int[size];
+        _modes = new byte[size];
+    }
 
     /// <summary>
     /// Raw block: per column, <paramref name="rows"/> tokens: 0 = gap, else zigzag(q - reference) + 1.
@@ -209,6 +217,7 @@ internal sealed class BlockEncoder
     public int EncodeRaw(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, ReadOnlySpan<float> values, int stride, int rows)
     {
         var cols = slots.Length;
+        EnsureColumns(cols);
         Ensure(ref _data, cols * rows * Varint.MaxBytes + 16);
         var qs = rows <= 1024 ? stackalloc long[rows] : new long[rows];
         var scratch = rows <= 1024 ? stackalloc long[rows] : new long[rows];
@@ -283,6 +292,7 @@ internal sealed class BlockEncoder
     public int EncodeRollup(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, ReadOnlySpan<Rec> aggs, int buckets)
     {
         var cols = slots.Length;
+        EnsureColumns(cols);
         Ensure(ref _data, cols * buckets * 4 * Varint.MaxBytes + 16);
         var pos = 0;
         for (var c = 0; c < cols; c++)
