@@ -1,0 +1,205 @@
+<ResourceDictionary x:Class="BetterVitals.UI.Pages.History.HistoryStyles"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:c="clr-namespace:BetterVitals.UI.Controls"
+                    xmlns:ex="clr-namespace:BetterVitals.UI.Explain">
+    <!--
+      Styles of the History page only (colors through DynamicResource, so they follow theme switches):
+        History.DayCell      a day of the custom-range calendar; code sets Background / Foreground / BorderBrush per state
+        History.PickerItem   a sensor row of the "Add sensor" popover (hover, keyboard focus)
+        History.PickerHead   a hardware header row (not selectable)
+        History.PickerRow / History.PickerHeader   their templates
+        History.SeriesChip   a series chip (ToggleButton: checked = visible)
+    -->
+    <BooleanToVisibilityConverter x:Key="History.BoolToVis"/>
+
+    <Style x:Key="History.DayCell" TargetType="Button">
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="31"/>
+        <Setter Property="Margin" Value="1"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource Brush.PanelText}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Bd" CornerRadius="8" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"/>
+                        <Border x:Name="Hover" CornerRadius="8" Background="{DynamicResource Brush.PanelHover}" Opacity="0"/>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Hover" Property="Opacity" Value="1"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.32"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="History.PickerItem" TargetType="ListBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.PanelText}"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="IsEnabled" Value="{Binding Enabled}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Bd" CornerRadius="8" Background="Transparent" Padding="{TemplateBinding Padding}" Margin="0,1"
+                            BorderThickness="1" BorderBrush="Transparent">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.PanelHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.PanelHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="History.PickerHead" TargetType="ListBoxItem">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsHitTestVisible" Value="False"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <ContentPresenter Margin="10,12,10,3"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <DataTemplate x:Key="History.PickerHeader">
+        <DockPanel>
+            <c:Icon c:Res.Icon="{Binding IconKey}" Size="15" Foreground="{DynamicResource Brush.PanelTextDim}" DockPanel.Dock="Left"/>
+            <TextBlock Text="{Binding Family}" FontSize="11" Foreground="{DynamicResource Brush.PanelTextDim}" Margin="8,0,0,0"
+                       DockPanel.Dock="Right" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Brush.PanelText}" Margin="8,0,0,0"
+                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+        </DockPanel>
+    </DataTemplate>
+
+    <DataTemplate x:Key="History.PickerRow">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="22"/>
+            </Grid.ColumnDefinitions>
+            <c:Icon c:Res.Icon="{Binding KindIconKey}" Size="15" Foreground="{DynamicResource Brush.PanelTextDim}" Margin="2,0,0,0"/>
+            <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Name}" ex:Explain.Sensor="{Binding Descriptor}" FontSize="13" TextTrimming="CharacterEllipsis"
+                           HorizontalAlignment="Left" Foreground="{DynamicResource Brush.PanelText}"/>
+                <TextBlock Text="{Binding Sub}" FontSize="11" Foreground="{DynamicResource Brush.PanelTextDim}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+            </StackPanel>
+            <TextBlock Grid.Column="2" Text="{Binding Unit}" FontSize="11.5" Foreground="{DynamicResource Brush.PanelTextDim}" VerticalAlignment="Center"/>
+            <c:Icon Grid.Column="3" c:Res.Icon="Icon.Check" Size="15" StrokeThickness="1.9" Foreground="{DynamicResource Brush.AccentText}"
+                    HorizontalAlignment="Right" Visibility="{Binding IsShown, Converter={StaticResource History.BoolToVis}}"/>
+        </Grid>
+    </DataTemplate>
+
+    <!-- series chip: checked = shown on the chart; Tag = the series color brush -->
+    <Style x:Key="History.SeriesChip" TargetType="ToggleButton">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.TextDim}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Margin" Value="0,0,8,8"/>
+        <Setter Property="Padding" Value="10,0,4,0"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd" CornerRadius="16" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Border}"
+                            BorderThickness="1" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.SurfaceHover}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.BorderStrong}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- "+ Add sensor": a dashed pill next to the series chips -->
+    <Style x:Key="History.AddChip" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.AccentText}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Margin" Value="0,0,8,8"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Padding" Value="12,0,14,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Bg" CornerRadius="16" Background="Transparent"/>
+                        <Rectangle x:Name="Dash" RadiusX="16" RadiusY="16" Stroke="{DynamicResource Brush.BorderStrong}" StrokeThickness="1"
+                                   StrokeDashArray="3 2.5" SnapsToDevicePixels="True"/>
+                        <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Brush.AccentSoft}"/>
+                            <Setter TargetName="Dash" Property="Stroke" Value="{DynamicResource Brush.AccentGlow}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Dash" Property="Stroke" Value="{DynamicResource Brush.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Brush.AccentGlow}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- a slim note above the chart (live only, not recorded): icon, text, an action on the right -->
+    <Style x:Key="History.Note" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Brush.InfoSoft}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="11"/>
+        <Setter Property="Padding" Value="12,7,8,7"/>
+        <Setter Property="Margin" Value="0,0,0,10"/>
+    </Style>
+</ResourceDictionary>
