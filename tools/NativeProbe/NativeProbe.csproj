@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs BetterVitals.Sensors' NativeSource on this PC (unelevated, in the background) with an empty upstream ("LHM failed")
+       and with a fake upstream, and writes tests\output\nativeprobe\report.md: what it found, values, time per Update,
+       allocations. The raw option dumps raw driver answers, the lhm-names option lists the names LibreHardwareMonitor gives (id alignment). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>NativeProbe</AssemblyName>
+    <RootNamespace>BetterVitals.Tools.NativeProbe</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BetterVitals.Sensors\BetterVitals.Sensors.csproj" />
+  </ItemGroup>
+
+</Project>
