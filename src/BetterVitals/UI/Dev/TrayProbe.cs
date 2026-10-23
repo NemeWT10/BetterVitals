@@ -124,7 +124,10 @@ internal static class TrayProbe
             }
 
             // panel: every page once (memory), then the Overview with every sensor live at 1 s (what the real pages ask for)
+            var open = System.Diagnostics.Stopwatch.StartNew();
             AppShell.I.OpenPanel(PageIds.Overview);
+            await Dispatcher.CurrentDispatcher.InvokeAsync(static () => { }, DispatcherPriority.ApplicationIdle);
+            r.Add(string.Create(Inv, $"latency: first panel open {open.Elapsed.TotalMilliseconds:0} ms (until the UI thread is idle)"));
             await Task.Delay(400);
             foreach (var page in PageRegistry.All)
             {
@@ -138,7 +141,21 @@ internal static class TrayProbe
                 await Measure(r, host, "panel open (Overview), all sensors 1 s", TimeSpan.FromSeconds(Math.Min(window.TotalSeconds, 60)));
             }
             AppShell.I.CloseAll();
-            AppShell.I.ShowFlyout();
+            await Task.Delay(1000);
+            for (var i = 1; i <= 2; i++)
+            {
+                open.Restart();
+                AppShell.I.ShowFlyout();
+                await Dispatcher.CurrentDispatcher.InvokeAsync(static () => { }, DispatcherPriority.ApplicationIdle);
+                r.Add(string.Create(Inv, $"latency: flyout open #{i} {open.Elapsed.TotalMilliseconds:0} ms"));
+                if (i == 1)
+                {
+                    await Task.Delay(1000);
+                    AppShell.I.CloseAll();
+                    await Task.Delay(1000);
+                }
+            }
+            r.Add("");
             await Task.Delay(3000);
             await Measure(r, host, "flyout open", TimeSpan.FromSeconds(30));
             AppShell.I.CloseAll();

@@ -13,9 +13,12 @@
          Drawn by tools\IconGen from UI\Brand\BrandMark.cs. -->
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- Lean runtime (lessons from BetterShot / BetterNotepad, re-measured by perf-guard): workstation GC without the
-         background GC thread, conserve memory, no dynamic PGO. -->
+         background GC thread, conserve memory, no tiered compilation (the ReadyToRun code is kept, nothing is re-jitted:
+         measured −1…−3 MB private working set in the tray / panel, same CPU, same start-up and panel / flyout latency),
+         no dynamic PGO. -->
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <ServerGarbageCollection>false</ServerGarbageCollection>
+    <TieredCompilation>false</TieredCompilation>
     <TieredPGO>false</TieredPGO>
   </PropertyGroup>
 

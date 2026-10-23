@@ -88,6 +88,6 @@ foreach ($s in $scenarios) {
         $errors = @(Select-String -Path $log -Pattern '\[ERROR\]|\[WARN\]' | ForEach-Object { $_.Line })
         if ($errors.Count -gt 0) { Add-Content $dest ''; Add-Content $dest '## app.log warnings / errors'; Add-Content $dest $errors }
     }
-    Get-Content $dest | Where-Object { $_ -match '^(## |memory|CPU|wake-ups|engine|disk|GC|process|start|panel closed|end)' }
+    Get-Content $dest | Where-Object { $_ -match '^(## |memory|CPU|wake-ups|engine|disk|GC|process|start|panel closed|device change|latency|end)' }
     Write-Host "-> $dest"
 }
