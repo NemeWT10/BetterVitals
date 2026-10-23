@@ -62,6 +62,8 @@ public sealed class SensorEngine : ISensorHub, IDisposable
     private volatile bool _resetStats;
     private bool _suspended;
     private readonly long[] _lastErrorLog;
+    private long _lastHandlerErrorLog;
+    private int _discoveryFailures;
 
     private Action<SensorFrame>[] _frameHandlers = [];
     private Action[] _inventoryHandlers = [];
@@ -292,7 +294,15 @@ public sealed class SensorEngine : ISensorHub, IDisposable
         foreach (var h in Volatile.Read(ref _frameHandlers))
         {
             try { h(frame); }
-            catch (Exception ex) { Log.Error("engine: FrameReady handler failed", ex); }
+            catch (Exception ex)
+            {
+                // a consumer with a bug fails on every tick: say so once a minute, like for the sources
+                if (now - _lastHandlerErrorLog > TimeSpan.TicksPerMinute)
+                {
+                    _lastHandlerErrorLog = now;
+                    Log.Error("engine: FrameReady handler failed", ex);
+                }
+            }
         }
         return true;
     }
@@ -318,6 +328,7 @@ public sealed class SensorEngine : ISensorHub, IDisposable
     {
         var seen = new bool[_registered.Count + 512];
         var hardware = new List<HardwareDescriptor>();
+        var anyFailed = false;
         for (var s = 0; s < _sources.Length; s++)
         {
             var source = _sources[s];
@@ -329,8 +340,10 @@ public sealed class SensorEngine : ISensorHub, IDisposable
             }
             catch (Exception ex)
             {
+                // a hiccup (driver not ready, a transient error) must not wipe what the source had: keep it, try again soon
                 Log.Error($"engine: {source.Name} discovery failed", ex);
-                inv = SourceInventory.Empty;
+                inv = KeepKnown(s);
+                anyFailed = true;
             }
             _hardwareBySource[source.Name] = inv.Hardware.ToArray();
             foreach (var d in inv.Sensors)
@@ -378,12 +391,33 @@ public sealed class SensorEngine : ISensorHub, IDisposable
         foreach (var f in _frames) f.EnsureCapacity(n);
         _demandDirty = true;
 
+        if (anyFailed)
+        {
+            // 5 s, 10 s, 20 s … at most every 5 minutes; the regular debounce makes it due after exactly that delay
+            var delay = TimeSpan.FromSeconds(Math.Min(300, 5 << Math.Min(_discoveryFailures++, 6)));
+            _inventoryDirty = true;
+            Interlocked.Exchange(ref _inventoryDirtySince, _utcNow() + delay.Ticks - RediscoverDebounceTicks);
+        }
+        else
+        {
+            _discoveryFailures = 0;
+        }
+
         Log.Info($"engine: {hardware.Count} hardware, {present.Count(p => p)} of {n} sensors present");
         foreach (var h in Volatile.Read(ref _inventoryHandlers))
         {
             try { h(); }
             catch (Exception ex) { Log.Error("engine: InventoryChanged handler failed", ex); }
         }
+    }
+
+    /// <summary>What source <paramref name="s"/> had after the last successful discovery (its sensors that were present).</summary>
+    private SourceInventory KeepKnown(int s)
+    {
+        var sensors = new List<SensorDescriptor>();
+        for (var i = 0; i < _registered.Count; i++)
+            if (_sourceOfList[i] == s && i < _present.Length && _present[i]) sensors.Add(_registered[i]);
+        return new SourceInventory(_hardwareBySource.GetValueOrDefault(_sources[s].Name) ?? [], sensors);
     }
 
     // ───────────────────────── demand → schedule ─────────────────────────

@@ -235,6 +235,9 @@ public sealed unsafe partial class OverlayHost : IDisposable
             _editing, _monitor?.Key, _area, _demand is not null, _refreshRunning, _ticks, _renders);
     });
 
+    /// <summary>The value text of every item as drawn right now ("—" = no value), for tests.</summary>
+    internal string[] ShownValues() => Invoke(() => _scene?.Items.Select(i => new string(i.Main.Text)).ToArray() ?? []);
+
     /// <summary>The swap chain's back buffer (what the window shows), for tests.</summary>
     internal OverlayBitmap? ReadBack() => Invoke(() =>
     {
@@ -255,6 +258,13 @@ public sealed unsafe partial class OverlayHost : IDisposable
         _surface.Release();
         Render();
         return _surface.Ready;
+    });
+
+    /// <summary>Runs the display-change handling now (tests; the real trigger is WM_DISPLAYCHANGE / WM_DPICHANGED + a 250 ms timer).</summary>
+    internal bool SimulateDisplayChange() => Invoke(() =>
+    {
+        OnDisplayChanged();
+        return true;
     });
 
     /// <summary>Feeds a key to edit mode (tests; real keys arrive as WM_KEYDOWN).</summary>
@@ -293,7 +303,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
             if (_hwnd == 0) throw new InvalidOperationException($"CreateWindowEx failed ({Marshal.GetLastPInvokeError()})");
             // Layered + transparent = click-through for a top-level window; alpha 255 lets DirectComposition content show.
             Win32.SetLayeredWindowAttributes(_hwnd, 0, 255, Win32.LWA_ALPHA);
-            _monitors = Monitors.Enumerate();
+            _monitors = EnumerateMonitors();
             _watcher = new ForegroundWatcher(OnForegroundEvent);
             _watcher.Start();
             _fg = ForegroundWatcher.Evaluate();
@@ -535,9 +545,11 @@ public sealed unsafe partial class OverlayHost : IDisposable
         }
     }
 
+    private List<OverlayMonitor> EnumerateMonitors() => _options.MonitorSource is { } source ? [.. source()] : Monitors.Enumerate();
+
     private void ResolveMonitor()
     {
-        if (_monitors.Count == 0) _monitors = Monitors.Enumerate();
+        if (_monitors.Count == 0) _monitors = EnumerateMonitors();
         string? gameKey = null;
         if (_fg.Fullscreen && _fg.MonitorDevice is { } dev)
             gameKey = _monitors.FirstOrDefault(m => string.Equals(m.DeviceName, dev, StringComparison.OrdinalIgnoreCase))?.Key;
@@ -820,7 +832,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
 
     private void OnDisplayChanged()
     {
-        _monitors = Monitors.Enumerate();
+        _monitors = EnumerateMonitors();
         _fg = ForegroundWatcher.Evaluate();
         if (_surface is { Ready: true } s && !s.CheckComposition())
         {
@@ -1036,6 +1048,9 @@ internal sealed record OverlayHostOptions
 {
     /// <summary>Never call ShowWindow: the window exists and renders / presents, but is never visible (tests).</summary>
     public bool NeverShow { get; init; }
+
+    /// <summary>Tests: the monitor list (synthetic monitors, removal, resolution changes) instead of the real displays.</summary>
+    public Func<IReadOnlyList<OverlayMonitor>>? MonitorSource { get; init; }
 
     /// <summary>
     /// Render with the WARP software device (default) instead of the GPU; the other one is the fallback.

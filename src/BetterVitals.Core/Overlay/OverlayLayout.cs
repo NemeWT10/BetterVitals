@@ -231,16 +231,27 @@ public sealed class OverlayLayout
         foreach (var item in Items)
         {
             item.SensorIds ??= [];
+            item.SensorIds.RemoveAll(string.IsNullOrEmpty);
             if (string.IsNullOrEmpty(item.Id)) item.Id = Guid.NewGuid().ToString("N");
             item.AggregationSeconds = Math.Clamp(item.AggregationSeconds, 1, 120);
             if (item.Decimals is { } d) item.Decimals = Math.Clamp(d, 0, 3);
+            if (item.ValueSize is { } v) item.ValueSize = Fit(v, 6, 96, 16);
         }
         RefreshMs = Math.Clamp(RefreshMs, 250, 2000);
-        Style.ScalePercent = Math.Clamp(Style.ScalePercent, 50, 200);
-        Style.BackgroundOpacity = Math.Clamp(Style.BackgroundOpacity, 0, 1);
-        Style.LabelSize = Math.Clamp(Style.LabelSize, 6, 72);
-        Style.ValueSize = Math.Clamp(Style.ValueSize, 6, 96);
-        Style.UnitSize = Math.Clamp(Style.UnitSize, 6, 72);
+        // numbers from a hand-edited file (or a NaN from some calculation) must not blow the window up or off the screen
+        Placement.OffsetX = Fit(Placement.OffsetX, -10_000, 10_000, 0);
+        Placement.OffsetY = Fit(Placement.OffsetY, -10_000, 10_000, 0);
+        Placement.Margin = Fit(Placement.Margin, 0, 1_000, 24);
+        Style.ScalePercent = Fit(Style.ScalePercent, 50, 200, 100);
+        Style.BackgroundOpacity = Fit(Style.BackgroundOpacity, 0, 1, 0.7);
+        Style.LabelSize = Fit(Style.LabelSize, 6, 72, 12);
+        Style.ValueSize = Fit(Style.ValueSize, 6, 96, 16);
+        Style.UnitSize = Fit(Style.UnitSize, 6, 72, 11);
+        Style.Padding = Fit(Style.Padding, 0, 100, 11);
+        Style.Spacing = Fit(Style.Spacing, 0, 100, 4);
+        Style.CornerRadius = Fit(Style.CornerRadius, 0, 100, 10);
         Style.FontFamily = string.IsNullOrWhiteSpace(Style.FontFamily) ? "Inter" : Style.FontFamily;
     }
+
+    private static double Fit(double value, double min, double max, double fallback) => double.IsFinite(value) ? Math.Clamp(value, min, max) : fallback;
 }

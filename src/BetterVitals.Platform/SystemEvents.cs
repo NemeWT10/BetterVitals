@@ -27,9 +27,13 @@ public sealed class SystemEvents : IDisposable
     private const int WTS_SESSION_LOCK = 0x7;
     private const int WTS_SESSION_UNLOCK = 0x8;
 
+    // One window procedure for every instance: the window class is registered once per process and keeps calling the
+    // procedure it was registered with, so it must never be a delegate of an instance that may be collected.
+    private static readonly WndProc StaticProc = RouteMessage;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<IntPtr, SystemEvents> Windows = new();
+
     private readonly Thread _thread;
     private readonly ManualResetEventSlim _ready = new();
-    private readonly WndProc _proc; // kept alive: the window calls it
     private readonly WinEventProc _winEvent; // kept alive: the hook calls it
     private IntPtr _foregroundHook;
     private IntPtr _hwnd;
@@ -59,7 +63,6 @@ public sealed class SystemEvents : IDisposable
 
     public SystemEvents()
     {
-        _proc = WindowProc;
         _winEvent = OnWinEvent;
         _thread = new Thread(Run) { IsBackground = true, Name = "BetterVitals system events" };
         _thread.SetApartmentState(ApartmentState.STA);
@@ -75,7 +78,7 @@ public sealed class SystemEvents : IDisposable
             var cls = new WNDCLASSEXW
             {
                 cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
-                lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_proc),
+                lpfnWndProc = Marshal.GetFunctionPointerForDelegate(StaticProc),
                 hInstance = hInstance,
                 lpszClassName = "BetterVitals.SystemEvents",
             };
@@ -85,6 +88,7 @@ public sealed class SystemEvents : IDisposable
                 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
             if (_hwnd != IntPtr.Zero)
             {
+                Windows[_hwnd] = this;
                 _suspendRegistration = RegisterSuspendResumeNotification(_hwnd, 0 /* DEVICE_NOTIFY_WINDOW_HANDLE */);
                 WTSRegisterSessionNotification(_hwnd, 0 /* NOTIFY_FOR_THIS_SESSION */);
             }
@@ -106,6 +110,9 @@ public sealed class SystemEvents : IDisposable
             DispatchMessageW(ref msg);
         }
     }
+
+    private static IntPtr RouteMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+        => Windows.TryGetValue(hwnd, out var self) ? self.WindowProc(hwnd, msg, wParam, lParam) : DefWindowProcW(hwnd, msg, wParam, lParam);
 
     private IntPtr WindowProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
@@ -147,6 +154,7 @@ public sealed class SystemEvents : IDisposable
                     SessionEnding?.Invoke();
                     return 0;
                 case WM_DESTROY:
+                    Windows.TryRemove(hwnd, out _);
                     if (_foregroundHook != IntPtr.Zero) UnhookWinEvent(_foregroundHook);
                     _foregroundHook = IntPtr.Zero;
                     PostQuitMessage(0);

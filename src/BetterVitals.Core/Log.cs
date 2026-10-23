@@ -8,6 +8,9 @@ public static class Log
     private static readonly Lock Gate = new();
     private const long MaxSize = 1024 * 1024;
 
+    /// <summary>Tests: every line (level, message), also while there is no log folder.</summary>
+    internal static event Action<string, string>? Written;
+
     public static void Info(string message) => Write("INFO", message);
 
     public static void Warn(string message) => Write("WARN", message);
@@ -19,6 +22,7 @@ public static class Log
     {
         try
         {
+            Written?.Invoke(level, message);
             // before AppEnv.Init (or in libraries used without it) there is nowhere safe to write
             if (string.IsNullOrEmpty(AppEnv.LocalDir)) return;
             lock (Gate)

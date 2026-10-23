@@ -19,6 +19,8 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     /// <summary>Bytes on disk per stored value (all levels) assumed before real data was measured.</summary>
     internal const double DefaultBytesPerValue = 0.6;
 
+    private const int MaxRetentionDays = 36_500; // 100 years
+
     private const string RecordConsumer = "history";
     private const string WatchConsumer = "history-live";
 
@@ -94,9 +96,10 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             var step = Math.Clamp(settings.IntervalSeconds, 1, 60) * TimeGrid.Second;
             var ids = new HashSet<string>(settings.SensorIds, StringComparer.Ordinal);
-            _rawDays = Math.Max(1, settings.RawRetentionDays);
-            _minuteDays = Math.Max(1, settings.MinuteRetentionDays);
-            _hourDays = Math.Max(0, settings.HourRetentionDays);
+            // bounded: days x ticks per day would wrap around for a silly value and delete everything
+            _rawDays = Math.Clamp(settings.RawRetentionDays, 1, MaxRetentionDays);
+            _minuteDays = Math.Clamp(settings.MinuteRetentionDays, 1, MaxRetentionDays);
+            _hourDays = Math.Clamp(settings.HourRetentionDays, 0, MaxRetentionDays);
             turnedOn = settings.Enabled && !_enabled;
             turnedOff = !settings.Enabled && _enabled;
             var changed = turnedOn || turnedOff || step != _step || !ids.SetEquals(_recordIds);
