@@ -36,6 +36,8 @@ internal static class Report
         w.WriteLine($"- run: {DateTime.Now:yyyy-MM-dd HH:mm:ss}, {Environment.OSVersion}, .NET {Environment.Version}, {Environment.ProcessorCount} logical processors");
         w.WriteLine($"- elevated: {IsElevated()} (the probe must run unelevated: this is the \"basic mode\" case)");
         w.WriteLine($"- build: {(IsOptimized() ? "Release" : "Debug (timings are pessimistic; run with -c Release for final numbers)")}");
+        w.WriteLine("- how to read: every scenario starts a real SensorEngine with the given upstream plus NativeSource, discovers, reads every native sensor, times each hardware node's Update, then lets the engine thread run for a while.");
+        w.WriteLine("- the CPU figure is the whole probe process over the interval (a 15.6 ms timer tick is the resolution), so it overstates the source; hard drives answer in ~17 ms because the command reaches the disk.");
         w.WriteLine();
 
         Scenario(w, "A. Empty upstream (LibreHardwareMonitor failed completely)", () => null, quick);
@@ -110,6 +112,14 @@ internal static class Report
         var values = new float[all.Count];
         Array.Fill(values, float.NaN);
         var requested = mine;
+        {
+            var privateBeforeFirst = Process.GetCurrentProcess().PrivateMemorySize64;
+            var first = Stopwatch.GetTimestamp();
+            native.Update(requested, values);
+            w.WriteLine($"First Update after Discover: {Ms(Stopwatch.GetTimestamp() - first):F1} ms, private memory +{(Process.GetCurrentProcess().PrivateMemorySize64 - privateBeforeFirst) / 1024} KB "
+                        + "(the first read of a GPU load / memory sensor opens the PDH counters; in a process that already used PDH this costs much less, which is why only the first scenario shows it).");
+            w.WriteLine();
+        }
         Thread.Sleep(1200);
         for (var round = 0; round < 3; round++)
         {
