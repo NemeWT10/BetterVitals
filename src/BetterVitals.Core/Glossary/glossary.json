@@ -830,8 +830,8 @@
       "hw": "Gpu",
       "match": "GPU Hot Spot #{n}",
       "what": {
-        "en": "One of several hot-spot readings inside the GPU (GeForce RTX 50 cards); \"GPU Hot Spot\" shows the highest of them. Read from an undocumented sensor, so unofficial, roughly ±1 °C.",
-        "pl": "Jeden z kilku odczytów najgorętszych punktów wewnątrz GPU (karty GeForce RTX 50); „GPU Hot Spot” pokazuje najwyższy z nich. Z nieudokumentowanego czujnika: nieoficjalny, z dokładnością ok. ±1 °C."
+        "en": "One of several hot-spot readings inside the GPU (GeForce RTX 50 cards); \"GPU Hot Spot\" shows the highest of them.",
+        "pl": "Jeden z kilku odczytów najgorętszych punktów wewnątrz GPU (karty GeForce RTX 50); „GPU Hot Spot” pokazuje najwyższy z nich."
       }
     },
     {
@@ -839,8 +839,8 @@
       "hw": "Gpu",
       "match": "GPU Hot Spot",
       "what": {
-        "en": "Temperature of the hottest spot inside the GPU chip, often about 10–20 °C above GPU Core. On RTX 50 it is read from an undocumented sensor: unofficial, roughly ±1 °C.",
-        "pl": "Temperatura najgorętszego punktu wewnątrz układu GPU, często o ok. 10–20 °C wyższa niż GPU Core. W RTX 50 pochodzi z nieudokumentowanego czujnika: nieoficjalna, z dokładnością ok. ±1 °C."
+        "en": "Temperature of the hottest spot inside the GPU chip, often about 10–20 °C above GPU Core.",
+        "pl": "Temperatura najgorętszego punktu wewnątrz układu GPU, często o ok. 10–20 °C wyższa niż GPU Core."
       },
       "watch": {
         "en": "A gap much larger than usual, or one that grows over time, can hint at weak cooler contact or dried-out thermal paste.",
