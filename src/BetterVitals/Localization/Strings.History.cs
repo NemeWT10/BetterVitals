@@ -39,7 +39,7 @@ internal static class HistoryStrings
         ["history.picker.empty"] = ("Czujniki jeszcze się wczytują…", "Sensors are still loading…"),
         ["history.picker.recorded"] = ("nagrywany", "recorded"),
         ["history.ownScale"] = ("Własna skala, bez osi: {0}", "Own scale, no axis: {0}"),
-        ["history.hint"] = ("Kółko: przybliż · prawy przycisk lub Shift + przeciągnij: przesuń · przeciągnij: zaznacz zakres",
+        ["history.hint"] = ("Kółko myszy: przybliż · prawy przycisk lub Shift + przeciągnij: przesuń · przeciągnij: zaznacz zakres",
             "Wheel: zoom · right button or Shift + drag: pan · drag: select a range"),
 
         // ── stats ──
@@ -49,7 +49,7 @@ internal static class HistoryStrings
         ["history.stats.sensor"] = ("Czujnik", "Sensor"),
         ["history.stats.min"] = ("Min", "Min"),
         ["history.stats.avg"] = ("Średnia", "Average"),
-        ["history.stats.max"] = ("Max", "Max"),
+        ["history.stats.max"] = ("Maks.", "Max"),
         ["history.stats.goto"] = ("Pokaż ten moment na wykresie", "Show this moment on the chart"),
         ["history.stats.none"] = ("brak danych", "no data"),
         ["history.stats.session"] = ("Od uruchomienia: {0} / {1} / {2}", "Since start: {0} / {1} / {2}"),
@@ -107,7 +107,7 @@ internal static class HistoryStrings
         ["history.export.res.raw"] = ("Każda próbka", "Every sample"),
         ["history.export.res.minute"] = ("1 min", "1 min"),
         ["history.export.res.hour"] = ("1 h", "1 h"),
-        ["history.export.res.hint"] = ("1 min i 1 h zapisują min, średnią i max każdego przedziału.", "1 min and 1 h store the min, average and max of each interval."),
+        ["history.export.res.hint"] = ("1 min i 1 h zapisują min., średnią i maks. każdego przedziału.", "1 min and 1 h store the min, average and max of each interval."),
         ["history.export.zip"] = ("Skompresuj (.zip)", "Compress (.zip)"),
         ["history.export.zip.desc"] = ("Zwykle ok. 10× mniejszy plik; Windows otwiera ZIP bez dodatkowych programów.",
             "Usually about 10× smaller; Windows opens ZIP files without extra software."),

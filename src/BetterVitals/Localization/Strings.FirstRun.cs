@@ -13,15 +13,15 @@ internal static class FirstRunStrings
         ["firstrun.back"] = ("Wstecz", "Back"),
         ["firstrun.next"] = ("Dalej", "Next"),
         ["firstrun.finish"] = ("Zakończ", "Finish"),
-        ["firstrun.finishFull"] = ("Zakończ i daj zgodę", "Finish and allow"),
+        ["firstrun.finishFull"] = ("Zakończ i zezwól", "Finish and allow"),
         ["firstrun.close"] = ("Gotowe", "Done"),
         ["firstrun.recommended"] = ("Zalecane", "Recommended"),
 
         // 1 · welcome
         ["firstrun.welcome.title"] = ("Witaj w BetterVitals", "Welcome to BetterVitals"),
-        ["firstrun.welcome.body"] = ("Lekki monitor sprzętu w zasobniku: temperatury, obciążenia, taktowania, wykresy z historią i nakładka w grach. Trzy krótkie pytania i gotowe.", "A light hardware monitor in the tray: temperatures, loads, clocks, history charts and an in-game overlay. Three short questions and you're set."),
+        ["firstrun.welcome.body"] = ("Lekki monitor sprzętu w zasobniku: temperatury, obciążenia, taktowania, wykresy z historią i nakładka w grach. Trzy krótkie kroki i gotowe.", "A light hardware monitor in the tray: temperatures, loads, clocks, history charts and an in-game overlay. Three quick steps and you're set."),
         ["firstrun.welcome.language"] = ("Język", "Language"),
-        ["firstrun.welcome.languageHint"] = ("Wybrany automatycznie według Windows. Zmienisz go też później w Ustawieniach.", "Picked automatically from Windows. You can change it later in Settings too."),
+        ["firstrun.welcome.languageHint"] = ("Wybrany automatycznie według języka Windows. Zmienisz go też później w Ustawieniach.", "Picked automatically from Windows. You can change it later in Settings too."),
         ["firstrun.welcome.point1"] = ("Działa offline — bez konta, bez telemetrii", "Works offline — no account, no telemetry"),
         ["firstrun.welcome.point2"] = ("Prawie nie obciąża komputera", "Barely uses your PC"),
         ["firstrun.welcome.point3"] = ("Bezpieczny dla gier z anticheatem — niczego w nich nie uruchamia", "Safe for anti-cheat games — never runs anything inside them"),
@@ -48,7 +48,7 @@ internal static class FirstRunStrings
 
         // 4 · tray icon
         ["firstrun.tray.title"] = ("Gdzie mnie znajdziesz", "Where to find me"),
-        ["firstrun.tray.body"] = ("BetterVitals mieszka w zasobniku obok zegara. Windows 11 chowa nowe ikony pod strzałką „^” — przypnij ją, żeby była zawsze widoczna.", "BetterVitals lives in the tray next to the clock. Windows 11 hides new icons under the “^” arrow — pin it to keep it visible."),
+        ["firstrun.tray.body"] = ("BetterVitals mieszka w zasobniku obok zegara. Windows 11 chowa nowe ikony pod strzałką „^” — przypnij ikonę BetterVitals, żeby była zawsze widoczna.", "BetterVitals lives in the tray next to the clock. Windows 11 hides new icons under the “^” arrow — pin the BetterVitals icon to keep it visible."),
         ["firstrun.tray.step1"] = ("Kliknij strzałkę „^” obok zegara na pasku zadań.", "Click the “^” arrow next to the clock on the taskbar."),
         ["firstrun.tray.step2"] = ("Przeciągnij ikonę BetterVitals na pasek zadań — zostanie tam na stałe.", "Drag the BetterVitals icon onto the taskbar — it stays there."),
         ["firstrun.tray.step3"] = ("Albo: Ustawienia Windows → Personalizacja → Pasek zadań → Inne ikony zasobnika systemowego → BetterVitals.", "Or: Windows Settings → Personalization → Taskbar → Other system tray icons → BetterVitals."),

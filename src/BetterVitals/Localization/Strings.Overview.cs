@@ -50,8 +50,8 @@ internal static class OverviewStrings
         ["overview.badge.noGame.info"] = ("FPS i czasy klatek pojawią się, gdy gra lub inna aplikacja 3D będzie na pierwszym planie.",
             "FPS and frame times appear while a game or another 3D app is in the foreground."),
         ["overview.badge.limited"] = ("ograniczony odczyt", "limited"),
-        ["overview.badge.limited.info"] = ("Część czujników tego urządzenia wymaga trybu pełnego (uprawnienia administratora i sterownik PawnIO). Ustawienia → Uprawnienia.",
-            "Some sensors of this device need full mode (administrator rights and the PawnIO driver). Settings → Permissions."),
+        ["overview.badge.limited.info"] = ("Część czujników tego urządzenia wymaga trybu pełnego (uprawnienia administratora i sterownik PawnIO). Ustawienia → Uprawnienia i sterownik.",
+            "Some sensors of this device need full mode (administrator rights and the PawnIO driver). Settings → Permissions and driver."),
 
         // ── banner ──
         ["overview.banner.limited"] = ("Część czujników wymaga trybu pełnego — Ustawienia → Uprawnienia.",
@@ -61,7 +61,7 @@ internal static class OverviewStrings
 
         // ── empty ──
         ["overview.empty.title"] = ("Czekam na czujniki…", "Waiting for sensors…"),
-        ["overview.empty.body"] = ("Pierwszy odczyt sprzętu trwa zwykle sekundę. Jeśli nic się nie pojawia, sprawdź Ustawienia → Uprawnienia.",
-            "The first hardware scan usually takes a second. If nothing shows up, check Settings → Permissions."),
+        ["overview.empty.body"] = ("Pierwszy odczyt sprzętu trwa zwykle sekundę. Jeśli nic się nie pojawia, sprawdź Ustawienia → Uprawnienia i sterownik.",
+            "The first hardware scan usually takes a second. If nothing shows up, check Settings → Permissions and driver."),
     });
 }

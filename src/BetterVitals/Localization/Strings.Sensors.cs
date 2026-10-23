@@ -38,8 +38,8 @@ internal static class SensorsStrings
         ["sensors.col.overlay"] = ("Nakładka", "Overlay"),
 
         // ── row switches ──
-        ["sensors.row.historyAdd"] = ("Zapisuj do historii", "Record for history"),
-        ["sensors.row.historyOn"] = ("Zapisywany do historii — kliknij, aby wyłączyć", "Recorded for history — click to stop"),
+        ["sensors.row.historyAdd"] = ("Nagrywaj do historii", "Record for history"),
+        ["sensors.row.historyOn"] = ("Nagrywany do historii — kliknij, aby wyłączyć", "Recorded for history — click to stop"),
         ["sensors.row.historyOffTip"] = ("Zapis historii jest wyłączony (tylko na żywo). Wybór zostanie użyty po włączeniu.",
             "History recording is off (live only). The choice applies once it is on."),
         ["sensors.row.overlayAdd"] = ("Pokaż na nakładce", "Show on the overlay"),
@@ -52,20 +52,20 @@ internal static class SensorsStrings
         ["sensors.menu.history"] = ("Pokaż w historii", "Show in history"),
 
         // ── section header switches ──
-        ["sensors.section.historyAllOn"] = ("Zapisuj całą grupę", "Record the whole group"),
-        ["sensors.section.historyAllOff"] = ("Nie zapisuj tej grupy", "Stop recording this group"),
+        ["sensors.section.historyAllOn"] = ("Nagrywaj całą grupę", "Record the whole group"),
+        ["sensors.section.historyAllOff"] = ("Nie nagrywaj tej grupy", "Stop recording this group"),
         ["sensors.section.overlayAllOn"] = ("Całą grupę na nakładkę", "Whole group on the overlay"),
         ["sensors.section.overlayAllOff"] = ("Usuń grupę z nakładki", "Remove the group from the overlay"),
 
         // ── toasts ──
-        ["sensors.toast.recordOn.single"] = ("Zapisywany do historii: {0}", "Recording for history: {0}"),
-        ["sensors.toast.recordOff.single"] = ("Bez zapisu do historii: {0}", "No longer recorded: {0}"),
-        ["sensors.toast.recordOn.one"] = ("Zapisywany do historii: {0} czujnik", "Recording {0} sensor for history"),
-        ["sensors.toast.recordOn.few"] = ("Zapisywane do historii: {0} czujniki", "Recording {0} sensors for history"),
-        ["sensors.toast.recordOn.many"] = ("Zapisywane do historii: {0} czujników", "Recording {0} sensors for history"),
-        ["sensors.toast.recordOff.one"] = ("Bez zapisu do historii: {0} czujnik", "{0} sensor no longer recorded"),
-        ["sensors.toast.recordOff.few"] = ("Bez zapisu do historii: {0} czujniki", "{0} sensors no longer recorded"),
-        ["sensors.toast.recordOff.many"] = ("Bez zapisu do historii: {0} czujników", "{0} sensors no longer recorded"),
+        ["sensors.toast.recordOn.single"] = ("Nagrywany do historii: {0}", "Recording for history: {0}"),
+        ["sensors.toast.recordOff.single"] = ("Bez nagrywania: {0}", "No longer recorded: {0}"),
+        ["sensors.toast.recordOn.one"] = ("Nagrywany do historii: {0} czujnik", "Recording {0} sensor for history"),
+        ["sensors.toast.recordOn.few"] = ("Nagrywane do historii: {0} czujniki", "Recording {0} sensors for history"),
+        ["sensors.toast.recordOn.many"] = ("Nagrywane do historii: {0} czujników", "Recording {0} sensors for history"),
+        ["sensors.toast.recordOff.one"] = ("Bez nagrywania: {0} czujnik", "{0} sensor no longer recorded"),
+        ["sensors.toast.recordOff.few"] = ("Bez nagrywania: {0} czujniki", "{0} sensors no longer recorded"),
+        ["sensors.toast.recordOff.many"] = ("Bez nagrywania: {0} czujników", "{0} sensors no longer recorded"),
         ["sensors.toast.overlayOn.single"] = ("Na nakładce: {0}", "On the overlay: {0}"),
         ["sensors.toast.overlayOff.single"] = ("Usunięto z nakładki: {0}", "Removed from the overlay: {0}"),
         ["sensors.toast.overlayOn.one"] = ("Na nakładce: {0} czujnik", "{0} sensor on the overlay"),
@@ -86,10 +86,10 @@ internal static class SensorsStrings
         ["sensors.preset.Key"] = ("Kluczowe", "Key"),
         ["sensors.preset.All"] = ("Wszystkie", "All"),
         ["sensors.preset.None"] = ("Nic", "None"),
-        ["sensors.preset.Key.tip"] = ("Zapisuj najważniejsze parametry: temperatury, obciążenia, taktowania, moc, VRAM, wentylatory, FPS (zalecane).",
+        ["sensors.preset.Key.tip"] = ("Nagrywaj najważniejsze parametry: temperatury, obciążenia, taktowania, moc, VRAM, wentylatory, FPS (zalecane).",
             "Record the essentials: temperatures, loads, clocks, power, VRAM, fans, FPS (recommended)."),
-        ["sensors.preset.All.tip"] = ("Zapisuj każdy czujnik tego komputera (więcej miejsca na dysku).", "Record every sensor of this PC (uses more disk space)."),
-        ["sensors.preset.None.tip"] = ("Nie zapisuj żadnego czujnika. Nakładka i wartości na żywo działają dalej.",
+        ["sensors.preset.All.tip"] = ("Nagrywaj każdy czujnik tego komputera (więcej miejsca na dysku).", "Record every sensor of this PC (uses more disk space)."),
+        ["sensors.preset.None.tip"] = ("Nie nagrywaj żadnego czujnika. Nakładka i wartości na żywo działają dalej.",
             "Record no sensor. The overlay and live values keep working."),
 
         // ── status card ──

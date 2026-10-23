@@ -89,7 +89,7 @@ internal static class ShellStrings
         ["nav.overlay"] = ("Nakładka", "Overlay"),
         ["nav.settings"] = ("Ustawienia", "Settings"),
         ["page.overview.subtitle"] = ("Karty podzespołów z kluczowymi wartościami na żywo.", "Component cards with the key values, live."),
-        ["page.history.subtitle"] = ("Wykresy w czasie i min / śr. / max dla dowolnego zakresu.", "Charts over time with min / avg / max for any range."),
+        ["page.history.subtitle"] = ("Wykresy w czasie oraz min., średnia i maks. dla dowolnego zakresu.", "Charts over time, with min, average and max for any range."),
         ["page.sensors.subtitle"] = ("Co zapisywać do historii i co pokazywać na nakładce.", "What to record for history and what to show on the overlay."),
         ["page.overlay.subtitle"] = ("Co i gdzie pokazywać na ekranie — także w grach.", "What to show on screen and where — in games too."),
         ["page.placeholder.title"] = ("Ta strona jest w budowie", "This page is on its way"),
