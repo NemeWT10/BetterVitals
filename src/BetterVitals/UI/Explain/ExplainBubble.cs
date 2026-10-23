@@ -73,6 +73,7 @@ internal sealed class ExplainBubble : IExplainPresenter
         if (PresentationSource.FromVisual(anchor) is null) return;
         var w = Ensure();
         _card!.SetContent(content);
+        if (_card.Effect is DropShadowEffect shadow && shadow.Color != Themes.ThemeManager.ShadowColor) shadow.Color = Themes.ThemeManager.ShadowColor;
         w.Language = Loc.I.XmlLang;
 
         var topLeft = anchor.PointToScreen(new Point(0, 0));

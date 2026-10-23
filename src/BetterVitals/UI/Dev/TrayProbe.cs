@@ -24,14 +24,16 @@ internal static class TrayProbe
         {
             var (priv, ws, bytes) = Native.MemoryUse();
             var line = string.Create(CultureInfo.InvariantCulture,
-                $"{what,-26} private WS {priv / 1048576.0,7:0.0} MB | WS {ws / 1048576.0,7:0.0} MB | private bytes {bytes / 1048576.0,7:0.0} MB | managed {GC.GetTotalMemory(false) / 1048576.0,6:0.0} MB");
+                $"{what,-26} private WS {priv / 1048576.0,7:0.0} MB | WS {ws / 1048576.0,7:0.0} MB | private bytes {bytes / 1048576.0,7:0.0} MB | managed {GC.GetTotalMemory(false) / 1048576.0,6:0.0} MB | GC committed {GC.GetGCMemoryInfo().TotalCommittedBytes / 1048576.0,6:0.0} MB");
             lines.Add(line);
             Log.Info("probe: " + line);
         }
         try
         {
+            Mark("start");
+            TrayRest.Settle(); // what a normal start does
             await Task.Delay(6000); // the start-up trims ran (idle + 4 s)
-            Mark("start (tray)");
+            Mark("start, trimmed");
 
             AppShell.I.OpenPanel(PageIds.Overview);
             await Task.Delay(400);
@@ -48,8 +50,8 @@ internal static class TrayProbe
             AppShell.I.CloseAll();
             await Task.Delay(30000); // idle trim, +4 s with GC, +25 s working set only
             Mark($"tray rest ({TrayRest.Trims} trims)");
-            await Task.Delay(10000);
-            Mark("tray rest +10 s");
+            await Task.Delay(60000);
+            Mark("tray rest +60 s (hub ticking)");
         }
         catch (Exception ex)
         {

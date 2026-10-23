@@ -149,6 +149,12 @@ public sealed class ExplainService
     /// <summary>Closes the bubble (or cancels a pending one) and drops every hook. Safe to call any time.</summary>
     public void Close(string reason = "close")
     {
+        // static sources (language) may call from elsewhere: the bubble belongs to its element's thread
+        if (_target is { } t && !t.Dispatcher.CheckAccess())
+        {
+            t.Dispatcher.BeginInvoke(() => Close(reason));
+            return;
+        }
         _timer?.Stop();
         if (_target is null && !IsOpen) return;
         Detach();
