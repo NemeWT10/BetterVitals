@@ -58,6 +58,8 @@ public class OverlayRenderTests
     {
         Save(Offscreen.Render(Build(SimpleLayout(OverlayArrangement.Compact), SimpleValues, 1080), false, GameBackdrop), "compact-1080-ingame.png");
         Save(Offscreen.Render(Build(SimpleLayout(OverlayArrangement.Horizontal), SimpleValues, 1080), false, GameBackdrop), "horizontal-1080-ingame.png");
+        Save(Offscreen.Render(Build(SimpleLayout(OverlayArrangement.Compact), SimpleValues, 2160), false, GameBackdrop with { Margin = 40 }), "compact-2160-ingame.png");
+        Save(Offscreen.Render(Build(SimpleLayout(OverlayArrangement.Horizontal), SimpleValues, 2160), false, GameBackdrop with { Margin = 40 }), "horizontal-2160-ingame.png");
         var compact = Offscreen.Render(SimpleLayout(OverlayArrangement.Compact), OverlayTheme.Default, SimpleValues, 1080, null, TemperatureUnit.Celsius, null);
         Save(compact, "compact-1080.png");
         Assert.True(compact.Width > compact.Height * 4);
@@ -120,6 +122,12 @@ public class OverlayRenderTests
             ],
         };
         Save(Offscreen.Render(Build(layout, values, 1080), false, GameBackdrop), "advanced-1080-ingame.png");
+        Save(Offscreen.Render(Build(layout, values, 2160), false, GameBackdrop with { Margin = 40 }), "advanced-2160-ingame.png");
+        layout.Style.Arrangement = OverlayArrangement.Compact;
+        Save(Offscreen.Render(Build(layout, values, 1440), false, GameBackdrop), "advanced-compact-1440-ingame.png");
+        layout.Style.Arrangement = OverlayArrangement.Horizontal;
+        Save(Offscreen.Render(Build(layout, values, 1440), false, GameBackdrop), "advanced-horizontal-1440-ingame.png");
+        layout.Style.Arrangement = OverlayArrangement.Vertical;
         Save(Offscreen.Render(layout, OverlayTheme.Default, values, 1440, null, TemperatureUnit.Celsius, null), "advanced-1440.png");
 
         var grid = new OverlayLayout
