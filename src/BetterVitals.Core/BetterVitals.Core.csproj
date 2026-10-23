@@ -9,6 +9,8 @@
     <InternalsVisibleTo Include="BetterVitals.Tests" />
     <!-- the engine fills frames, assigns sensor slots and accumulates session stats -->
     <InternalsVisibleTo Include="BetterVitals.Sensors" />
+    <!-- the app's dev preview hub (UI/Dev/PreviewHub, test and snapshot mode only) fills frames and stats like the engine -->
+    <InternalsVisibleTo Include="BetterVitals" />
   </ItemGroup>
 
   <ItemGroup>
