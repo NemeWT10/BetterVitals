@@ -1051,7 +1051,7 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
             var missing = _shown.Where(s => !IsRecorded(s.D.Id)).ToList();
             if (missing.Count > 0)
             {
-                var text = missing.Count == 1 ? Loc.T("history.notRecorded.one", missing[0].D.Name) : Loc.T("history.notRecorded.many", missing.Count);
+                var text = missing.Count == 1 ? Loc.T("history.notRecorded.single", missing[0].D.Name) : Loc.T("history.notRecorded.several", missing.Count);
                 _notes.Children.Add(Note("Icon.EyeOff", text, Loc.T(missing.Count == 1 ? "history.recordThis" : "history.recordThese"),
                     () => Record(missing.Select(m => m.D).ToList()), "Brush.WarningSoft"));
             }
