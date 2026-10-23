@@ -256,8 +256,9 @@ internal sealed class SimpleView : StackPanel
     private Tile MakeTile(FriendlyItem f)
     {
         var first = _ctx.Hub.Find(f.SensorIds[0]);
+        // the title takes the slack of a taller neighbour (two-line title, core bars): values and captions line up
         var grid = new Grid();
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 

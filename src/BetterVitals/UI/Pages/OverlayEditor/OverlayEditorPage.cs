@@ -105,7 +105,7 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
         };
 
         // ── header: title + on / off ──
-        var header = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
+        var header = new DockPanel { Margin = new Thickness(0, 0, 10, 16) }; // right edge in line with the cards (the scroll bars use the last 10 px)
         var onOff = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(16, 6, 0, 0) };
         _enabledText = new TextBlock { FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
         _enabledText.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text");
@@ -121,7 +121,7 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
         header.Children.Add(titles);
 
         // ── toolbar: mode + restore defaults ──
-        var toolbar = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
+        var toolbar = new DockPanel { Margin = new Thickness(0, 0, 10, 16) };
         var reset = Ui.Button("GhostButton", "ovl.reset", "Icon.Refresh", (_, _) => ResetAll());
         DockPanel.SetDock(reset, Dock.Right);
         toolbar.Children.Add(reset);
@@ -146,7 +146,7 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
         _right = new StackPanel();
         _right.Children.Add(_previewCard);
         _right.Children.Add(_orderCard);
-        _rightScroll = new ScrollViewer { Content = _right, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Focusable = false, Padding = new Thickness(0, 0, 6, 0) };
+        _rightScroll = new ScrollViewer { Content = _right, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Focusable = false, Padding = new Thickness(0, 0, 10, 0) };
         _body = new Grid();
         _body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 300 });
         _body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });

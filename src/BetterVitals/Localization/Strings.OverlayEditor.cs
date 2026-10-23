@@ -21,7 +21,7 @@ internal static class OverlayEditorStrings
         ["ovl.seconds"] = ("{0} s", "{0} s"),
 
         // ── simple mode ──
-        ["ovl.simple.custom"] = ("Używasz własnego wyglądu z trybu zaawansowanego.", "You use your own look from Advanced mode."),
+        ["ovl.simple.custom"] = ("Używasz własnego wyglądu z trybu zaawansowanego.", "You're using your own look from Advanced mode."),
         ["ovl.simple.custom.reset"] = ("Przywróć domyślny", "Restore default"),
         ["ovl.simple.what"] = ("Co pokazać", "What to show"),
         ["ovl.simple.what.hint"] = ("Kliknij parametr, aby go włączyć lub wyłączyć. Kolejność na nakładce = kolejność klikania.", "Click a parameter to turn it on or off. The overlay shows them in the order you click."),
@@ -165,7 +165,7 @@ internal static class OverlayEditorStrings
         ["ovl.style.opacity"] = ("Krycie tła", "Background opacity"),
         ["ovl.style.radius"] = ("Zaokrąglenie", "Corner radius"),
         ["ovl.style.padding"] = ("Margines wewnętrzny", "Padding"),
-        ["ovl.style.spacing"] = ("Odstęp między wierszami", "Spacing"),
+        ["ovl.style.spacing"] = ("Odstęp wierszy", "Row spacing"),
         ["ovl.style.border"] = ("Ramka", "Border"),
         ["ovl.style.shadow"] = ("Cień tekstu", "Text shadow"),
         ["ovl.style.shadow.hint"] = ("Czytelny tekst także bez tła.", "Readable text even without a background."),

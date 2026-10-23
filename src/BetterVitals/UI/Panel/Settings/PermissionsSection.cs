@@ -54,7 +54,7 @@ internal sealed class PermissionsSection : SectionView
         _adminRow = Row("settings.perm.admin", "settings.perm.admin.desc", "Icon.Shield", _adminPill);
 
         _pawnPill = new StatusPill();
-        PawnIoButton = Button("SecondaryButton", null, "Icon.Export");
+        PawnIoButton = Button("SecondaryButton", null, "Icon.Download");
         PawnIoButton.Click += async (_, _) => await InstallPawnIoAsync();
         _pawnRow = Row("settings.perm.pawnio", "settings.perm.pawnio.desc", "Icon.Cpu", HStack(12, _pawnPill, PawnIoButton));
 

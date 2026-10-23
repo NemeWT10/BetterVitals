@@ -159,7 +159,7 @@ internal sealed class ThresholdsEditor : StackPanel
         _mode = new SegmentBar<ThresholdMode>(
             [(ThresholdMode.Default, "ovl.thr.default"), (ThresholdMode.Custom, "ovl.thr.custom"), (ThresholdMode.Off, "ovl.thr.off")],
             ThresholdEditing.Mode(item), OnMode, fontSize: 12);
-        Children.Add(Ui.Line("ovl.thr.title", _mode, "ovl.thr.hint", top: 10));
+        Children.Add(Ui.Above("ovl.thr.title", _mode, "ovl.thr.hint", top: 10));
         _body.Margin = new Thickness(0, 10, 0, 0);
         Children.Add(_body);
         Build();

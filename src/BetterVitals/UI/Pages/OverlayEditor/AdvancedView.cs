@@ -211,7 +211,7 @@ internal sealed class AdvancedView : StackPanel
         var export = Ui.Button("GhostButton", "ovl.profiles.export", "Icon.Export", (_, _) => Export());
         export.Margin = new Thickness(0, 0, 6, 0);
         files.Children.Add(export);
-        var import = Ui.Button("GhostButton", "ovl.profiles.import", "Icon.External", (_, _) => Import());
+        var import = Ui.Button("GhostButton", "ovl.profiles.import", "Icon.Download", (_, _) => Import());
         import.Margin = new Thickness(0, 0, 6, 0);
         files.Children.Add(import);
         files.Children.Add(Ui.Button("GhostButton", "ovl.reset", "Icon.Refresh", (_, _) => ResetRequested?.Invoke()));
@@ -336,7 +336,8 @@ internal sealed class AdvancedView : StackPanel
             {
                 0 => item.SensorIds.FirstOrDefault() ?? "",
                 1 => $"{sensors[0].Name} · {_ctx.Hub.FindHardware(sensors[0].HardwareId)?.Name ?? DefaultLabels.Hardware(sensors[0].HardwareKind)}",
-                _ => $"{string.Join(", ", sensors.Take(3).Select(s => s.Name))}{(sensors.Count > 3 ? " …" : "")} ({sensors.Count})",
+                // the count first, so trimming a long list never eats it (nor stacks "…" on the trim's own "…")
+                _ => $"{Loc.Plural("sensors.count", sensors.Count)} · {string.Join(", ", sensors.Take(3).Select(s => s.Name))}{(sensors.Count > 3 ? ", …" : "")}",
             };
             if (sensors.Count > 0) Explain.Explain.SetSensor(names, sensors[0]);
             texts.Children.Add(names);
@@ -470,7 +471,8 @@ internal sealed class AdvancedView : StackPanel
         return d;
     }
 
-    private static string Ms(double v) => Loc.T("ovl.ms", v.ToString("0", Loc.I.Culture));
+    /// <summary>Refresh in seconds ("0,25 s", "1 s"), as in Settings ▸ Overlay.</summary>
+    private static string Ms(double v) => Loc.T("settings.common.seconds", (v / 1000).ToString("0.##", Loc.I.Culture));
 
     // ───────────── profiles ─────────────
 

@@ -43,7 +43,7 @@ internal sealed class UpdatesSection : SectionView
 
         CheckButton = Button("SecondaryButton", "settings.upd.check", "Icon.Refresh");
         CheckButton.Click += async (_, _) => await Run(_platform.CheckForUpdatesAsync, "check");
-        DownloadButton = Button("PrimaryButton", "settings.upd.download", "Icon.Export");
+        DownloadButton = Button("PrimaryButton", "settings.upd.download", "Icon.Download");
         DownloadButton.Click += async (_, _) => await Run(_platform.DownloadUpdateAsync, "download");
         RestartButton = Button("PrimaryButton", "settings.upd.restart", "Icon.Refresh");
         RestartButton.Click += (_, _) =>
@@ -157,7 +157,7 @@ internal sealed class UpdatesSection : SectionView
             case UpdateUiState.Downloading when release is not null:
                 title = Loc.T("settings.upd.state.downloading", version, Percent(_platform.UpdateProgress));
                 desc = Loc.T("settings.upd.downloading.desc");
-                icon = "Icon.Export";
+                icon = "Icon.Download";
                 break;
             case UpdateUiState.Ready when release is not null:
                 title = Loc.T("settings.upd.state.ready", version);

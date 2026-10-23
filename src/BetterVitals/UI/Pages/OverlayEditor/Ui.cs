@@ -154,6 +154,21 @@ internal static class Ui
         return d;
     }
 
+    /// <summary>A setting line whose control is too wide to share the row: label and hint, the control below them.</summary>
+    public static StackPanel Above(string key, FrameworkElement control, string? hintKey = null, double top = 10)
+    {
+        var s = new StackPanel { Margin = new Thickness(0, top, 0, 0) };
+        var t = Text(key, size: 13);
+        t.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text");
+        t.TextWrapping = TextWrapping.Wrap;
+        s.Children.Add(t);
+        if (hintKey is not null) s.Children.Add(Hint(hintKey, new Thickness(0, 2, 0, 0)));
+        control.HorizontalAlignment = HorizontalAlignment.Left;
+        control.Margin = new Thickness(0, 8, 0, 0);
+        s.Children.Add(control);
+        return s;
+    }
+
     /// <summary>A label above a full-width control.</summary>
     public static StackPanel Stacked(string key, UIElement control, double top = 12)
     {
@@ -234,7 +249,7 @@ internal sealed class SliderLine : DockPanel
     private readonly Func<double, string> _format;
     private bool _syncing;
 
-    public SliderLine(double min, double max, double value, double step, Func<double, string> format, Action<double> changed, double width = 170)
+    public SliderLine(double min, double max, double value, double step, Func<double, string> format, Action<double> changed, double width = 150)
     {
         _format = format;
         LastChildFill = false;
