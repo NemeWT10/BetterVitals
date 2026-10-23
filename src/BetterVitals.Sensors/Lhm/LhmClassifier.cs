@@ -23,6 +23,11 @@ internal enum LhmSensorFlags : byte
     /// without it LHM reports fake zeros (0 °C, 0 W, VID 1.55 V), so the value is NaN.
     /// </summary>
     NeedsDriver = 32,
+    /// <summary>
+    /// Storage value computed from SMART attributes (life, spare, counters): LHM reports 0 when the drive gave no SMART
+    /// data (e.g. unelevated), so the value is NaN then.
+    /// </summary>
+    SmartCounter = 64,
 
     /// <summary>Everything a node update can be asked for (discovery warm-up).</summary>
     AllNeeds = NeedsSmart | NeedsPcie | NeedsD3d,
@@ -101,7 +106,10 @@ internal static class LhmClassifier
                 flags |= LhmSensorFlags.DriverBacked;
         }
         if (hardwareType == HardwareType.Storage && !NonSmartStorageSensors.Contains(sensorName))
+        {
             flags |= LhmSensorFlags.NeedsSmart;
+            if (sensorType != SensorType.Temperature) flags |= LhmSensorFlags.SmartCounter;
+        }
         if (hardwareType == HardwareType.GpuNvidia && sensorType == SensorType.Throughput && sensorName.StartsWith("GPU PCIe ", StringComparison.Ordinal))
             flags |= LhmSensorFlags.NeedsPcie;
         if (isGpu && sensorName.StartsWith("D3D ", StringComparison.Ordinal))

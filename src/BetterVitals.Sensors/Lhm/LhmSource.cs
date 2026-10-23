@@ -677,6 +677,7 @@ public sealed class LhmSource : ISensorSource
         var node = new LhmNode(hw, type, LhmClassifier.MapHardware(type), stableKey, LhmClassifier.IsDriverBackedHardware(type, identifier), gate)
         {
             Identifier = identifier,
+            Dit = (hw as LhmStorageDevice)?.Storage,
         };
         try
         {
@@ -767,6 +768,7 @@ public sealed class LhmSource : ISensorSource
         {
             if (skipD3d) node.D3dField!.SetValue(hw, null);
             hw.Update();
+            if (node.Dit is { } dit) node.SmartMissing = dit.SmartAttributes is not { Count: > 0 };
             return true;
         }
         catch (Exception ex)
@@ -796,6 +798,7 @@ public sealed class LhmSource : ISensorSource
     {
         if (e?.Sensor is not { } s || !e.Node.Readable) return float.NaN;
         if ((e.Flags & blocked) != 0) return float.NaN;
+        if ((e.Flags & LhmSensorFlags.SmartCounter) != 0 && e.Node.SmartMissing) return float.NaN;
         return LhmClassifier.Sanitize(s.Value, e.Scale, (e.Flags & LhmSensorFlags.HotSpotLike) != 0);
     }
 

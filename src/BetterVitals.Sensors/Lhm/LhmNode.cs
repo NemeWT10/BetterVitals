@@ -52,6 +52,12 @@ internal sealed class LhmNode
 
     public bool FailureLogged { get; set; }
 
+    /// <summary>Storage: DiskInfoToolkit device behind the node (SMART presence check).</summary>
+    public DiskInfoToolkit.Devices.StorageDevice? Dit { get; init; }
+
+    /// <summary>Storage: the last refresh had no SMART attributes.</summary>
+    public bool SmartMissing { get; set; }
+
     // ── statistics ──
     public long Updates { get; set; }
     public long TotalTicks { get; set; }

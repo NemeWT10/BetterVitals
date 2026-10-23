@@ -151,6 +151,14 @@ public class LhmClassifierTests
     }
 
     [Fact]
+    public void Smart_counters_are_marked_but_temperatures_are_not()
+    {
+        Assert.True((LhmClassifier.Classify(HardwareType.Storage, "x", SensorType.Level, "Available Spare") & LhmSensorFlags.SmartCounter) != 0);
+        Assert.True((LhmClassifier.Classify(HardwareType.Storage, "x", SensorType.Data, "Data Written") & LhmSensorFlags.SmartCounter) != 0);
+        Assert.Equal(LhmSensorFlags.NeedsSmart, LhmClassifier.Classify(HardwareType.Storage, "x", SensorType.Temperature, "Temperature"));
+    }
+
+    [Fact]
     public void Other_min_intervals()
     {
         Assert.Equal(TimeSpan.Zero, LhmClassifier.MinInterval(HardwareType.Cpu, SensorType.Temperature, LhmSensorFlags.None));
