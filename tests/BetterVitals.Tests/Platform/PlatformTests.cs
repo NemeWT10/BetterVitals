@@ -176,11 +176,13 @@ public sealed class PlatformTests
     }
 
     [Theory]
-    // test mode and elevated processes always run here
+    // test mode and elevated processes run here
     [InlineData(true, false, false, ReadMode.Full, false, false, false, StartAction.RunHere)]
-    [InlineData(false, true, false, ReadMode.Full, false, false, false, StartAction.RunHere)]
-    // fresh download, nothing installed: the first-run guide
+    [InlineData(false, true, true, ReadMode.Full, false, false, false, StartAction.RunHere)]
+    [InlineData(false, true, false, ReadMode.Full, true, true, false, StartAction.RunHere)]
+    // fresh download, nothing installed: the first-run guide, also with "Run as administrator"
     [InlineData(false, false, false, ReadMode.Full, false, false, false, StartAction.FirstRun)]
+    [InlineData(false, true, false, ReadMode.Full, false, false, false, StartAction.FirstRun)]
     // installed full mode, unelevated start (Start menu): relaunch elevated through the task, no UAC
     [InlineData(false, false, true, ReadMode.Full, true, true, false, StartAction.RelaunchViaTask)]
     [InlineData(false, false, false, ReadMode.Full, true, true, false, StartAction.RelaunchViaTask)]

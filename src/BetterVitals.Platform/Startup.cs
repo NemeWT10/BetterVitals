@@ -26,10 +26,12 @@ public static class Startup
         bool launcherTaskExists,
         bool startedByTask)
     {
-        if (testMode || elevated) return StartAction.RunHere;
-        // the task itself started us without elevation (standard user account): nothing better is possible
-        if (startedByTask) return StartAction.RunHere;
-        if (!firstRunDone) return installed && launcherTaskExists ? StartAction.RelaunchViaTask : StartAction.FirstRun;
+        // the task started us (elevated, or a standard user account where nothing better is possible)
+        if (testMode || startedByTask) return StartAction.RunHere;
+        // a fresh download is welcomed, also when started with "Run as administrator"
+        if (!firstRunDone && !(installed && launcherTaskExists)) return StartAction.FirstRun;
+        if (elevated) return StartAction.RunHere;
+        if (!firstRunDone) return StartAction.RelaunchViaTask;
         if (mode == ReadMode.Basic) return StartAction.RunHere;
         return installed && launcherTaskExists ? StartAction.RelaunchViaTask : StartAction.RunHere;
     }

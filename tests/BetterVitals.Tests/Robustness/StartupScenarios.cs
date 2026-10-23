@@ -34,7 +34,7 @@ public sealed class StartupScenarios
             Assert.Equal(a, Startup.Decide(test, elevated, done, mode, installed, task, byTask)); // pure
             Assert.True(Enum.IsDefined(a));
 
-            if (test || elevated || byTask) Assert.Equal(StartAction.RunHere, a); // already where we want to be
+            if (test || byTask || elevated && (done || installed && task)) Assert.Equal(StartAction.RunHere, a); // already where we want to be
             if (a == StartAction.RelaunchViaTask)
             {
                 relaunches++;
@@ -49,6 +49,7 @@ public sealed class StartupScenarios
                 Assert.False(installed && task);
             }
             if (!done && !test && !elevated && !byTask) Assert.NotEqual(StartAction.RunHere, a); // a fresh download is welcomed
+            if (!done && !test && !byTask && !(installed && task)) Assert.Equal(StartAction.FirstRun, a); // also "Run as administrator"
         }
         Assert.Equal(3 * 64, total);
         Assert.InRange(relaunches, 1, total);
