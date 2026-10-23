@@ -346,12 +346,12 @@ public sealed class SensorsPage : UserControl, IPage, IDisposable
     private void StartPulse()
     {
         if (!Motion.I.Enabled || SettingsStore.I?.Current.Recording.Enabled != true) return;
-        _recordDot.BeginAnimation(OpacityProperty, new DoubleAnimation(1, 0.3, TimeSpan.FromMilliseconds(1100))
+        _recordDot.BeginAnimation(OpacityProperty, Motion.Throttled(new DoubleAnimation(1, 0.3, TimeSpan.FromMilliseconds(1100))
         {
             AutoReverse = true,
             RepeatBehavior = RepeatBehavior.Forever,
             EasingFunction = Motion.EaseOut,
-        });
+        }));
     }
 
     private void StopPulse() => _recordDot.BeginAnimation(OpacityProperty, null);

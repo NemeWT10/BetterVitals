@@ -19,6 +19,8 @@ public partial class FlyoutWindow : Window
     /// <summary>Snapshot / probe mode: never activated, so it must not close on deactivation.</summary>
     internal bool Offscreen { get; set; }
 
+    private bool _closing;
+
     public FlyoutWindow(FlyoutViewModel model)
     {
         Model = model;
@@ -40,22 +42,24 @@ public partial class FlyoutWindow : Window
             Loc.LanguageChanged -= OnLanguageChanged;
         };
         Closed += (_, _) => Model.Detach();
+        // closing deactivates the window too: never close twice
+        Closing += (_, _) => _closing = true;
         Deactivated += (_, _) =>
         {
-            if (!Offscreen) Close();
+            if (!Offscreen && !_closing) Close();
         };
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape) Close();
+            if (e.Key == Key.Escape && !_closing) Close();
         };
         // the live dot breathes only while the flyout is on screen
         Motion.WhileVisible(LiveDot,
-            () => LiveDot.BeginAnimation(OpacityProperty, new DoubleAnimation(1, 0.35, TimeSpan.FromMilliseconds(900))
+            () => LiveDot.BeginAnimation(OpacityProperty, Motion.Throttled(new DoubleAnimation(1, 0.35, TimeSpan.FromMilliseconds(900))
             {
                 AutoReverse = true,
                 RepeatBehavior = RepeatBehavior.Forever,
                 EasingFunction = Motion.EaseOut,
-            }),
+            })),
             () => LiveDot.BeginAnimation(OpacityProperty, null));
     }
 

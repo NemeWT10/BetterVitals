@@ -137,6 +137,16 @@ public sealed class Motion : ObservableObject
     // ───────────── endless animations, only while visible ─────────────
 
     /// <summary>
+    /// An endless ambient animation (a breathing dot, a sweep) at a capped frame rate: at WPF's default 60 fps a small
+    /// pulse redraws the whole transparent window and costs most of a core in software rendering.
+    /// </summary>
+    public static T Throttled<T>(T animation, int fps = 20) where T : Timeline
+    {
+        Timeline.SetDesiredFrameRate(animation, fps);
+        return animation;
+    }
+
+    /// <summary>
     /// Runs <paramref name="start"/> while the element is visible and its window is not minimized
     /// and calls <paramref name="stop"/> otherwise — WPF would otherwise render frames forever, also in the tray.
     /// </summary>

@@ -19,19 +19,23 @@ public partial class TrayMenuWindow : Window
     /// <summary>Snapshot / probe mode: never activated, so it must not close on deactivation.</summary>
     internal bool Offscreen { get; set; }
 
+    private bool _closing;
+
     public TrayMenuWindow()
     {
         InitializeComponent();
         Language = Loc.I.XmlLang;
         VersionText.Text = AppEnv.ShortVersion;
         OverlaySwitch.IsChecked = SettingsStore.I?.Current.Overlay.Enabled == true;
+        // closing deactivates the window too: never close twice
+        Closing += (_, _) => _closing = true;
         Deactivated += (_, _) =>
         {
-            if (!Offscreen) Close();
+            if (!Offscreen && !_closing) Close();
         };
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape) Close();
+            if (e.Key == Key.Escape && !_closing) Close();
         };
     }
 

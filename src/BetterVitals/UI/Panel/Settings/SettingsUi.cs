@@ -271,12 +271,12 @@ internal sealed class ProgressTrack : Grid
         Value = 0.3;
         // the sweep runs only while the track is on screen
         Motion.WhileVisible(this,
-            () => _move.BeginAnimation(TranslateTransform.XProperty, new System.Windows.Media.Animation.DoubleAnimation(
+            () => _move.BeginAnimation(TranslateTransform.XProperty, Motion.Throttled(new System.Windows.Media.Animation.DoubleAnimation(
                 -0.3 * Math.Max(ActualWidth, 1), Math.Max(ActualWidth, 1), TimeSpan.FromMilliseconds(1300))
             {
                 RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
                 EasingFunction = Motion.EaseOut,
-            }),
+            }, 30)),
             () => _move.BeginAnimation(TranslateTransform.XProperty, null));
     }
 
