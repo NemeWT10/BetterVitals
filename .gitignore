@@ -12,3 +12,7 @@ tests/output/
 *.part
 Thumbs.db
 desktop.ini
+
+# release signing key (kept in .claude/release, never in git)
+*.pkcs8
+*signing-key*

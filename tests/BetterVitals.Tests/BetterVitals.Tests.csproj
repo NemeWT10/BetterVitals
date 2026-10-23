@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
@@ -17,6 +17,7 @@
     <ProjectReference Include="..\..\src\BetterVitals.History\BetterVitals.History.csproj" />
     <ProjectReference Include="..\..\src\BetterVitals.Fps\BetterVitals.Fps.csproj" />
     <ProjectReference Include="..\..\src\BetterVitals.Overlay\BetterVitals.Overlay.csproj" />
+    <ProjectReference Include="..\..\src\BetterVitals.Platform\BetterVitals.Platform.csproj" />
   </ItemGroup>
 
 </Project>

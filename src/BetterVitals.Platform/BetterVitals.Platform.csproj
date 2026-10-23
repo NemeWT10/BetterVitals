@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Windows integration without WPF: elevation through Task Scheduler, install / uninstall, the bundled PawnIO driver
+       installer, autostart, signed updates from GitHub Releases, power / device / session events, anti-cheat detection. -->
+  <PropertyGroup>
+    <RootNamespace>BetterVitals.Platform</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BetterVitals.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Official, unmodified, Authenticode-signed PawnIO 2.2.0 installer (namazso allows redistributing it unmodified).
+         SHA-256 pinned in PawnIo.cs and in the winget manifest namazso.PawnIO 2.2.0. -->
+    <EmbeddedResource Include="Assets\PawnIO_setup.exe" LogicalName="BetterVitals.PawnIO_setup.exe" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BetterVitals.Core\BetterVitals.Core.csproj" />
+  </ItemGroup>
+
+</Project>

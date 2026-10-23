@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Release signing: "new <key>" creates the ECDSA P-256 key (kept outside git), "sign <key> <exe>" writes
+       <exe>.sha256 and <exe>.sig next to the exe. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BetterVitals.Tools.ReleaseKey</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BetterVitals.Platform\BetterVitals.Platform.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -31,6 +31,7 @@
     <ProjectReference Include="..\BetterVitals.History\BetterVitals.History.csproj" />
     <ProjectReference Include="..\BetterVitals.Fps\BetterVitals.Fps.csproj" />
     <ProjectReference Include="..\BetterVitals.Overlay\BetterVitals.Overlay.csproj" />
+    <ProjectReference Include="..\BetterVitals.Platform\BetterVitals.Platform.csproj" />
   </ItemGroup>
 
 </Project>
