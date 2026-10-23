@@ -128,6 +128,9 @@ public sealed class SensorsListModel
 
     public bool RecordingEnabled { get; private set; } = true;
 
+    /// <summary>Called when a row scrolls into view (the page refreshes it and re-aims its demand).</summary>
+    public Action<SensorRowModel>? RowShown { get; set; }
+
     public string Search
     {
         get => _search;
@@ -174,7 +177,7 @@ public sealed class SensorsListModel
     public void Rebuild()
     {
         _sections = HardwareTree.Build(_hub)
-            .Select(g => new SectionModel(this, g, g.Sensors.Select(s => new SensorRowModel(s, g.Name, Actions)).ToList()))
+            .Select(g => new SectionModel(this, g, g.Sensors.Select(s => new SensorRowModel(s, g.Name, Actions) { Shown = OnRowShown }).ToList()))
             .ToList();
         foreach (var s in _sections) s.IsCollapsed = _collapsed.Contains(s.Group.Id);
         AvailableKinds = SensorGroups.Order.Where(k => _sections.Any(s => s.Rows.Any(r => r.Group == k))).ToList();
@@ -182,6 +185,8 @@ public sealed class SensorsListModel
         if (Actions.Settings is { } settings) Sync(settings);
         ApplyFilter();
     }
+
+    private void OnRowShown(SensorRowModel r) => RowShown?.Invoke(r);
 
     public bool Matches(SensorRowModel r)
     {

@@ -139,6 +139,7 @@ public sealed class SensorsPage : UserControl, IPage, IDisposable
         page.Children.Add(root);
         Content = page;
 
+        Model.RowShown = OnRowShown;
         Model.ItemsReplaced += OnItemsReplaced;
         OnItemsReplaced();
         BuildChips();
@@ -197,6 +198,21 @@ public sealed class SensorsPage : UserControl, IPage, IDisposable
         var unit = SettingsStore.I?.Current.General.TemperatureUnit ?? TemperatureUnit.Celsius;
         Model.Refresh(_hub.Latest, _hub.Stats, unit);
         UpdateDemand();
+    }
+
+    private bool _demandPosted;
+
+    /// <summary>A row scrolled in: its values now (from the latest frame), and the demand follows once per layout pass.</summary>
+    private void OnRowShown(SensorRowModel r)
+    {
+        r.Refresh(_hub.Latest, _hub.Stats, SettingsStore.I?.Current.General.TemperatureUnit ?? TemperatureUnit.Celsius);
+        if (!_shown || _demandPosted) return;
+        _demandPosted = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+        {
+            _demandPosted = false;
+            if (_shown) UpdateDemand();
+        });
     }
 
     /// <summary>The demand follows the rows on screen (scrolling, filters, collapsing); updated in place.</summary>

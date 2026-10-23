@@ -29,6 +29,7 @@ public sealed class SensorRowModel : ObservableObject
     private bool _pinned;
     private bool _recordingEnabled = true;
     private int _lastSequence = -1;
+    private int _views;
 
     public SensorRowModel(SensorDescriptor sensor, string hardwareName, SensorActions actions)
     {
@@ -98,7 +99,19 @@ public sealed class SensorRowModel : ObservableObject
     public SparkSeries Series { get; } = new(40);
 
     /// <summary>How many views show this row right now (realized, loaded rows).</summary>
-    public int Views { get; internal set; }
+    public int Views
+    {
+        get => _views;
+        internal set
+        {
+            var appeared = _views == 0 && value > 0;
+            _views = value;
+            if (appeared) Shown?.Invoke(this);
+        }
+    }
+
+    /// <summary>A view started to show the row (scrolled in, expanded): the owner fills it at once instead of after the next tick.</summary>
+    internal Action<SensorRowModel>? Shown { get; set; }
 
     public bool IsShown => Views > 0;
 
