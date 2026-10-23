@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Renders the screenshots of the public README from the app's real windows and pages, on a fake PC
+       (FakeSensorSource on a pinned clock, preview history). Offscreen only, never the screen or real sensors.
+       Run it through tools\readme-media.ps1 (hidden desktop). A dev tool: nothing of it ships in the app. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>ReadmeMedia</AssemblyName>
+    <RootNamespace>ReadmeMedia</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BetterVitals\BetterVitals.csproj" />
+  </ItemGroup>
+
+</Project>
