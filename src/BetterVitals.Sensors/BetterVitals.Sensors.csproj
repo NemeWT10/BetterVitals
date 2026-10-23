@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Sampling engine and sensor sources: LibreHardwareMonitor (PawnIO), native Windows, derived, fake (tests). No WPF. -->
+  <PropertyGroup>
+    <RootNamespace>BetterVitals.Sensors</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BetterVitals.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 0.9.7-pre: RTX 50 "GPU Hot Spot" (PR #2467) and per-chip memory temperatures (PR #2538); 0.9.6 has neither. Pinned. -->
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.7-pre771" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BetterVitals.Core\BetterVitals.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,35 @@
+<Project>
+  <!-- Single source of truth for the application version (SemVer). -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <Product>BetterVitals</Product>
+    <Company>NemeWT10</Company>
+    <Authors>NemeWT10</Authors>
+    <Copyright>© 2026 NemeWT10</Copyright>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- GitHub repository whose releases carry the update ("owner/name"). -->
+    <UpdateRepository>NemeWT10/BetterVitals</UpdateRepository>
+  </PropertyGroup>
+
+  <!-- InformationalVersion = <version>+<commit>.<build date>, shown in Settings → About. -->
+  <Target Name="BvVersionInfo" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo">
+    <Exec Command="git rev-parse --short HEAD 2&gt;nul" ConsoleToMSBuild="true" IgnoreExitCode="true"
+          StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true"
+          WorkingDirectory="$(MSBuildThisFileDirectory)">
+      <Output TaskParameter="ConsoleOutput" PropertyName="BvCommit" />
+      <Output TaskParameter="ExitCode" PropertyName="BvGitExit" />
+    </Exec>
+    <PropertyGroup>
+      <BvCommit Condition="'$(BvGitExit)' != '0' or '$(BvCommit)' == ''">local</BvCommit>
+      <BvBuildDate>$([System.DateTime]::UtcNow.ToString("yyyyMMdd"))</BvBuildDate>
+      <InformationalVersion>$(Version)+$(BvCommit).$(BvBuildDate)</InformationalVersion>
+    </PropertyGroup>
+  </Target>
+</Project>

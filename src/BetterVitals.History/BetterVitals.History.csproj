@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Append-only time-series store: compressed 60 s blocks, 1 min / 1 h rollups, range stats, retention, CSV export. No WPF. -->
+  <PropertyGroup>
+    <RootNamespace>BetterVitals.History</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BetterVitals.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BetterVitals.Core\BetterVitals.Core.csproj" />
+  </ItemGroup>
+
+</Project>

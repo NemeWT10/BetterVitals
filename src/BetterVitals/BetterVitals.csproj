@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <!-- App.xaml is a Page: Program.Main creates the App, calls InitializeComponent and Run. -->
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <StartupObject>BetterVitals.Program</StartupObject>
+    <AssemblyName>BetterVitals</AssemblyName>
+    <RootNamespace>BetterVitals</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Lean runtime (lessons from BetterShot / BetterNotepad, re-measured by perf-guard): workstation GC without the
+         background GC thread, conserve memory, no dynamic PGO. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <TieredPGO>false</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+    <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BetterVitals.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BetterVitals.Core\BetterVitals.Core.csproj" />
+    <ProjectReference Include="..\BetterVitals.Sensors\BetterVitals.Sensors.csproj" />
+    <ProjectReference Include="..\BetterVitals.History\BetterVitals.History.csproj" />
+    <ProjectReference Include="..\BetterVitals.Fps\BetterVitals.Fps.csproj" />
+    <ProjectReference Include="..\BetterVitals.Overlay\BetterVitals.Overlay.csproj" />
+  </ItemGroup>
+
+</Project>

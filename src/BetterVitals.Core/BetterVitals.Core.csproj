@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Contracts and shared services: sensor model, demand, snapshots, settings, paths, log, formatting, glossary. No WPF. -->
+  <PropertyGroup>
+    <RootNamespace>BetterVitals.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BetterVitals.Tests" />
+    <!-- the engine fills frames, assigns sensor slots and accumulates session stats -->
+    <InternalsVisibleTo Include="BetterVitals.Sensors" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Glossary\glossary.json" Condition="Exists('Glossary\glossary.json')" LogicalName="BetterVitals.Glossary.json" />
+  </ItemGroup>
+
+</Project>

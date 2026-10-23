@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- FPS / frame times of the foreground app from ETW present events (no injection, no handles to the game). No WPF. -->
+  <PropertyGroup>
+    <RootNamespace>BetterVitals.Fps</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BetterVitals.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BetterVitals.Core\BetterVitals.Core.csproj" />
+  </ItemGroup>
+
+</Project>

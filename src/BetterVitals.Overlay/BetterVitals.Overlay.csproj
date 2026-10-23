@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- On-screen overlay: native top-most click-through window, D3D11 + Direct2D/DirectWrite + DirectComposition, own thread. No WPF. -->
+  <PropertyGroup>
+    <RootNamespace>BetterVitals.Overlay</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BetterVitals.Tests" />
+    <InternalsVisibleTo Include="BetterVitals" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BetterVitals.Core\BetterVitals.Core.csproj" />
+  </ItemGroup>
+
+</Project>
