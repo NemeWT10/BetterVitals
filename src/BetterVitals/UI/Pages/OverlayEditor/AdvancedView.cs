@@ -15,19 +15,19 @@ using Microsoft.Win32;
 namespace BetterVitals.UI.Pages.OverlayEditor;
 
 /// <summary>
-/// Advanced mode (user requirement: customize everything "once and for all"): what is on the overlay as boxes, rows and
-/// items (drag items between rows, into new rows and into boxes of their own; every per-item option), the global style,
-/// the exact position of each box (drag in the preview, 9 anchors + X / Y, monitor, "Set on screen"), behavior and
-/// profiles.
+/// Advanced mode (user requirement: customize everything "once and for all"): what is on the overlay as a grid of cells
+/// per window, arranged on a board by dragging (the optional second window has a board of its own; every per-cell
+/// option below the board), the global style, the exact position of each window (drag in the preview, 9 anchors + X /
+/// Y, monitor, "Set on screen"), behavior and profiles.
 /// </summary>
 internal sealed class AdvancedView : StackPanel
 {
     private readonly EditorContext _ctx;
-    private readonly LayoutTree _tree;
+    private readonly LayoutBoard _board;
     private readonly SegmentBar<OverlayGrouping> _arrange;
     private readonly Border _placeCard;
-    private readonly FrameworkElement _boxLine;
-    private readonly ComboBox _box;
+    private readonly FrameworkElement _windowLine;
+    private readonly SegmentBar<string> _window;
     private readonly Dictionary<OverlayAnchor, RadioButton> _anchors = [];
     private readonly TextBox _x;
     private readonly TextBox _y;
@@ -47,8 +47,8 @@ internal sealed class AdvancedView : StackPanel
     private readonly OverlayProfileStore _store;
     private bool _syncing;
 
-    /// <summary>The box whose placement the Position section edits (kept across rebuilds while the app runs).</summary>
-    private static string _boxId = OverlayLayout.MainBoxId;
+    /// <summary>The window whose placement the Position section edits (kept across rebuilds while the app runs).</summary>
+    private static string _windowId = OverlayLayout.MainWindowId;
 
     public AdvancedView(EditorContext ctx, OverlayProfileStore profiles)
     {
@@ -56,51 +56,29 @@ internal sealed class AdvancedView : StackPanel
         _store = profiles;
         var layout = ctx.Layout;
 
-        // ── on the overlay: boxes, rows, items ──
-        var items = new StackPanel();
+        // ── on the overlay: a board per window (the quick arrangement at the end) ──
         _arrange = new SegmentBar<OverlayGrouping>(
             [(OverlayGrouping.List, "ovl.group.list"), (OverlayGrouping.ByComponent, "ovl.group.byComponent"), (OverlayGrouping.OneLine, "ovl.group.oneLine")],
             layout.Grouping, OnArrange, fontSize: 12);
-        var arrangeLine = Ui.Above("ovl.tree.arrange", _arrange, "ovl.tree.arrange.hint", top: 0);
-        arrangeLine.Margin = new Thickness(0, 0, 0, 16);
-        items.Children.Add(arrangeLine);
-        _tree = new LayoutTree(ctx);
-        _tree.PositionRequested += ShowPosition;
-        _tree.BoxCreated += id =>
-        {
-            _boxId = id;
-            BuildBoxes();
-            Sync();
-        };
-        items.Children.Add(_tree);
-        var addRow = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
-        var add = Ui.Button("SecondaryButton", "ovl.items.add", "Icon.Plus", (_, _) => _ctx.OpenPicker(true));
-        add.Margin = new Thickness(0, 0, 8, 0);
-        addRow.Children.Add(add);
-        var start = Ui.Button("GhostButton", "ovl.items.defaults", "Icon.Sparkle", (_, _) =>
-        {
-            if (_ctx.Model.AddDefaults(_ctx.Friendly) > 0) BuildItems();
-        });
-        addRow.Children.Add(start);
-        items.Children.Add(addRow);
-        Children.Add(Ui.Section("ovl.tree.title", "ovl.tree.hint", items, iconKey: "Icon.List"));
+        var arrangeLine = Ui.Above("ovl.board.arrange", _arrange, "ovl.board.arrange.hint", top: 18);
+        _board = new LayoutBoard(ctx, arrangeLine);
+        _board.PositionRequested += ShowPosition;
+        Children.Add(Ui.Section("ovl.board.title", "ovl.board.hint", _board, iconKey: "Icon.List"));
 
         // ── style ──
         Children.Add(Ui.Section("ovl.style.title", "ovl.style.hint", new StyleSection(ctx), iconKey: "Icon.Palette"));
 
-        // ── placement (of the box chosen at the top) ──
+        // ── placement (of the window chosen at the top) ──
         var place = new StackPanel();
-        _box = new ComboBox { MinWidth = 240 };
-        _box.SetResourceReference(StyleProperty, "Combo");
-        _box.SelectionChanged += (_, _) =>
+        _window = new SegmentBar<string>([(OverlayLayout.MainWindowId, "ovl.window.main"), (OverlayLayout.SecondWindowId, "ovl.window.second")], _windowId, id =>
         {
-            if (_syncing || _box.SelectedItem is not Choice<string> c) return;
-            _boxId = c.Value;
+            if (_syncing) return;
+            _windowId = id;
             Sync();
-        };
-        _boxLine = Ui.Stacked("ovl.place.box", _box, top: 0);
-        _boxLine.Margin = new Thickness(0, 0, 0, 14);
-        place.Children.Add(_boxLine);
+        }, fontSize: 12);
+        _windowLine = Ui.Stacked("ovl.place.window", _window, top: 0);
+        _windowLine.Margin = new Thickness(0, 0, 0, 14);
+        place.Children.Add(_windowLine);
         place.Children.Add(Ui.Hint("ovl.place.dragHint", new Thickness(0, 0, 0, 12)));
         var grid = new UniformGrid { Rows = 3, Columns = 3, Width = 96, Height = 72 };
         var group = Ui.NewGroup();
@@ -114,7 +92,7 @@ internal sealed class AdvancedView : StackPanel
             rb.Checked += (_, _) =>
             {
                 if (_syncing) return;
-                _ctx.Model.EditPlacement(_boxId, p =>
+                _ctx.Model.EditPlacement(_windowId, p =>
                 {
                     p.Anchor = anchor;
                     p.OffsetX = 0;
@@ -129,8 +107,8 @@ internal sealed class AdvancedView : StackPanel
         anchorBox.SetResourceReference(Border.BackgroundProperty, "Brush.BgAlt");
         anchorBox.SetResourceReference(Border.BorderBrushProperty, "Brush.Border");
 
-        _x = Number(v => _ctx.Model.EditPlacement(_boxId, p => p.OffsetX = v));
-        _y = Number(v => _ctx.Model.EditPlacement(_boxId, p => p.OffsetY = v));
+        _x = Number(v => _ctx.Model.EditPlacement(_windowId, p => p.OffsetX = v));
+        _y = Number(v => _ctx.Model.EditPlacement(_windowId, p => p.OffsetY = v));
         var xy = new StackPanel { Margin = new Thickness(18, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         xy.Children.Add(Field("X", _x));
         xy.Children.Add(Field("Y", _y, top: 8));
@@ -143,7 +121,7 @@ internal sealed class AdvancedView : StackPanel
         place.Children.Add(Ui.Stacked("ovl.place.anchor", anchorRow, top: 0));
         _margin = new SliderLine(0, 80, layout.Placement.Margin, 1, v => v.ToString("0", Loc.I.Culture) + " px", v =>
         {
-            var id = _boxId;
+            var id = _windowId;
             _ctx.Defer(l =>
             {
                 if (l.PlacementOf(id) is { } p) p.Margin = v;
@@ -160,7 +138,7 @@ internal sealed class AdvancedView : StackPanel
         _monitor.SelectionChanged += (_, _) =>
         {
             if (_syncing || _monitor.SelectedItem is not Choice<string> c) return;
-            _ctx.Model.EditPlacement(_boxId, p => p.MonitorKey = c.Value);
+            _ctx.Model.EditPlacement(_windowId, p => p.MonitorKey = c.Value);
         };
         _monitorLine = Ui.Stacked("ovl.monitor.which", _monitor, top: 10);
         place.Children.Add(_monitorLine);
@@ -168,7 +146,7 @@ internal sealed class AdvancedView : StackPanel
         _monitorNote.SetResourceReference(StyleProperty, "Hint");
         place.Children.Add(_monitorNote);
 
-        // "Set on screen": every box of the real overlay becomes draggable; Done / Cancel here while it runs
+        // "Set on screen": every window of the real overlay becomes draggable; Done / Cancel here while it runs
         place.Children.Add(Ui.Divider());
         _onScreen = Ui.Button("PrimaryButton", "ovl.onScreen", "Icon.Monitor", (_, _) => BeginOnScreen());
         _onScreen.HorizontalAlignment = HorizontalAlignment.Left;
@@ -249,7 +227,6 @@ internal sealed class AdvancedView : StackPanel
         prof.Children.Add(files);
         Children.Add(Ui.Section("ovl.profiles.title", "ovl.profiles.hint", prof, iconKey: "Icon.Layers"));
 
-        BuildBoxes();
         BuildMonitors();
         BuildProfiles();
         Sync();
@@ -258,24 +235,23 @@ internal sealed class AdvancedView : StackPanel
     /// <summary>"Restore defaults" (the page asks and offers Undo).</summary>
     public event Action? ResetRequested;
 
-    /// <summary>The "On the overlay" tree (tests).</summary>
-    internal LayoutTree Tree => _tree;
+    /// <summary>The "On the overlay" boards (tests).</summary>
+    internal LayoutBoard Board => _board;
 
-    /// <summary>The box whose placement the Position section edits.</summary>
-    internal string SelectedBox => _boxId;
+    /// <summary>The window whose placement the Position section edits.</summary>
+    internal string SelectedWindow => _windowId;
 
-    /// <summary>Re-reads placement after a drag / external change, the boxes and the item titles.</summary>
+    /// <summary>Re-reads placement after a drag / external change, the second window and the boards.</summary>
     public void Sync()
     {
         _syncing = true;
         try
         {
-            if (_ctx.Layout.PlacementOf(_boxId) is null) _boxId = OverlayLayout.MainBoxId;
-            if (_box.Items.Count != _ctx.Layout.Boxes.Count + 1) BuildBoxes();
-            _boxLine.Visibility = _ctx.Layout.Boxes.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-            _box.SelectedItem = _box.Items.OfType<Choice<string>>().FirstOrDefault(c => c.Value == _boxId);
+            if (_windowId == OverlayLayout.SecondWindowId && !_ctx.Layout.Second.Enabled) _windowId = OverlayLayout.MainWindowId;
+            _windowLine.Visibility = _ctx.Layout.Second.Enabled ? Visibility.Visible : Visibility.Collapsed;
+            _window.Set(_windowId);
             _arrange.Set(_ctx.Layout.Grouping);
-            var p = _ctx.Layout.PlacementOf(_boxId)!;
+            var p = _ctx.Layout.PlacementOf(_windowId)!;
             foreach (var (a, rb) in _anchors) rb.IsChecked = a == p.Anchor;
             if (!_x.IsKeyboardFocused) _x.Text = Num(p.OffsetX);
             if (!_y.IsKeyboardFocused) _y.Text = Num(p.OffsetY);
@@ -294,34 +270,36 @@ internal sealed class AdvancedView : StackPanel
             var editing = AppServices.Overlay.IsEditingOnScreen;
             _onScreen.Visibility = _onScreenHint.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
             _onScreenActive.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
-            _tabKey.Visibility = _ctx.Layout.Boxes.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-            _tree.RefreshTitles();
+            _tabKey.Visibility = _ctx.Layout.Second.Enabled ? Visibility.Visible : Visibility.Collapsed;
         }
         finally
         {
             _syncing = false;
         }
+        _board.Sync();
     }
 
-    public void UpdateValues() => _tree.UpdateValues();
+    /// <summary>Live values (editor tick): the boards show them like the overlay.</summary>
+    public void UpdateValues() => _board.RequestRender();
 
-    /// <summary>Rebuilds the boxes / rows / items tree (after items were added elsewhere, or a reload).</summary>
-    public void BuildItems()
+    /// <summary>The page runs (shown) or not: the boards render only meanwhile.</summary>
+    public void SetRunning(bool running)
     {
-        _tree.Build();
-        BuildBoxes();
+        if (running) _board.Start();
+        else _board.Stop();
+    }
+
+    /// <summary>Items were added elsewhere (the picker): the boards show them.</summary>
+    public void BuildItems() => Sync();
+
+    /// <summary>A window was dragged on the preview: its placement shows below.</summary>
+    public void OnWindowDragged(string windowId)
+    {
+        _windowId = windowId;
         Sync();
     }
 
-    /// <summary>A box was dragged on the preview: its placement shows below.</summary>
-    public void OnBoxDragged(string boxId)
-    {
-        _boxId = boxId;
-        Sync();
-        _tree.Build();
-    }
-
-    // ───────────── boxes ─────────────
+    // ───────────── arrangement ─────────────
 
     private void OnArrange(OverlayGrouping grouping)
     {
@@ -329,31 +307,13 @@ internal sealed class AdvancedView : StackPanel
         var before = LayoutJson.Clone(_ctx.Layout);
         var custom = _ctx.Layout.Grouping == OverlayGrouping.Custom;
         _ctx.Model.Regroup(grouping);
-        _tree.Build();
         if (custom) _ctx.Toast(Loc.T("ovl.toast.regrouped"), ToastKind.Success, Loc.T("common.undo"), () => _ctx.Model.Replace(before));
     }
 
-    private void BuildBoxes()
+    /// <summary>A board's "Position": that window in the Position section, scrolled into view.</summary>
+    private void ShowPosition(string windowId)
     {
-        var was = _syncing;
-        _syncing = true;
-        try
-        {
-            _box.Items.Clear();
-            foreach (var box in _ctx.Layout.AllBoxes()) _box.Items.Add(new Choice<string>(box.Id, _ctx.BoxTitle(box.Id)));
-            _box.SelectedItem = _box.Items.OfType<Choice<string>>().FirstOrDefault(c => c.Value == _boxId);
-        }
-        finally
-        {
-            _syncing = was;
-        }
-    }
-
-    /// <summary>The tree's "Position" of a box: that box in the Position section, scrolled into view.</summary>
-    private void ShowPosition(string boxId)
-    {
-        _boxId = boxId;
-        BuildBoxes();
+        _windowId = windowId;
         Sync();
         _placeCard.BringIntoView();
     }
@@ -363,11 +323,11 @@ internal sealed class AdvancedView : StackPanel
     private void OnMonitorMode(OverlayMonitorMode mode)
     {
         if (_syncing) return;
-        var current = _ctx.Layout.PlacementOf(_boxId)!;
+        var current = _ctx.Layout.PlacementOf(_windowId)!;
         var key = mode == OverlayMonitorMode.Specific
             ? current.MonitorKey ?? AppServices.Overlay.Monitors.FirstOrDefault(m => m.IsPrimary)?.Key ?? AppServices.Overlay.Monitors.FirstOrDefault()?.Key
             : current.MonitorKey;
-        _ctx.Model.EditPlacement(_boxId, p =>
+        _ctx.Model.EditPlacement(_windowId, p =>
         {
             p.MonitorMode = mode;
             p.MonitorKey = key;
@@ -410,7 +370,6 @@ internal sealed class AdvancedView : StackPanel
                     }
                 });
                 Sync();
-                _tree.Build();
                 _ctx.Toast(Loc.T("ovl.toast.placed"), ToastKind.Success, null, null);
             },
             cancel: Sync);

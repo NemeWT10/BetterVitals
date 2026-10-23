@@ -467,7 +467,7 @@ internal sealed class SimpleView : StackPanel
 
 /// <summary>
 /// Simple mode, next to the preview: the overlay's items in reading order, reordered by dragging, removable. Items that
-/// share a row sit close together; boxes detached in Advanced mode get a list of their own under their name.
+/// share a row sit close together; the second window (Advanced mode) gets a list of its own under its name.
 /// </summary>
 internal sealed class OrderPanel : StackPanel
 {
@@ -501,12 +501,12 @@ internal sealed class OrderPanel : StackPanel
         var layout = _ctx.Layout;
         _empty.Visibility = layout.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
         var number = 0;
-        foreach (var box in layout.AllBoxes())
+        foreach (var window in layout.Windows())
         {
-            if (box.Rows.Count == 0) continue;
-            if (layout.Boxes.Count > 0)
+            if (window.Cells.Count == 0) continue;
+            if (layout.Second.Enabled)
             {
-                var caption = new TextBlock { Text = _ctx.BoxTitle(box.Id), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2, _lists.Children.Count == 0 ? 0 : 10, 0, 6) };
+                var caption = new TextBlock { Text = EditorContext.WindowTitle(window.Id), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2, _lists.Children.Count == 0 ? 0 : 10, 0, 6) };
                 caption.SetResourceReference(TextBlock.ForegroundProperty, "Brush.TextDim");
                 _lists.Children.Add(caption);
             }
@@ -516,17 +516,17 @@ internal sealed class OrderPanel : StackPanel
                 _ctx.Model.Move(id, index);
                 Rebuild();
             };
-            for (var r = 0; r < box.Rows.Count; r++)
+            var cells = OverlayGrid.Ordered(window.Cells);
+            int Size(int row) => cells.Count(c => c.Row == row);
+            for (var i = 0; i < cells.Count; i++)
             {
-                var items = box.Rows[r].Items;
-                for (var k = 0; k < items.Count; k++)
-                {
-                    var row = ItemRow(items[k], ++number);
-                    // items of one row stay together; a row of several is set apart from the next one
-                    var bottom = k < items.Count - 1 ? 2 : items.Count > 1 || (r + 1 < box.Rows.Count && box.Rows[r + 1].Items.Count > 1) ? 12 : 6;
-                    row.Margin = new Thickness(0, 0, 0, bottom);
-                    list.AddRow(items[k].Id, row, (FrameworkElement)row.Tag);
-                }
+                var cell = cells[i];
+                var row = ItemRow(cell, ++number);
+                // cells of one row stay together; a row of several is set apart from the next one
+                var last = i + 1 >= cells.Count || cells[i + 1].Row != cell.Row;
+                var bottom = !last ? 2 : Size(cell.Row) > 1 || (i + 1 < cells.Count && Size(cells[i + 1].Row) > 1) ? 12 : 6;
+                row.Margin = new Thickness(0, 0, 0, bottom);
+                list.AddRow(cell.Id, row, (FrameworkElement)row.Tag);
             }
             _count += list.Count;
             _lists.Children.Add(list);

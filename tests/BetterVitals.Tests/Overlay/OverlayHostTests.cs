@@ -165,7 +165,7 @@ public class OverlayHostTests
         {
             OverlayPlacement? committed = null;
             var cancelled = false;
-            host.EnterEditMode(p => committed = p[OverlayLayout.MainBoxId], () => cancelled = true);
+            host.EnterEditMode(p => committed = p[OverlayLayout.MainWindowId], () => cancelled = true);
             var d0 = host.Diagnostics();
             Assert.True(d0.Editing);
             Assert.Equal(0u, d0.ExStyle & Win32.WS_EX_TRANSPARENT);

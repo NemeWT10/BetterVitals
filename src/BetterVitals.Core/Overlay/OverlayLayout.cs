@@ -25,37 +25,38 @@ public enum OverlayVisibility : byte
 }
 
 /// <summary>
-/// How the items of a row are drawn (every row of every box). The names are the ones of settings schema 1, where the
-/// overlay was a flat list: Vertical = one item per line, Horizontal / Compact = all items in one line.
+/// How every cell of the grid is drawn ("row style" in the editor). The names are the ones of settings schema 1, where
+/// the overlay was a flat list: Vertical = one item per line, Horizontal / Compact = all items in one line.
 /// </summary>
 public enum OverlayArrangement : byte
 {
     /// <summary>
-    /// Row label in a column on the left, then the row's values side by side: "GPU  66 °C · GPU HS 76 °C · 2856 MHz".
-    /// A row with one item is the classic list line "label | value unit".
+    /// Label beside the value. The first column has a label column on the left that names the row ("GPU  66 °C ·
+    /// GPU HS 76 °C · 2856 MHz"); a cell further right shows its own small label only where the row label does not say
+    /// it. A grid of one column is the classic list "label | value unit".
     /// </summary>
     Vertical,
 
-    /// <summary>Every item with its label above the value, side by side, dividers between.</summary>
+    /// <summary>Every cell with its label above the value, dividers between the cells of a row.</summary>
     Horizontal,
 
     /// <summary>Compact cells with dividers: "CPU 45° | GPU 60° | FPS 144".</summary>
     Compact,
 }
 
-/// <summary>How Simple mode puts the main box's items into rows. Moving items by hand (Advanced mode) makes it Custom.</summary>
+/// <summary>How Simple mode places the main window's cells in its grid. Arranging cells by hand (Advanced mode) makes it Custom.</summary>
 public enum OverlayGrouping : byte
 {
-    /// <summary>One item per row.</summary>
+    /// <summary>One cell per row: a single column.</summary>
     List,
 
     /// <summary>One row per component (CPU, GPU, RAM, FPS…), in the order the components first appear.</summary>
     ByComponent,
 
-    /// <summary>Every item in one row.</summary>
+    /// <summary>Every cell in one row.</summary>
     OneLine,
 
-    /// <summary>Rows arranged by hand; nothing regroups them.</summary>
+    /// <summary>A grid arranged by hand; nothing regroups it.</summary>
     Custom,
 }
 
@@ -182,7 +183,10 @@ public sealed class OverlayThreshold
     public string Color { get; set; } = "#FBBF24";
 }
 
-/// <summary>One entry of the overlay: a single sensor, or several of one kind (cores) drawn together.</summary>
+/// <summary>
+/// One cell of the overlay: a single sensor, or several of one kind (cores) drawn together, at <see cref="Row"/> /
+/// <see cref="Column"/> of its window's grid.
+/// </summary>
 public sealed class OverlayItem
 {
     /// <summary>Editor identity (stable while editing, reordering).</summary>
@@ -218,55 +222,79 @@ public sealed class OverlayItem
     public string? FontFamily { get; set; }
 
     public double? ValueSize { get; set; }
+
+    /// <summary>Grid row inside its window, 0 = top (cells of <see cref="OverlayLayout.Cells"/> / <see cref="OverlaySecondWindow.Cells"/>).</summary>
+    public int Row { get; set; }
+
+    /// <summary>Grid column inside its window, 0 = left.</summary>
+    public int Column { get; set; }
 }
 
-/// <summary>A line of the overlay: one or more items side by side ("GPU  66 °C · GPU HS 76 °C · 2856 MHz").</summary>
+/// <summary>A row of settings schema 2 (read only: <see cref="OverlayLayout.Normalize"/> turns it into a row of cells).</summary>
 public sealed class OverlayRow
 {
-    /// <summary>Editor identity.</summary>
-    public string Id { get; set; } = OverlayLayout.NewId();
+    public string? Id { get; set; }
 
-    /// <summary>
-    /// Row label; null = automatic: the item's own label for a row of one, the component ("CPU", "GPU", "FPS"…) for a row
-    /// of one component, else the first item's label. Items whose label equals the row label do not repeat it.
-    /// </summary>
+    /// <summary>The row's own name; it becomes the label of its first item when that has none.</summary>
     public string? Label { get; set; }
 
     public List<OverlayItem> Items { get; set; } = [];
 }
 
-/// <summary>A detached overlay box: its own window with its own place on screen and its own rows.</summary>
+/// <summary>A detached box of settings schema 2 (read only: the first one becomes the second window, the others join it).</summary>
 public sealed class OverlayBox
 {
-    public string Id { get; set; } = OverlayLayout.NewId();
+    public string? Id { get; set; }
 
-    /// <summary>Name in the editor ("GPU"); null = "Box 2", "Box 3"… Never drawn on the overlay.</summary>
     public string? Name { get; set; }
 
-    public OverlayPlacement Placement { get; set; } = new();
+    public OverlayPlacement? Placement { get; set; }
 
     public List<OverlayRow> Rows { get; set; } = [];
 }
 
-/// <summary>One box of a layout: the main one (the layout's own placement and rows) or a detached one.</summary>
-public readonly record struct OverlayBoxRef(string Id, OverlayPlacement Placement, List<OverlayRow> Rows)
+/// <summary>The optional second overlay window: its own place on the screen and its own grid of cells.</summary>
+public sealed class OverlaySecondWindow
 {
-    public bool IsMain => Id == OverlayLayout.MainBoxId;
+    /// <summary>
+    /// The window is on (the editor shows its board). Turned off, its cells go back to the main window
+    /// (<see cref="OverlayLayout.Normalize"/>); on but without cells, it draws nothing.
+    /// </summary>
+    public bool Enabled { get; set; }
+
+    public OverlayPlacement Placement { get; set; } = new() { Anchor = OverlayAnchor.TopRight };
+
+    /// <summary>Cells in reading order (row by row, left to right).</summary>
+    public List<OverlayItem> Cells { get; set; } = [];
+}
+
+/// <summary>One overlay window of a layout: the main one (the layout's own placement and cells) or the second one.</summary>
+public readonly record struct OverlayWindowRef(string Id, OverlayPlacement Placement, List<OverlayItem> Cells)
+{
+    public bool IsMain => Id == OverlayLayout.MainWindowId;
 }
 
 /// <summary>
-/// Everything about the on-screen overlay (part of <see cref="Settings.AppSettings"/>). Items sit in rows; the rows of
-/// the main box are <see cref="Rows"/> (placed by <see cref="Placement"/>), detached boxes are <see cref="Boxes"/>, each
-/// with its own placement. Schema 1 had one flat <see cref="Items"/> list: <see cref="Normalize"/> turns it into rows
-/// that draw exactly as before.
+/// Everything about the on-screen overlay (part of <see cref="Settings.AppSettings"/>). Every item is a cell of a grid
+/// (<see cref="OverlayItem.Row"/>, <see cref="OverlayItem.Column"/>) inside one of at most two windows: the main one
+/// (<see cref="Cells"/>, placed by <see cref="Placement"/>) and the optional <see cref="Second"/> one with its own
+/// placement. Columns line up like a table. Older shapes — the flat <see cref="Items"/> list of schema 1 and the
+/// <see cref="Rows"/> / <see cref="Boxes"/> of schema 2 — are read and turned into cells by <see cref="Normalize"/>, so
+/// that they draw as before.
 /// </summary>
 public sealed class OverlayLayout
 {
-    /// <summary>Id of the main box (the layout's own <see cref="Placement"/> and <see cref="Rows"/>).</summary>
-    public const string MainBoxId = "main";
+    /// <summary>Id of the main window (the layout's own <see cref="Placement"/> and <see cref="Cells"/>).</summary>
+    public const string MainWindowId = "main";
 
-    /// <summary>Boxes including the main one: every box is a window, so a hand-edited file cannot ask for hundreds.</summary>
-    public const int MaxBoxes = 8;
+    /// <summary>Id of the optional second window (<see cref="Second"/>).</summary>
+    public const string SecondWindowId = "second";
+
+    /// <summary>The main window and the second one.</summary>
+    public const int MaxWindows = 2;
+
+    /// <summary>Row / column indices beyond this are clamped (a hand-edited file).</summary>
+    public const int MaxIndex = 4096;
 
     public static string NewId() => Guid.NewGuid().ToString("N");
 
@@ -281,125 +309,134 @@ public sealed class OverlayLayout
     /// <summary>The editor is in Advanced mode (Simple keeps everything at defaults except items and corner).</summary>
     public bool Advanced { get; set; }
 
-    /// <summary>The default items (FPS, CPU and GPU temperature) were filled in once; an emptied list stays empty.</summary>
+    /// <summary>The default items (FPS, CPU and GPU temperature) were filled in once; an emptied overlay stays empty.</summary>
     public bool DefaultsApplied { get; set; }
 
     /// <summary>Refresh interval of the overlay's values, 250–2000 ms.</summary>
     public int RefreshMs { get; set; } = 1000;
 
-    /// <summary>Where the main box sits.</summary>
+    /// <summary>Where the main window sits.</summary>
     public OverlayPlacement Placement { get; set; } = new();
 
     public OverlayStyle Style { get; set; } = new();
 
-    /// <summary>How Simple mode groups the main box (new layouts: by component; schema 1 files: from their arrangement).</summary>
+    /// <summary>How Simple mode places the main window's cells (new layouts: by component; schema 1 files: from their arrangement).</summary>
     public OverlayGrouping Grouping { get; set; } = OverlayGrouping.ByComponent;
 
-    /// <summary>The main box's rows, top to bottom.</summary>
-    public List<OverlayRow> Rows { get; set; } = [];
+    /// <summary>The main window's cells in reading order (row by row, left to right).</summary>
+    public List<OverlayItem> Cells { get; set; } = [];
 
-    /// <summary>Detached boxes (each its own window and placement), at most <see cref="MaxBoxes"/> − 1.</summary>
-    public List<OverlayBox> Boxes { get; set; } = [];
+    /// <summary>The optional second window.</summary>
+    public OverlaySecondWindow Second { get; set; } = new();
 
-    /// <summary>
-    /// Flat item list of settings schema 1 / profile v1 (also a short way to build a layout in code). <see cref="Normalize"/>
-    /// moves these items into the main box — one row each for <see cref="OverlayArrangement.Vertical"/>, one row for the
-    /// others, which draws exactly like the flat list did — and clears it. Never written.
-    /// </summary>
+    /// <summary>Flat item list of settings schema 1 / profile v1 (also a short way to build a layout in code); never written.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<OverlayItem>? Items { get; set; }
 
-    /// <summary>The main box, then the detached ones.</summary>
-    public IEnumerable<OverlayBoxRef> AllBoxes()
+    /// <summary>The main box's rows of settings schema 2 / profile v2; never written.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OverlayRow>? Rows { get; set; }
+
+    /// <summary>Detached boxes of settings schema 2 / profile v2; never written.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OverlayBox>? Boxes { get; set; }
+
+    /// <summary>The main window, then the second one while it is on.</summary>
+    public IEnumerable<OverlayWindowRef> Windows()
     {
-        yield return new OverlayBoxRef(MainBoxId, Placement, Rows);
-        foreach (var b in Boxes) yield return new OverlayBoxRef(b.Id, b.Placement, b.Rows);
+        yield return new OverlayWindowRef(MainWindowId, Placement, Cells);
+        if (Second is { Enabled: true } second) yield return new OverlayWindowRef(SecondWindowId, second.Placement, second.Cells);
     }
 
-    /// <summary>Every item of every box, in order (main box first, row by row).</summary>
+    /// <summary>Every item of every window in reading order (main window first), plus any not normalized yet.</summary>
     public IEnumerable<OverlayItem> AllItems()
     {
-        foreach (var row in Rows)
-            foreach (var item in row.Items) yield return item;
-        foreach (var box in Boxes)
-            foreach (var row in box.Rows)
-                foreach (var item in row.Items) yield return item;
-        if (Items is { } legacy)
-            foreach (var item in legacy) yield return item;
+        foreach (var item in Cells ?? []) yield return item;
+        foreach (var item in Second?.Cells ?? []) yield return item;
+        foreach (var item in Items ?? []) yield return item;
+        foreach (var row in Rows ?? [])
+            foreach (var item in row?.Items ?? []) yield return item;
+        foreach (var box in Boxes ?? [])
+            foreach (var row in box?.Rows ?? [])
+                foreach (var item in row?.Items ?? []) yield return item;
     }
 
-    /// <summary>Nothing to show in any box.</summary>
+    /// <summary>Nothing to show in any window.</summary>
     [JsonIgnore]
-    public bool IsEmpty => !AllItems().Any();
+    public bool IsEmpty => !AllItems().Any(i => i is not null);
 
-    /// <summary>Repairs nulls, clamps ranges and upgrades the flat schema-1 list after loading a file (hand-edited or from an older version).</summary>
+    /// <summary>
+    /// Repairs a layout after loading a file (hand-edited or from an older version): nulls, unknown enum values, empty /
+    /// duplicate / over-long editor ids, cells without sensors, negative or absurd grid indices, two cells on one
+    /// position (the later one moves right), empty rows and columns (they collapse), a second window that is off but
+    /// still holds cells (they go back to the main window), absurd sizes and placements. Upgrades schema 1 (flat list)
+    /// and schema 2 (rows and boxes) to cells that draw as before.
+    /// </summary>
     public void Normalize()
     {
         Placement ??= new OverlayPlacement();
         Style ??= new OverlayStyle();
-        Rows ??= [];
-        Boxes ??= [];
+        Cells ??= [];
+        Second ??= new OverlaySecondWindow();
+        Second.Placement ??= new OverlayPlacement { Anchor = OverlayAnchor.TopRight };
+        Second.Cells ??= [];
         // a number in the file that is no known option (hand-edited, or from a newer version) must not reach the renderer
         if (!Enum.IsDefined(Visibility)) Visibility = OverlayVisibility.Always;
         if (!Enum.IsDefined(Style.Arrangement)) Style.Arrangement = OverlayArrangement.Vertical;
         if (!Enum.IsDefined(Grouping)) Grouping = OverlayGrouping.Custom;
-        Rows.RemoveAll(r => r is null);
-        Boxes.RemoveAll(b => b is null);
+        Cells.RemoveAll(c => c is null);
+        Second.Cells.RemoveAll(c => c is null);
 
+        var fresh = Cells.Count == 0 && Second.Cells.Count == 0 && (Rows ?? []).Count == 0 && (Boxes ?? []).Count == 0;
+        // schema 2: the main box's rows, then the detached boxes (the first one is the second window, the others join it)
+        if (Rows is { } rows)
+        {
+            AppendRows(Cells, rows);
+            Rows = null;
+        }
+        if (Boxes is { } boxes)
+        {
+            foreach (var box in boxes)
+            {
+                if (box?.Rows is not { } boxRows || !boxRows.Exists(r => r?.Items is { Count: > 0 })) continue;
+                if (!Second.Enabled && Second.Cells.Count == 0)
+                {
+                    Second.Enabled = true;
+                    Second.Placement = box.Placement ?? new OverlayPlacement { Anchor = OverlayAnchor.TopRight };
+                }
+                AppendRows(Second.Cells, boxRows);
+            }
+            Boxes = null;
+        }
+        // schema 1: one cell per row for the vertical arrangement, one row of all cells otherwise (draws as the flat list did)
         if (Items is { } legacy)
         {
-            var fresh = Rows.Count == 0 && Boxes.Count == 0;
             var items = legacy.Where(i => i is not null).ToList();
-            if (Style.Arrangement == OverlayArrangement.Vertical)
-                foreach (var item in items) Rows.Add(new OverlayRow { Items = [item] });
-            else if (items.Count > 0)
-                Rows.Add(new OverlayRow { Items = items });
-            if (fresh) Grouping = Style.Arrangement == OverlayArrangement.Vertical ? OverlayGrouping.List : OverlayGrouping.OneLine;
+            var vertical = Style.Arrangement == OverlayArrangement.Vertical;
+            var row = NextRow(Cells);
+            for (var i = 0; i < items.Count; i++)
+            {
+                items[i].Row = vertical ? row + i : row;
+                items[i].Column = vertical ? 0 : i;
+                Cells.Add(items[i]);
+            }
+            if (fresh) Grouping = vertical ? OverlayGrouping.List : OverlayGrouping.OneLine;
             Items = null;
         }
 
-        var ids = new HashSet<string>(StringComparer.Ordinal) { MainBoxId };
-        string Unique(string? id)
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        FixCells(Cells, ids);
+        FixCells(Second.Cells, ids);
+        // a second window that is off keeps nothing: its cells go back to the main window, below the main window's rows
+        if (!Second.Enabled && Second.Cells.Count > 0)
         {
-            if (!string.IsNullOrEmpty(id) && id.Length <= 64 && ids.Add(id)) return id;
-            var fresh = NewId();
-            ids.Add(fresh);
-            return fresh;
+            OverlayGrid.Append(Cells, Second.Cells);
+            Second.Cells.Clear();
         }
-
-        foreach (var box in Boxes)
-        {
-            box.Id = Unique(box.Id);
-            box.Name = Text(box.Name);
-            box.Placement ??= new OverlayPlacement();
-            box.Rows ??= [];
-            box.Rows.RemoveAll(r => r is null);
-        }
-        // more windows than anyone needs: their rows go to the main box (nothing is lost)
-        while (Boxes.Count > MaxBoxes - 1)
-        {
-            Rows.AddRange(Boxes[^1].Rows);
-            Boxes.RemoveAt(Boxes.Count - 1);
-        }
-        foreach (var box in AllBoxes())
-        {
-            FixPlacement(box.Placement);
-            foreach (var row in box.Rows)
-            {
-                row.Id = Unique(row.Id);
-                row.Label = Text(row.Label);
-                row.Items ??= [];
-                row.Items.RemoveAll(i => i is null);
-                foreach (var item in row.Items)
-                {
-                    item.Id = Unique(item.Id);
-                    FixItem(item);
-                }
-            }
-            // a row without items draws nothing, a detached box without rows is no window
-            box.Rows.RemoveAll(r => r.Items.Count == 0);
-        }
-        Boxes.RemoveAll(b => b.Rows.Count == 0);
+        OverlayGrid.Tidy(Cells);
+        OverlayGrid.Tidy(Second.Cells);
+        FixPlacement(Placement);
+        FixPlacement(Second.Placement);
 
         RefreshMs = Math.Clamp(RefreshMs, 250, 2000);
         Style.ScalePercent = Fit(Style.ScalePercent, 50, 200, 100);
@@ -411,6 +448,46 @@ public sealed class OverlayLayout
         Style.Spacing = Fit(Style.Spacing, 0, 100, 4);
         Style.CornerRadius = Fit(Style.CornerRadius, 0, 100, 10);
         Style.FontFamily = string.IsNullOrWhiteSpace(Style.FontFamily) ? "Inter" : Style.FontFamily;
+    }
+
+    /// <summary>Schema 2 rows below the cells already there: row r, item k → cell (r, k). A row's own name labels its first item.</summary>
+    private static void AppendRows(List<OverlayItem> cells, List<OverlayRow> rows)
+    {
+        var r = NextRow(cells);
+        foreach (var row in rows)
+        {
+            if (row?.Items is not { } items) continue;
+            items.RemoveAll(i => i is null);
+            if (items.Count == 0) continue;
+            if (Text(row.Label) is { } name && string.IsNullOrWhiteSpace(items[0].Label)) items[0].Label = name;
+            for (var k = 0; k < items.Count; k++)
+            {
+                items[k].Row = r;
+                items[k].Column = k;
+                cells.Add(items[k]);
+            }
+            r++;
+        }
+    }
+
+    private static int NextRow(List<OverlayItem> cells) => cells.Count == 0 ? 0 : Math.Clamp(cells.Max(c => c.Row), -1, MaxIndex - 1) + 1;
+
+    private static void FixCells(List<OverlayItem> cells, HashSet<string> ids)
+    {
+        foreach (var item in cells)
+        {
+            item.Id = !string.IsNullOrEmpty(item.Id) && item.Id.Length <= 64 && ids.Add(item.Id) ? item.Id : Fresh(ids);
+            FixItem(item);
+        }
+        // a cell without a sensor draws nothing useful
+        cells.RemoveAll(c => c.SensorIds.Count == 0);
+    }
+
+    private static string Fresh(HashSet<string> ids)
+    {
+        var id = NewId();
+        ids.Add(id);
+        return id;
     }
 
     private static void FixPlacement(OverlayPlacement p)
@@ -433,6 +510,7 @@ public sealed class OverlayLayout
         item.AggregationSeconds = Math.Clamp(item.AggregationSeconds, 1, 120);
         if (item.Decimals is { } d) item.Decimals = Math.Clamp(d, 0, 3);
         if (item.ValueSize is { } v) item.ValueSize = Fit(v, 6, 96, 16);
+        item.Thresholds?.RemoveAll(t => t is null);
     }
 
     /// <summary>A user name / label: trimmed, at most 64 characters, blank = null (automatic).</summary>
@@ -445,3 +523,4 @@ public sealed class OverlayLayout
 
     private static double Fit(double value, double min, double max, double fallback) => double.IsFinite(value) ? Math.Clamp(value, min, max) : fallback;
 }
+

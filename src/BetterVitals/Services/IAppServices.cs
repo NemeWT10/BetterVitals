@@ -18,9 +18,10 @@ public interface IOverlayService
     IReadOnlyList<OverlayMonitor> Monitors { get; }
 
     /// <summary>
-    /// "Set on screen": every box of the real overlay becomes draggable (snap guides, arrows 1 px / Shift 10 px, Tab =
-    /// next box, Enter / Esc). <paramref name="commit"/> gets each box's placement by box id
-    /// (<see cref="OverlayLayout.MainBoxId"/> = the main box); it and <paramref name="cancel"/> run on the UI thread.
+    /// "Set on screen": every window of the real overlay becomes draggable (snap guides, arrows 1 px / Shift 10 px, Tab =
+    /// the other window, Enter / Esc). <paramref name="commit"/> gets each window's placement by window id
+    /// (<see cref="OverlayLayout.MainWindowId"/>, <see cref="OverlayLayout.SecondWindowId"/>); it and
+    /// <paramref name="cancel"/> run on the UI thread.
     /// </summary>
     void BeginOnScreenEdit(Action<IReadOnlyDictionary<string, OverlayPlacement>> commit, Action cancel);
 

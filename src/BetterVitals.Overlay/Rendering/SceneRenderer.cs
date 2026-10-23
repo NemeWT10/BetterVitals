@@ -79,7 +79,7 @@ internal static unsafe class SceneRenderer
     /// <summary>Draws the whole panel. Call between BeginDraw / EndDraw.</summary>
     /// <param name="alpha">Fade multiplier 0–1.</param>
     /// <param name="edit">Edit-mode chrome (accent dashed outline).</param>
-    /// <param name="editEmphasis">1 = the box the keys move, less = the other boxes in edit mode.</param>
+    /// <param name="editEmphasis">1 = the window the keys move, less = the other window in edit mode.</param>
     public static void Draw(DeviceResources res, Scene scene, float alpha, bool edit, float editEmphasis = 1)
     {
         RT.Clear(res.Rt, new D2DColor(0, 0, 0, 0));

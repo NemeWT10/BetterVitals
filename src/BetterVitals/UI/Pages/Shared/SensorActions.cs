@@ -16,7 +16,7 @@ public static class SensorToggles
 
     public static bool IsRecorded(AppSettings s, string id) => s.Recording.SensorIds.Contains(id);
 
-    /// <summary>On the overlay = in any overlay item (a single one or a multi-value one) of any box.</summary>
+    /// <summary>On the overlay = in any overlay item (a single one or a multi-value one) of any window.</summary>
     public static bool IsOnOverlay(AppSettings s, string id)
     {
         foreach (var item in s.Overlay.AllItems())
@@ -27,28 +27,27 @@ public static class SensorToggles
     public static bool IsPinned(AppSettings s, string id) => s.Flyout.PinnedSensorIds.Contains(id);
 
     /// <summary>
-    /// Adds a single-sensor item to the main box the way it groups its rows (no-op when the sensor is already shown).
-    /// <paramref name="newRowId"/> names the row it may need.
+    /// Adds a single-sensor item to the main window the way its preset places it (no-op when the sensor is already
+    /// shown). <paramref name="itemId"/> names the new item.
     /// </summary>
-    public static bool AddToOverlay(OverlayLayout o, string id, string? newRowId = null)
+    public static bool AddToOverlay(OverlayLayout o, string id, string? itemId = null)
     {
         foreach (var item in o.AllItems())
             if (item.SensorIds.Contains(id)) return false;
-        o.AddItem(new OverlayItem { SensorIds = [id] }, newRowId ?? OverlayLayout.NewId());
+        o.AddItem(new OverlayItem { Id = itemId ?? OverlayLayout.NewId(), SensorIds = [id] });
         return true;
     }
 
-    /// <summary>Takes the sensor out of every item; items left without sensors go, and so do rows and boxes left empty.</summary>
+    /// <summary>Takes the sensor out of every item; items left without sensors go (rows and columns left empty collapse).</summary>
     public static bool RemoveFromOverlay(OverlayLayout o, string id)
     {
         var changed = false;
-        foreach (var box in o.AllBoxes())
-            foreach (var row in box.Rows)
-            {
-                foreach (var item in row.Items) changed |= item.SensorIds.Remove(id);
-                row.Items.RemoveAll(i => i.SensorIds.Count == 0);
-            }
-        o.Prune();
+        foreach (var cells in new[] { o.Cells, o.Second.Cells })
+        {
+            foreach (var item in cells) changed |= item.SensorIds.Remove(id);
+            cells.RemoveAll(i => i.SensorIds.Count == 0);
+            OverlayGrid.Tidy(cells);
+        }
         return changed;
     }
 
@@ -58,32 +57,26 @@ public static class SensorToggles
     /// <summary>What clicking a section header toggle does: anything off → all on; all on → all off.</summary>
     public static bool NextGroupValue(bool? state) => state != true;
 
-    /// <summary>The overlay's rows and boxes as they are now (the same item objects), restorable after edits that mutate items in place.</summary>
+    /// <summary>The overlay's cells as they are now (the same item objects, their places and sensors), restorable after edits that mutate items in place.</summary>
     public static Action<OverlayLayout> CaptureOverlay(OverlayLayout o)
     {
-        static List<(OverlayRow Row, List<(OverlayItem Item, List<string> Ids)> Items)> Rows(List<OverlayRow> rows)
-            => rows.Select(r => (r, r.Items.Select(i => (i, i.SensorIds.ToList())).ToList())).ToList();
-        static List<OverlayRow> Restore(List<(OverlayRow Row, List<(OverlayItem Item, List<string> Ids)> Items)> rows)
-            => rows.Select(r =>
+        static List<(OverlayItem Item, int Row, int Column, List<string> Ids)> Take(List<OverlayItem> cells)
+            => cells.Select(i => (i, i.Row, i.Column, i.SensorIds.ToList())).ToList();
+        static List<OverlayItem> Restore(List<(OverlayItem Item, int Row, int Column, List<string> Ids)> cells)
+            => cells.Select(x =>
             {
-                r.Row.Items = r.Items.Select(x =>
-                {
-                    x.Item.SensorIds = x.Ids.ToList();
-                    return x.Item;
-                }).ToList();
-                return r.Row;
+                x.Item.SensorIds = x.Ids.ToList();
+                x.Item.Row = x.Row;
+                x.Item.Column = x.Column;
+                return x.Item;
             }).ToList();
-        var main = Rows(o.Rows);
-        var boxes = o.Boxes.Select(b => (Box: b, Rows: Rows(b.Rows))).ToList();
+        var main = Take(o.Cells);
+        var second = Take(o.Second.Cells);
         var grouping = o.Grouping;
         return target =>
         {
-            target.Rows = Restore(main);
-            target.Boxes = boxes.Select(b =>
-            {
-                b.Box.Rows = Restore(b.Rows);
-                return b.Box;
-            }).ToList();
+            target.Cells = Restore(main);
+            target.Second.Cells = Restore(second);
             target.Grouping = grouping;
         };
     }

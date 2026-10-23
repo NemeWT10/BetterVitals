@@ -81,8 +81,12 @@ public sealed class OverlayScenarios(ITestOutputHelper output)
             Margin = D(),
         };
         string? RowId() => rnd.Next(6) switch { 0 => null, 1 => "", 2 => "main", 3 => "same", _ => Guid.NewGuid().ToString("N") };
-        // the items go into the flat list of schema 1, into rows of the main box or into detached boxes (of any count)
+        // the items go into the cells of either window (any row / column, duplicates, negatives), the flat list of
+        // schema 1, or the rows and detached boxes (of any count) of schema 2
         var rows = new List<OverlayRow>();
+        var cells = new List<OverlayItem>();
+        var second = new List<OverlayItem>();
+        int Index() => rnd.Next(8) switch { 0 => -rnd.Next(1, 50), 1 => rnd.Next(5000, int.MaxValue), _ => rnd.Next(0, 6) };
         var boxes = Enumerable.Range(0, rnd.Next(4) == 0 ? rnd.Next(0, 14) : 0)
             .Select(_ => rnd.Next(12) == 0 ? null! : new OverlayBox { Id = RowId()!, Name = rnd.Next(3) == 0 ? new string('B', rnd.Next(0, 120)) : null, Placement = rnd.Next(8) == 0 ? null! : RandomPlacement(), Rows = rnd.Next(8) == 0 ? null! : [] })
             .ToList();
@@ -106,6 +110,13 @@ public sealed class OverlayScenarios(ITestOutputHelper output)
                 ValueSize = rnd.Next(2) == 0 ? null : D(),
             };
             if (rnd.Next(10) == 0) item.Id = rnd.Next(2) == 0 ? "" : "same";
+            item.Row = Index();
+            item.Column = Index();
+            if (rnd.Next(3) == 0)
+            {
+                (rnd.Next(3) == 0 ? second : cells).Add(item);
+                continue;
+            }
             if (legacy is not null && rnd.Next(2) == 0)
             {
                 legacy.Add(item);
@@ -120,7 +131,10 @@ public sealed class OverlayScenarios(ITestOutputHelper output)
         if (rnd.Next(10) == 0) rows.Add(null!);
         if (rnd.Next(10) == 0) rows.Add(new OverlayRow()); // an empty row
         if (rnd.Next(10) == 0) legacy?.Add(null!);
-        layout.Rows = rows;
+        if (rnd.Next(10) == 0) cells.Add(null!);
+        layout.Cells = rnd.Next(12) == 0 ? null! : cells;
+        layout.Second = rnd.Next(12) == 0 ? null! : new OverlaySecondWindow { Enabled = rnd.Next(2) == 0, Placement = rnd.Next(8) == 0 ? null! : RandomPlacement(), Cells = rnd.Next(10) == 0 ? null! : second };
+        layout.Rows = rows.Count == 0 && rnd.Next(2) == 0 ? null : rows;
         layout.Boxes = boxes;
         layout.Items = legacy;
         layout.Grouping = (OverlayGrouping)rnd.Next(0, 6);
@@ -148,37 +162,45 @@ public sealed class OverlayScenarios(ITestOutputHelper output)
             var bmp = OverlayHost.RenderToBitmap(layout, OverlayTheme.Default, values, h, culture, unit);
             biggest = Math.Max(biggest, Math.Max(bmp.Width, bmp.Height));
             Assert.True(bmp.Width > 0 && bmp.Height > 0);
-            foreach (var (_, box) in OverlayHost.RenderBoxesToBitmaps(layout, OverlayTheme.Default, values, h, culture, unit))
-                Assert.True(box.Width > 0 && box.Height > 0);
+            foreach (var (_, window) in OverlayHost.RenderWindowsToBitmaps(layout, OverlayTheme.Default, values, h, culture, unit))
+                Assert.True(window.Width > 0 && window.Height > 0);
         }
         output.WriteLine($"120 random layouts rendered; the biggest edge was {biggest} px"); // a hand-made layout of hundreds of rows is huge, but it renders
     }
 
-    /// <summary>What Normalize promises: no nulls, no empty rows or boxes, unique ids, sane numbers, a known enum everywhere.</summary>
+    /// <summary>
+    /// What Normalize promises: no older shapes left, at most two windows (a second one that is off holds nothing), unique
+    /// ids, tidy grids (no two cells on one position, no empty row or column, reading order), sane numbers, a known enum
+    /// everywhere, no cell without a sensor.
+    /// </summary>
     private static void AssertSane(OverlayLayout l)
     {
         Assert.Null(l.Items);
+        Assert.Null(l.Rows);
+        Assert.Null(l.Boxes);
         Assert.True(Enum.IsDefined(l.Grouping) && Enum.IsDefined(l.Style.Arrangement) && Enum.IsDefined(l.Visibility));
-        Assert.InRange(l.Boxes.Count, 0, OverlayLayout.MaxBoxes - 1);
-        Assert.All(l.Boxes, b => Assert.NotEmpty(b.Rows));
-        var ids = new HashSet<string>(StringComparer.Ordinal) { OverlayLayout.MainBoxId };
-        foreach (var box in l.AllBoxes())
+        Assert.InRange(l.Windows().Count(), 1, OverlayLayout.MaxWindows);
+        if (!l.Second.Enabled) Assert.Empty(l.Second.Cells);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var window in new[] { new OverlayWindowRef(OverlayLayout.MainWindowId, l.Placement, l.Cells), new OverlayWindowRef(OverlayLayout.SecondWindowId, l.Second.Placement, l.Second.Cells) })
         {
-            if (!box.IsMain) Assert.True(ids.Add(box.Id), "box id " + box.Id);
-            var p = box.Placement;
+            var p = window.Placement;
             Assert.True(Enum.IsDefined(p.Anchor) && Enum.IsDefined(p.MonitorMode));
             Assert.True(double.IsFinite(p.OffsetX) && Math.Abs(p.OffsetX) <= 10_000 && double.IsFinite(p.OffsetY) && Math.Abs(p.OffsetY) <= 10_000);
             Assert.InRange(p.Margin, 0, 1_000);
-            foreach (var row in box.Rows)
+            var cells = window.Cells;
+            Assert.Equal(cells.Count, cells.Select(c => (c.Row, c.Column)).Distinct().Count());
+            Assert.Equal(OverlayGrid.Ordered(cells), cells);
+            var rows = OverlayGrid.RowCount(cells);
+            var columns = OverlayGrid.ColumnCount(cells);
+            Assert.Equal(Enumerable.Range(0, rows), cells.Select(c => c.Row).Distinct().Order());
+            Assert.Equal(Enumerable.Range(0, columns), cells.Select(c => c.Column).Distinct().Order());
+            foreach (var item in cells)
             {
-                Assert.True(ids.Add(row.Id), "row id " + row.Id);
-                Assert.NotEmpty(row.Items);
-                Assert.True(row.Label is null || row.Label.Length is > 0 and <= 64);
-                foreach (var item in row.Items)
-                {
-                    Assert.True(ids.Add(item.Id), "item id " + item.Id);
-                    Assert.DoesNotContain(item.SensorIds, string.IsNullOrEmpty);
-                }
+                Assert.True(ids.Add(item.Id), "item id " + item.Id);
+                Assert.NotEmpty(item.SensorIds);
+                Assert.DoesNotContain(item.SensorIds, string.IsNullOrEmpty);
+                Assert.True(item.Label is null || item.Label.Length <= 64);
             }
         }
     }

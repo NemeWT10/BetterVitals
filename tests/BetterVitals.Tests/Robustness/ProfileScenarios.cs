@@ -19,7 +19,7 @@ public sealed class ProfileScenarios(ITestOutputHelper output)
             Placement = { Anchor = OverlayAnchor.BottomRight, OffsetX = 12 },
             Items = [new OverlayItem { SensorIds = ["cpu/x/0/temperature/a"], Label = "CPU" }, new OverlayItem { SensorIds = ["gpu/y/0/load/b", "gpu/y/0/load/c"], MultiDisplay = MultiValueDisplay.Grid }],
         };
-        layout.Normalize(); // as the editor saves it: rows
+        layout.Normalize(); // as the editor saves it: cells
         return layout;
     }
 
@@ -162,14 +162,14 @@ public sealed class ProfileScenarios(ITestOutputHelper output)
         node["version"] = 7;
         node["layout"]!["Hologram"] = JsonValue.Create(true);
         node["layout"]!["Style"]!["Arrangement"] = 12; // a layout mode this version does not know
-        node["layout"]!["Rows"]![0]!["Items"]![0]!["MultiDisplay"] = "Constellation";
+        node["layout"]!["Cells"]![0]!["MultiDisplay"] = "Constellation";
         var ex = Record.Exception(() => LayoutJson.ReadProfile(node.ToJsonString()));
         Assert.True(ex is null or FormatException);
 
-        node["layout"]!["Rows"]![0]!["Items"]![0]!["MultiDisplay"] = 9;
+        node["layout"]!["Cells"]![0]!["MultiDisplay"] = 9;
         var (_, layout) = LayoutJson.ReadProfile(node.ToJsonString());
         Assert.Equal(OverlayArrangement.Vertical, layout.Style.Arrangement);
-        Assert.Equal(MultiValueDisplay.Bars, layout.Rows[0].Items[0].MultiDisplay);
+        Assert.Equal(MultiValueDisplay.Bars, layout.Cells[0].MultiDisplay);
         Assert.Equal(OverlayAnchor.BottomRight, layout.Placement.Anchor);
     }
 }

@@ -106,8 +106,8 @@ public sealed class OverlayEditorRenderTests
         var cores = page.Model.Working.AllItems().First(i => i.SensorIds.Count > 1);
         page.Model.EditItem(cores.Id, i => i.Thresholds = [new() { Value = 5000, Color = "#FBBF24" }, new() { Value = 5300, Color = "#F43F5E" }]);
         page.Model.Edit(l => l.Placement.Anchor = OverlayAnchor.TopRight);
-        // open the item editor of the core clocks
-        LayoutTree.Expanded = cores.Id;
+        // the core clocks selected on the board: their editor below it
+        LayoutBoard.Selected = cores.Id;
         page.Model.Reload();
         Shot(f, page, $"advanced_all_{theme}_{lang}", 4600);
         Assert.NotNull(page.Advanced);
@@ -291,7 +291,7 @@ public sealed class OverlayEditorRenderTests
         public void EndOnScreenEdit(bool commit)
         {
             IsEditingOnScreen = false;
-            var placements = new Dictionary<string, OverlayPlacement>(Others) { [OverlayLayout.MainBoxId] = new() { Anchor = OverlayAnchor.BottomRight, OffsetX = 10, OffsetY = 20, Margin = 24 } };
+            var placements = new Dictionary<string, OverlayPlacement>(Others) { [OverlayLayout.MainWindowId] = new() { Anchor = OverlayAnchor.BottomRight, OffsetX = 10, OffsetY = 20, Margin = 24 } };
             if (commit) _commit?.Invoke(placements);
             else _cancel?.Invoke();
         }

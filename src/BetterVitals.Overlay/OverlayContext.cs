@@ -34,3 +34,24 @@ public sealed record PreviewSensor(SensorDescriptor Sensor, float Value, IReadOn
 
 /// <summary>Premultiplied BGRA pixels of an offscreen render (WPF: <c>PixelFormats.Pbgra32</c>).</summary>
 public sealed record OverlayBitmap(int Width, int Height, int Stride, byte[] Pixels);
+
+/// <summary>
+/// A window's grid as drawn, in pixels of its render: the extents of every column's content (index = grid column) and
+/// of every row (index = grid row), and the cell of every item. Columns and rows are separated by gaps.
+/// </summary>
+public sealed record OverlayGridGeometry(
+    int Width,
+    int Height,
+    IReadOnlyList<float> ColumnLeft,
+    IReadOnlyList<float> ColumnRight,
+    IReadOnlyList<float> RowTop,
+    IReadOnlyList<float> RowBottom,
+    IReadOnlyList<OverlayGridCell> Cells)
+{
+    public int Columns => ColumnLeft.Count;
+
+    public int Rows => RowTop.Count;
+}
+
+/// <summary>Where an item sits in an <see cref="OverlayGridGeometry"/>; <paramref name="Right"/>: where its own content ends, px (a sparkline may run past its column).</summary>
+public readonly record struct OverlayGridCell(string ItemId, int Row, int Column, float Right = 0);

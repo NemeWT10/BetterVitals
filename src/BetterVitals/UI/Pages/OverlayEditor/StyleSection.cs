@@ -59,7 +59,7 @@ internal static class FontSamples
                 Padding = 1,
                 AutoScale = true,
             },
-            Rows = [new OverlayRow { Items = [new OverlayItem { SensorIds = [Sample.Id], Label = family, Thresholds = [] }] }],
+            Cells = [new OverlayItem { SensorIds = [Sample.Id], Label = family, Thresholds = [] }],
         };
         var values = new[] { new PreviewSensor(Sample, 54) };
         var culture = Loc.I.Culture;

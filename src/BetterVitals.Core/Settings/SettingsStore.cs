@@ -139,8 +139,9 @@ public sealed class SettingsStore
     /// <summary>Upgrades older schema versions in place. A file from a NEWER version is used as far as it is understood.</summary>
     internal static AppSettings Migrate(AppSettings s)
     {
-        // 1 → 2: Overlay.Items (one flat list) became rows in boxes; Overlay.Normalize() below converts it so that it
-        // draws exactly as before (one row per item for the vertical arrangement, one row of all items otherwise).
+        // 1 → 3: Overlay.Items (one flat list) became cells of a grid: one row per item for the vertical arrangement, one
+        // row of all items otherwise, so it draws exactly as before. 2 → 3: Overlay.Rows (row r, item k → cell (r, k)) and
+        // Overlay.Boxes (the first box becomes the second window, the others join it below). Overlay.Normalize() below.
         s.General ??= new GeneralSettings();
         s.Recording ??= new RecordingSettings();
         s.Recording.SensorIds ??= new HashSet<string>(StringComparer.Ordinal);

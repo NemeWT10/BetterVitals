@@ -111,7 +111,7 @@ public sealed class SharedRowTests
         var hot = pc.Sensor("NVIDIA GeForce RTX 5080", SensorKind.Temperature, "GPU Hot Spot");
         var core = pc.Sensor("NVIDIA GeForce RTX 5080", SensorKind.Temperature, "GPU Core");
         var multi = new OverlayItem { SensorIds = [core.Id, hot.Id] };
-        env.Store.Mutate("overlay", s => s.Overlay.AddItem(multi, "row-1"));
+        env.Store.Mutate("overlay", s => s.Overlay.AddItem(multi));
 
         env.Actions.SetOnOverlay([hot], false);
         Assert.Equal([core.Id], multi.SensorIds);

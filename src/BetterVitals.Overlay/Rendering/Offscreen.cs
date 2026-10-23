@@ -49,6 +49,9 @@ internal sealed class PreviewLookup : ISensorLookup
 /// </summary>
 internal static unsafe class Offscreen
 {
+    /// <summary>The largest side of an offscreen picture, px (an 8K screen's width and then some).</summary>
+    private const int MaxSide = 8192;
+
     private static readonly Lock Gate = new();
     private static void* _d2d;
     private static void* _wic;
@@ -58,21 +61,33 @@ internal static unsafe class Offscreen
 
     public static OverlayBitmap Render(OverlayLayout layout, OverlayTheme theme, IReadOnlyList<PreviewSensor> values, int monitorHeightPx,
         CultureInfo? culture, TemperatureUnit unit, Func<OverlayItem, string?>? labels, bool edit = false, Backdrop? backdrop = null,
-        string boxId = OverlayLayout.MainBoxId)
+        string windowId = OverlayLayout.MainWindowId)
     {
-        layout = Host.LayoutCopy.Clone(layout); // normalized: rows from a flat list, sane numbers
+        layout = Host.LayoutCopy.Clone(layout); // normalized: cells from older shapes, a tidy grid, sane numbers
         var scale = OverlayPlacementMath.Scale(layout.Style, monitorHeightPx);
         var lookup = new PreviewLookup(values);
-        using var scene = new Scene(new SceneInput(layout, theme, lookup, culture ?? CultureInfo.InvariantCulture, unit, labels, scale, boxId));
+        using var scene = new Scene(new SceneInput(layout, theme, lookup, culture ?? CultureInfo.InvariantCulture, unit, labels, scale, windowId));
         lookup.Feed(scene);
         return Render(scene, edit, backdrop);
+    }
+
+    /// <summary>One window at an explicit scale (px per reference px), with its grid geometry (the editor's board).</summary>
+    public static (OverlayBitmap Bitmap, OverlayGridGeometry Grid) RenderWithGrid(OverlayLayout layout, OverlayTheme theme, IReadOnlyList<PreviewSensor> values,
+        double scale, CultureInfo? culture, TemperatureUnit unit, Func<OverlayItem, string?>? labels, string windowId)
+    {
+        layout = Host.LayoutCopy.Clone(layout);
+        var lookup = new PreviewLookup(values);
+        using var scene = new Scene(new SceneInput(layout, theme, lookup, culture ?? CultureInfo.InvariantCulture, unit, labels, Math.Clamp(scale, 0.25, 8), windowId));
+        lookup.Feed(scene);
+        return (Render(scene, false, null), scene.Geometry());
     }
 
     public static OverlayBitmap Render(Scene scene, bool edit, Backdrop? backdrop)
     {
         var m = backdrop?.Margin ?? 0;
-        var w = scene.Width + 2 * m;
-        var h = scene.Height + 2 * m;
+        // a hand-made layout can be wider than any screen: the picture is cut off rather than refused
+        var w = Math.Clamp(scene.Width + 2 * m, 1, MaxSide);
+        var h = Math.Clamp(scene.Height + 2 * m, 1, MaxSide);
         lock (Gate)
         {
             EnsureFactories();

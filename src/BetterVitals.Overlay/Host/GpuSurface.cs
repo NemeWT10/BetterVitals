@@ -127,7 +127,7 @@ internal sealed unsafe class GpuDevice : IDisposable
 
 /// <summary>
 /// One window's drawing surface on the shared <see cref="GpuDevice"/>: a DXGI composition swap chain (premultiplied
-/// alpha, flip sequential, 2 buffers) of exactly the box's size → a DirectComposition visual on the HWND. Overlay
+/// alpha, flip sequential, 2 buffers) of exactly the window's size → a DirectComposition visual on the HWND. Overlay
 /// thread only.
 /// </summary>
 internal sealed unsafe class SwapSurface(GpuDevice device, nint hwnd) : IDisposable

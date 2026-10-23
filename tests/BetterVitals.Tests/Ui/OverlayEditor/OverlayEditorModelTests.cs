@@ -48,7 +48,7 @@ public sealed class OverlayEditorModelTests
         // working copy and settings agree, and never share objects
         Assert.Equal(LayoutJson.Text(m.Working), LayoutJson.Text(f.Store.Current.Overlay));
         Assert.NotSame(m.Working.AllItems().First(), f.Store.Current.Overlay.AllItems().First());
-        Assert.NotSame(m.Working.Rows[0], f.Store.Current.Overlay.Rows[0]);
+        Assert.NotSame(m.Working.Cells, f.Store.Current.Overlay.Cells);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class OverlayEditorModelTests
         var ids = m.Working.AllItems().Select(i => i.Id).ToList();
         m.Move(ids[3], 0);
         Assert.Equal([ids[3], ids[0], ids[1], ids[2]], f.Store.Current.Overlay.AllItems().Select(i => i.Id));
-        Assert.All(f.Store.Current.Overlay.Rows, r => Assert.Single(r.Items)); // a list: one item per row
+        Assert.Equal([(0, 0), (1, 0), (2, 0), (3, 0)], f.Store.Current.Overlay.Cells.Select(c => (c.Row, c.Column))); // a list: one item per row
         m.Move(ids[3], 99); // clamped to the end
         Assert.Equal([ids[0], ids[1], ids[2], ids[3]], f.Store.Current.Overlay.AllItems().Select(i => i.Id));
         m.Move("missing", 0);
@@ -77,7 +77,7 @@ public sealed class OverlayEditorModelTests
         Assert.Equal(3, m.AddDefaults(f.Friendly));
         Assert.Equal(0, m.AddDefaults(f.Friendly));
         Assert.Equal(["fps.fps", "cpu.temp", "gpu.temp"], f.Store.Current.Overlay.AllItems().Select(i => f.Friendly.First(x => OverlayEditorModel.Matches(i, x)).Key));
-        Assert.Equal(3, f.Store.Current.Overlay.Rows.Count); // a row per component
+        Assert.Equal(3, OverlayGrid.RowCount(f.Store.Current.Overlay.Cells)); // a row per component
     }
 
     [Theory]
@@ -295,7 +295,7 @@ public sealed class OverlayEditorModelTests
         var items = layout.AllItems().ToList();
         Assert.Equal(2, items.Count);
         Assert.NotEqual(items[0].Id, items[1].Id); // duplicate editor ids repaired
-        Assert.Equal(2, layout.Rows.Count); // a flat v1 list: a row per item, as it always looked
+        Assert.Equal(2, OverlayGrid.RowCount(layout.Cells)); // a flat v1 list: a row per item, as it always looked
         Assert.Equal(OverlayGrouping.List, layout.Grouping);
         Assert.Equal(2000, layout.RefreshMs); // normalized
         Assert.Equal(200, layout.Style.ScalePercent);

@@ -67,25 +67,22 @@ internal sealed class EditorContext
         return DefaultLabels.ForGroup(sensors);
     }
 
-    /// <summary>The label a row shows on the overlay: its own, else the automatic one (the item's, the component's, the first item's).</summary>
-    public string RowLabel(OverlayRow row)
-    {
-        if (!string.IsNullOrWhiteSpace(row.Label)) return row.Label!;
-        var labels = row.Items.Select(i => string.IsNullOrWhiteSpace(i.Label) ? DefaultLabel(i) : i.Label!).ToList();
-        var kinds = row.Items.Select(i => Sensors(i) is { Count: > 0 } s ? s[0].HardwareKind : OverlayLayoutEdits.ComponentKind(i)).ToList();
-        return DefaultLabels.ForRow(labels, kinds);
-    }
+    /// <summary>"Main window" / "Second window".</summary>
+    public static string WindowTitle(string windowId) => Loc.T(windowId == OverlayLayout.SecondWindowId ? "ovl.window.second" : "ovl.window.main");
 
-    /// <summary>"Main box", the box's own name, or "Box 2", "Box 3"… by its place in the list.</summary>
-    public string BoxTitle(string boxId)
-    {
-        if (boxId == OverlayLayout.MainBoxId) return Loc.T("ovl.box.main");
-        var i = Layout.Boxes.FindIndex(b => b.Id == boxId);
-        if (i >= 0 && Layout.Boxes[i].Name is { Length: > 0 } name) return name;
-        return Loc.T("ovl.box.n", (Math.Max(0, i) + 2).ToString(Loc.I.Culture));
-    }
+    /// <summary>The drop layer over the whole page (drag ghosts float above everything); null in tests without a page.</summary>
+    public System.Windows.Controls.Canvas? DragLayer { get; set; }
 
-    /// <summary>"Top right · Main monitor": where a box sits, in words.</summary>
+    /// <summary>
+    /// A sensor row of the picker started a drag (sensor ids, its name): the board takes over the mouse until the drop.
+    /// Set by the board while Advanced mode shows it.
+    /// </summary>
+    public Action<IReadOnlyList<string>, string>? SensorDragStarted { get; set; }
+
+    /// <summary>A drag that started in the picker ended (dropped or cancelled): the picker comes back.</summary>
+    public Action? SensorDragEnded { get; set; }
+
+    /// <summary>"Top right · Main monitor": where a window sits, in words.</summary>
     public string PlacementSummary(OverlayPlacement p)
     {
         var monitor = p.MonitorMode switch

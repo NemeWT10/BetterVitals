@@ -176,6 +176,9 @@ internal static partial class SnapshotMode
             await Settle(w, 120);
             Save(w, "panel_settings-about_" + tag);
 
+            // the overlay editor in Advanced mode: the layout board with both windows
+            await OverlayBoardShot(w, tag);
+
             // a toast with an action
             w.Toast(Loc.T("toast.overlayOn"), ToastKind.Success, Loc.T("common.undo"), () => { });
             await Settle(w, 80);
@@ -184,6 +187,41 @@ internal static partial class SnapshotMode
         finally
         {
             w.Close();
+        }
+    }
+
+    /// <summary>
+    /// The overlay page in Advanced mode with a table of seven values and the GPU row in the second window (the
+    /// settings' own overlay is put back afterwards).
+    /// </summary>
+    private static async Task OverlayBoardShot(PanelWindow w, string tag)
+    {
+        var store = SettingsStore.I;
+        var saved = UI.Pages.OverlayEditor.LayoutJson.Clone(store.Current.Overlay);
+        try
+        {
+            var friendly = Core.Catalog.FriendlyCatalog.Resolve(AppServices.Hub.Hardware, AppServices.Hub.Sensors);
+            store.Mutate("overlay", s =>
+            {
+                var o = new Core.Overlay.OverlayLayout { Enabled = true, Advanced = true };
+                foreach (var key in new[] { "fps.fps", "cpu.temp", "cpu.clocks", "cpu.load", "gpu.temp", "gpu.hotspot", "gpu.clock" })
+                    if (friendly.FirstOrDefault(f => f.Key == key) is { } f)
+                        Core.Overlay.OverlayGridEdits.AddItem(o, new Core.Overlay.OverlayItem { SensorIds = [.. f.SensorIds] });
+                Core.Overlay.OverlayGridEdits.SetSecondWindow(o, true);
+                var gpuRow = o.Cells.Count == 0 ? -1 : o.Cells.Max(c => c.Row);
+                foreach (var cell in o.Cells.Where(c => c.Row == gpuRow && gpuRow > 0).ToList())
+                    Core.Overlay.OverlayGridEdits.MoveCell(o, cell.Id, new Core.Overlay.GridDrop(Core.Overlay.OverlayLayout.SecondWindowId, Core.Overlay.GridDropKind.Cell, 0, cell.Column));
+                s.Overlay = o;
+            });
+            w.Navigate(PageIds.Overlay, null);
+            await Settle(w, 400);
+            var name = "panel_overlay-advanced_" + tag;
+            Check(w, name);
+            Save(w, name);
+        }
+        finally
+        {
+            store.Mutate("overlay", s => s.Overlay = saved);
         }
     }
 

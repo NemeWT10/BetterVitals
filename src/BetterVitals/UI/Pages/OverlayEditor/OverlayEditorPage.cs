@@ -66,6 +66,7 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
     private readonly LivePreview _preview;
     private readonly OrderPanel _order;
     private readonly SensorPicker _picker;
+    private readonly Canvas _dragLayer = new() { IsHitTestVisible = false };
     private SimpleView? _simple;
     private AdvancedView? _advanced;
     private IDemand? _demand;
@@ -93,7 +94,11 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
             Model = _model,
             Feed = _feed,
             Defer = Defer,
-            Toast = (text, kind, action, run) => _page?.Toast(text, kind, action, run),
+            Toast = (text, kind, action, run) =>
+            {
+                if (_page is not null) _page.Toast(text, kind, action, run);
+                else Toasts.Add((text, run)); // tests: no panel to show it
+            },
             OpenPicker = advanced => _picker!.Open(advanced),
             Colors = new ColorPopover(),
             Owner = () => _page?.Window ?? Window.GetWindow(this),
@@ -146,7 +151,7 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
         _leftScroll = new ScrollViewer { Content = _left, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Focusable = false, Padding = new Thickness(0, 0, 10, 0) };
         _preview = new LivePreview(_ctx);
         _preview.CornerPicked += a => _model.SetCorner(a);
-        _preview.Dragged += id => _advanced?.OnBoxDragged(id);
+        _preview.Dragged += id => _advanced?.OnWindowDragged(id);
         _previewCard = Ui.Card(_preview);
         _order = new OrderPanel(_ctx);
         _orderCard = Ui.Card(_order);
@@ -177,9 +182,15 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
         _picker.OpenChanged += _ => UpdateDemand();
         _picker.Added += () => _advanced?.BuildItems();
 
+        // drag ghosts float above everything (also above the picker a sensor is dragged out of)
+        System.Windows.Controls.Panel.SetZIndex(_dragLayer, 100);
+        _ctx.DragLayer = _dragLayer;
+        _ctx.SensorDragEnded = () => _picker.ResumeAfterDrag();
+
         _root = new Grid();
         _root.Children.Add(content);
         _root.Children.Add(_picker);
+        _root.Children.Add(_dragLayer);
         Content = _root;
 
         _model.Changed += OnModelChanged;
@@ -255,6 +266,9 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
 
     internal OrderPanel Order => _order;
 
+    /// <summary>Toasts shown without a panel (tests): the text and its action (Undo).</summary>
+    internal List<(string Text, Action? Action)> Toasts { get; } = [];
+
     /// <summary>The 1 Hz work, run on demand (tests).</summary>
     internal void TickNow() => OnTick();
 
@@ -278,11 +292,13 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
         {
             if (!_tick.IsEnabled) _tick.Start();
             _preview.Start();
+            _advanced?.SetRunning(true);
         }
         else
         {
             _tick.Stop();
             _preview.Stop();
+            _advanced?.SetRunning(false);
         }
     }
 
@@ -463,6 +479,7 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
             _advanced = new AdvancedView(_ctx, _profiles);
             _advanced.ResetRequested += ResetAll;
             _left.Children.Add(_advanced);
+            _advanced.SetRunning(_active && Shown);
         }
         else
         {
@@ -492,7 +509,8 @@ public sealed class OverlayEditorPage : UserControl, IPage, IDisposable
     {
         if (width <= 0) width = _wide ? 1000 : 600;
         var wide = width >= 860;
-        var previewWidth = width >= 1180 ? 440 : 392;
+        // Advanced mode's layout board needs the width more than the preview does
+        var previewWidth = width >= 1180 ? 440 : _model.Working.Advanced ? 360 : 392;
         if (!force && wide == _wide)
         {
             if (wide) _body.ColumnDefinitions[2].Width = new GridLength(previewWidth);

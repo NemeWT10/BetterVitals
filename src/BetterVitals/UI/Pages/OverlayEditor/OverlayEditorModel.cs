@@ -141,7 +141,7 @@ internal sealed class OverlayEditorModel
 
     public OverlayItem? Find(FriendlyItem friendly) => Working.AllItems().FirstOrDefault(i => Matches(i, friendly));
 
-    /// <summary>1-based position on the overlay (main box first, row by row), or 0.</summary>
+    /// <summary>1-based position on the overlay (main window first, in reading order), or 0.</summary>
     public int OrderOf(FriendlyItem friendly)
     {
         var i = 0;
@@ -153,7 +153,7 @@ internal sealed class OverlayEditorModel
         return 0;
     }
 
-    /// <summary>Click = on (into the main box the way it groups: order = click order) / off.</summary>
+    /// <summary>Click = on (into the main window the way its preset places it: order = click order) / off.</summary>
     public void Toggle(FriendlyItem friendly)
     {
         if (Find(friendly) is { } existing) Remove(existing.Id);
@@ -170,31 +170,24 @@ internal sealed class OverlayEditorModel
 
     public bool HasSensor(string sensorId) => Working.AllItems().Any(i => i.SensorIds.Count == 1 && i.SensorIds[0] == sensorId);
 
-    /// <summary>Adds an item (one sensor, or several drawn together) to the main box by its grouping; returns its id.</summary>
+    /// <summary>Adds an item (one sensor, or several drawn together) to the main window by its preset; returns its id.</summary>
     public string Add(IReadOnlyList<string> sensorIds, MultiValueDisplay display = MultiValueDisplay.Bars)
     {
         var id = OverlayLayout.NewId();
-        var rowId = OverlayLayout.NewId();
         var ids = sensorIds.ToArray();
-        Edit(l => l.AddItem(new OverlayItem { Id = id, SensorIds = [.. ids], MultiDisplay = display }, rowId));
+        Edit(l => l.AddItem(new OverlayItem { Id = id, SensorIds = [.. ids], MultiDisplay = display }));
         return id;
     }
 
-    public void Remove(string itemId) => TryEdit(l => l.RemoveItem(itemId));
+    public void Remove(string itemId) => TryEdit(l => l.RemoveCell(itemId));
 
     /// <summary>
-    /// Simple mode's list: moves an item to <paramref name="index"/> of its box's reading order (the main box is grouped
-    /// again by its grouping).
+    /// Simple mode's list: moves an item to <paramref name="index"/> of its window's reading order (the main window is
+    /// placed again by its preset).
     /// </summary>
-    public void Move(string itemId, int index)
-    {
-        var prefix = IdPrefix();
-        TryEdit(l => l.MoveFlat(itemId, index, prefix));
-    }
+    public void Move(string itemId, int index) => TryEdit(l => l.MoveFlat(itemId, index));
 
-    // ───────────── rows and boxes (advanced mode; every hand-made change makes the grouping Custom) ─────────────
-
-    private static string IdPrefix() => OverlayLayout.NewId()[..10] + "-";
+    // ───────────── the grid (advanced mode; every hand-made change makes the main window Custom) ─────────────
 
     private bool Structural(Func<OverlayLayout, bool> change) => TryEdit(l =>
     {
@@ -203,72 +196,46 @@ internal sealed class OverlayEditorModel
         return true;
     });
 
-    /// <summary>Into an existing row, before <paramref name="beforeItemId"/> (null = at the end).</summary>
-    public bool MoveItem(string itemId, string rowId, string? beforeItemId) => Structural(l => l.MoveItem(itemId, rowId, beforeItemId));
+    /// <summary>A cell dragged on the board: swapped, moved into a free cell, inserted into a row or into a new row.</summary>
+    public bool MoveCell(string itemId, GridDrop drop) => Structural(l => l.MoveCell(itemId, drop));
 
-    /// <summary>Into a new row of a box, before <paramref name="beforeRowId"/> (null = at the end).</summary>
-    public bool MoveItemToNewRow(string itemId, string boxId, string? beforeRowId)
+    /// <summary>The selected cell moved by the arrow keys.</summary>
+    public bool MoveBy(string itemId, int rows, int columns) => Structural(l => l.MoveBy(itemId, rows, columns));
+
+    /// <summary>A sensor dragged in from the list, dropped on the board. Returns the new item's id.</summary>
+    public string? AddCell(IReadOnlyList<string> sensorIds, GridDrop drop)
     {
-        var rowId = OverlayLayout.NewId();
-        return Structural(l => l.MoveItemToNewRow(itemId, boxId, beforeRowId, rowId));
+        var id = OverlayLayout.NewId();
+        var ids = sensorIds.ToArray();
+        return Structural(l => l.AddCell(new OverlayItem { Id = id, SensorIds = [.. ids] }, drop)) ? id : null;
     }
 
-    /// <summary>Detaches an item into a box of its own, at the next free corner. Returns the new box id or null.</summary>
-    public string? DetachItem(string itemId)
+    /// <summary>The second window on (an empty board) or off (its cells go back to the main window).</summary>
+    public bool SetSecondWindow(bool on) => TryEdit(l =>
     {
-        var boxId = OverlayLayout.NewId();
-        var rowId = OverlayLayout.NewId();
-        var placement = LayoutJson.Clone(Working.NewBoxPlacement());
-        return Structural(l => l.MoveItemToNewBox(itemId, boxId, rowId, LayoutJson.Clone(placement))) ? boxId : null;
-    }
+        if (!l.SetSecondWindow(on)) return false;
+        return true;
+    });
 
-    public bool MoveRow(string rowId, string boxId, string? beforeRowId) => Structural(l => l.MoveRow(rowId, boxId, beforeRowId));
-
-    /// <summary>Detaches a row into a box of its own. Returns the new box id or null.</summary>
-    public string? DetachRow(string rowId)
-    {
-        var boxId = OverlayLayout.NewId();
-        var placement = LayoutJson.Clone(Working.NewBoxPlacement());
-        return Structural(l => l.MoveRowToNewBox(rowId, boxId, LayoutJson.Clone(placement))) ? boxId : null;
-    }
-
-    public bool RemoveRow(string rowId) => Structural(l => l.RemoveRow(rowId));
-
-    /// <summary>Removes a detached box; its rows go back to the main box.</summary>
-    public bool RemoveBox(string boxId) => Structural(l => l.RemoveBox(boxId));
-
-    public bool MoveBox(string boxId, string? beforeBoxId) => TryEdit(l => l.MoveBox(boxId, beforeBoxId));
-
-    public bool RenameRow(string rowId, string? label) => TryEdit(l => l.FindRow(rowId) is { } r && r.Label != Clean(label) && l.SetRowLabel(rowId, label));
-
-    public bool RenameBox(string boxId, string? name) => TryEdit(l => l.Boxes.Find(b => b.Id == boxId) is { } b && b.Name != Clean(name) && l.SetBoxName(boxId, name));
-
-    private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim() is { Length: > 64 } t ? t[..64] : s.Trim();
-
-    /// <summary>Changes the placement of a box (main or detached).</summary>
-    public void EditPlacement(string boxId, Action<OverlayPlacement> change, bool deferred = false)
+    /// <summary>Changes the placement of a window (main or second).</summary>
+    public void EditPlacement(string windowId, Action<OverlayPlacement> change, bool deferred = false)
         => Edit(l =>
         {
-            if (l.PlacementOf(boxId) is { } p) change(p);
+            if (l.PlacementOf(windowId) is { } p) change(p);
         }, deferred);
 
-    /// <summary>Simple mode: groups the main box again and takes the row style that goes with it (one line = compact).</summary>
+    /// <summary>Simple mode: places the main window by a preset and takes the row style that goes with it (one line = compact).</summary>
     public void SetGrouping(OverlayGrouping grouping)
     {
-        var prefix = IdPrefix();
         Edit(l =>
         {
-            l.Regroup(grouping, prefix);
-            if (grouping != OverlayGrouping.Custom) l.Style.Arrangement = OverlayLayoutEdits.ArrangementFor(grouping);
+            l.Regroup(grouping);
+            if (grouping != OverlayGrouping.Custom) l.Style.Arrangement = OverlayGridEdits.ArrangementFor(grouping);
         });
     }
 
-    /// <summary>Advanced mode's quick arrangement: groups the main box again, the row style stays.</summary>
-    public void Regroup(OverlayGrouping grouping)
-    {
-        var prefix = IdPrefix();
-        Edit(l => l.Regroup(grouping, prefix));
-    }
+    /// <summary>Advanced mode's quick arrangement: places the main window by a preset, the row style stays.</summary>
+    public void Regroup(OverlayGrouping grouping) => Edit(l => l.Regroup(grouping));
 
     /// <summary>The overlay in a screen corner: anchor = corner, no extra offset, default margin.</summary>
     public void SetCorner(OverlayAnchor corner)
@@ -313,7 +280,7 @@ internal sealed class OverlayEditorModel
         var layout = new OverlayLayout();
         foreach (var key in FriendlyCatalog.DefaultOverlayKeys)
             if (friendly.FirstOrDefault(f => f.Key == key) is { } f)
-                layout.AddItem(new OverlayItem { SensorIds = [.. f.SensorIds] }, OverlayLayout.NewId());
+                layout.AddItem(new OverlayItem { SensorIds = [.. f.SensorIds] });
         return layout;
     }
 
@@ -329,10 +296,10 @@ internal sealed class OverlayEditorModel
 
     private static readonly string DefaultStyleText = LayoutJson.Text(new OverlayStyle());
 
-    /// <summary>A style other than the default one; the row style Simple mode's arrangement brings (one line = compact) is not custom.</summary>
+    /// <summary>A style other than the default one; the row style Simple mode's preset brings (one line = compact) is not custom.</summary>
     public static bool HasCustomStyle(OverlayLayout l)
     {
-        var implied = l.Grouping == OverlayGrouping.Custom ? OverlayArrangement.Vertical : OverlayLayoutEdits.ArrangementFor(l.Grouping);
+        var implied = l.Grouping == OverlayGrouping.Custom ? OverlayArrangement.Vertical : OverlayGridEdits.ArrangementFor(l.Grouping);
         if (l.Style.Arrangement != implied) return true;
         var plain = LayoutJson.Clone(l.Style);
         plain.Arrangement = OverlayArrangement.Vertical;
@@ -344,36 +311,30 @@ internal sealed class OverlayEditorModel
 
     public static bool HasCustomLook(OverlayItem item)
     {
-        var plain = new OverlayItem { Id = item.Id, SensorIds = item.SensorIds };
+        var plain = new OverlayItem { Id = item.Id, SensorIds = item.SensorIds, Row = item.Row, Column = item.Column };
         return LayoutJson.Text(plain) != LayoutJson.Text(item);
     }
 
-    /// <summary>Detached boxes or named rows (Advanced mode only).</summary>
-    public static bool HasCustomRows(OverlayLayout l) => l.Boxes.Count > 0 || l.AllBoxes().Any(b => b.Rows.Exists(r => r.Label is not null));
+    /// <summary>A grid arranged by hand or the second window (Advanced mode only).</summary>
+    public static bool HasCustomGrid(OverlayLayout l) => l.Grouping == OverlayGrouping.Custom || l.Second.Enabled;
 
-    /// <summary>Anything the simple mode does not show: style, per-item look, an exact position, detached boxes, row names.</summary>
+    /// <summary>Anything the simple mode does not show: style, per-item look, an exact position, a hand-made grid, the second window.</summary>
     public static bool HasCustomizations(OverlayLayout l)
-        => HasCustomStyle(l) || HasCustomPlacement(l) || HasCustomRows(l) || l.AllItems().Any(HasCustomLook);
+        => HasCustomStyle(l) || HasCustomPlacement(l) || HasCustomGrid(l) || l.AllItems().Any(HasCustomLook);
 
     /// <summary>
-    /// "Restore default look": theme style (with the row style of the arrangement), plain items (same sensors, same
-    /// order), detached boxes back in the main box, rows without names (grouped again unless arranged by hand), the
-    /// nearest corner.
+    /// "Restore default look": theme style (with the row style of the preset), plain items (same sensors, same order),
+    /// the second window's cells back in the main window, a hand-made grid placed by component again, the nearest corner.
     /// </summary>
     public void ResetLook()
     {
-        var prefix = IdPrefix();
         Edit(l =>
         {
-            var grouping = l.Grouping;
-            l.Style = new OverlayStyle { Arrangement = grouping == OverlayGrouping.Custom ? OverlayArrangement.Vertical : OverlayLayoutEdits.ArrangementFor(grouping) };
-            foreach (var box in l.Boxes.ToList()) l.RemoveBox(box.Id);
-            foreach (var row in l.Rows)
-            {
-                row.Label = null;
-                row.Items = row.Items.Select(i => new OverlayItem { Id = i.Id, SensorIds = [.. i.SensorIds] }).ToList();
-            }
-            l.Regroup(grouping, prefix);
+            var grouping = l.Grouping == OverlayGrouping.Custom ? OverlayGrouping.ByComponent : l.Grouping;
+            l.Style = new OverlayStyle { Arrangement = OverlayGridEdits.ArrangementFor(grouping) };
+            l.SetSecondWindow(false);
+            l.Cells = l.Cells.Select(i => new OverlayItem { Id = i.Id, SensorIds = [.. i.SensorIds], Row = i.Row, Column = i.Column }).ToList();
+            l.Regroup(grouping);
             l.Placement.Anchor = NearestCorner(l.Placement.Anchor);
             l.Placement.OffsetX = 0;
             l.Placement.OffsetY = 0;

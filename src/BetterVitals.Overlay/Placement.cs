@@ -123,8 +123,8 @@ public static class OverlayPlacementMath
     }
 
     /// <summary>
-    /// Snaps a dragged overlay box to the area's edges, the default margin from them and the center (both axes) when
-    /// within <paramref name="threshold"/> px; with <paramref name="others"/> also to the other boxes: edges in line, or
+    /// Snaps a dragged overlay window to the area's edges, the default margin from them and the center (both axes) when
+    /// within <paramref name="threshold"/> px; with <paramref name="others"/> also to the other windows: edges in line, or
     /// side by side <paramref name="gap"/> px apart.
     /// </summary>
     public static SnapResult Snap(int x, int y, int width, int height, PixelRect area, int margin, int threshold,

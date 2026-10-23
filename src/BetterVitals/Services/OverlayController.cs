@@ -164,7 +164,7 @@ internal sealed class OverlayController : IOverlayService, IDisposable
         {
             if (st.Overlay.DefaultsApplied) return;
             if (st.Overlay.IsEmpty)
-                foreach (var i in picked) st.Overlay.AddItem(new OverlayItem { SensorIds = [.. i!.SensorIds] }, OverlayLayout.NewId());
+                foreach (var i in picked) st.Overlay.AddItem(new OverlayItem { SensorIds = [.. i!.SensorIds] });
             st.Overlay.DefaultsApplied = true;
         });
     }

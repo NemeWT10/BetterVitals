@@ -70,7 +70,8 @@ internal sealed class PickerRow : INotifyPropertyChanged
 /// <summary>
 /// "All sensors…": every sensor of this PC grouped by hardware, searchable, live values, in a sheet over the page
 /// (no extra window). Simple mode: a switch puts a sensor on the overlay right away. Advanced mode: pick several, then
-/// add them as separate items or — several of one kind — as one multi-value item (e.g. all core clocks).
+/// add them as separate items or — several of one kind — as one multi-value item (e.g. all core clocks); or drag a
+/// sensor straight onto the layout board (the sheet steps aside while the drag runs and comes back after the drop).
 /// </summary>
 internal sealed class SensorPicker : Grid
 {
@@ -88,6 +89,9 @@ internal sealed class SensorPicker : Grid
     private readonly TextBlock _nothing;
     private List<PickerRow> _all = [];
     private bool _advanced;
+    private bool _suspended;
+    private PickerRow? _pressRow;
+    private Point _pressAt;
 
     public SensorPicker(EditorContext ctx)
     {
@@ -177,6 +181,8 @@ internal sealed class SensorPicker : Grid
         _list.SetResourceReference(ItemsControl.ItemContainerStyleProperty, "OvEd.PickerItem");
         _list.SetResourceReference(ItemsControl.ItemTemplateProperty, "OvEd.PickerRow");
         _list.PreviewMouseLeftButtonUp += OnRowClick;
+        _list.PreviewMouseLeftButtonDown += OnRowPress;
+        _list.PreviewMouseMove += OnRowMove;
         root.Children.Add(_list);
 
         sheet.Child = root;
@@ -192,7 +198,8 @@ internal sealed class SensorPicker : Grid
         };
     }
 
-    public bool IsOpen => Visibility == Visibility.Visible;
+    /// <summary>Open (also while it steps aside for a drag onto the board).</summary>
+    public bool IsOpen => Visibility == Visibility.Visible || _suspended;
 
     /// <summary>The picker opened / closed (the page widens its sensor demand while it is open).</summary>
     public event Action<bool>? OpenChanged;
@@ -220,6 +227,8 @@ internal sealed class SensorPicker : Grid
     public void Close()
     {
         if (!IsOpen) return;
+        _suspended = false;
+        _pressRow = null;
         Visibility = Visibility.Collapsed;
         _all = [];
         _list.ItemsSource = null;
@@ -317,6 +326,51 @@ internal sealed class SensorPicker : Grid
                 return;
             }
         }
+    }
+
+    // ───────────── dragging a sensor onto the board (advanced) ─────────────
+
+    private void OnRowPress(object sender, MouseButtonEventArgs e)
+    {
+        _pressRow = null;
+        if (!_advanced || _ctx.SensorDragStarted is null || e.OriginalSource is not DependencyObject d) return;
+        for (var p = d; p is not null && p != _list; p = VisualTreeHelper.GetParent(p))
+        {
+            if (p is CheckBox) return;
+            if (p is ListBoxItem { DataContext: PickerRow { IsHeader: false, Sensor: not null } row })
+            {
+                _pressRow = row;
+                _pressAt = e.GetPosition(this);
+                return;
+            }
+        }
+    }
+
+    private void OnRowMove(object sender, MouseEventArgs e)
+    {
+        if (_pressRow is not { Sensor: { } sensor } row) return;
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            _pressRow = null;
+            return;
+        }
+        if ((e.GetPosition(this) - _pressAt).Length < 6) return;
+        _pressRow = null;
+        if (_ctx.SensorDragStarted is not { } start) return;
+        // the sheet steps aside: the board under it takes the drag
+        _suspended = true;
+        Visibility = Visibility.Hidden;
+        start([sensor.Id], row.Title);
+    }
+
+    /// <summary>A drag out of the picker ended: the sheet is back, as it was.</summary>
+    public void ResumeAfterDrag()
+    {
+        if (!_suspended) return;
+        _suspended = false;
+        Visibility = Visibility.Visible;
+        UpdateValues();
+        UpdateFooter();
     }
 
     private void OnToggled(PickerRow row, bool on)

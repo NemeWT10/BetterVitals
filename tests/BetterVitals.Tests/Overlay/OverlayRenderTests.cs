@@ -156,12 +156,12 @@ public class OverlayRenderTests
     }
 
     /// <summary>The main box of a layout as the host builds it (a normalized copy: a flat item list becomes rows by its arrangement).</summary>
-    internal static Scene Build(OverlayLayout layout, IReadOnlyList<PreviewSensor> values, int height, OverlayTheme? theme = null, string boxId = OverlayLayout.MainBoxId)
+    internal static Scene Build(OverlayLayout layout, IReadOnlyList<PreviewSensor> values, int height, OverlayTheme? theme = null, string windowId = OverlayLayout.MainWindowId)
     {
         var lookup = new PreviewLookup(values);
         var copy = BetterVitals.Overlay.Host.LayoutCopy.Clone(layout);
         var scene = new Scene(new SceneInput(copy, theme ?? OverlayTheme.Default, lookup, CultureInfo.InvariantCulture, TemperatureUnit.Celsius, null,
-            OverlayPlacementMath.Scale(copy.Style, height), boxId));
+            OverlayPlacementMath.Scale(copy.Style, height), windowId));
         lookup.Feed(scene);
         return scene;
     }

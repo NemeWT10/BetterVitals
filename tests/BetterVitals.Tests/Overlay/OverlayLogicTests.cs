@@ -338,22 +338,24 @@ public class OverlayLogicTests
     {
         var layout = new OverlayLayout
         {
-            Rows = [new() { Items = [new() { SensorIds = ["a"], Thresholds = [new() { Value = 1 }] }] }],
-            Boxes = [new() { Placement = new() { Anchor = OverlayAnchor.BottomRight }, Rows = [new() { Label = "GPU", Items = [new() { SensorIds = ["g"] }] }] }],
+            Cells = [new() { SensorIds = ["a"], Thresholds = [new() { Value = 1 }], Row = 0, Column = 1 }, new() { SensorIds = ["c"], Row = 1, Column = 0 }],
+            Second = new() { Enabled = true, Placement = new() { Anchor = OverlayAnchor.BottomRight }, Cells = [new() { Label = "GPU", SensorIds = ["g"] }] },
         };
         var copy = LayoutCopy.Clone(layout);
-        layout.Rows[0].Items[0].SensorIds.Add("b");
-        layout.Rows[0].Items[0].Thresholds![0].Value = 5;
+        layout.Cells[0].SensorIds.Add("b");
+        layout.Cells[0].Thresholds![0].Value = 5;
+        layout.Cells[0].Column = 7;
         layout.Style.FontFamily = "Geist";
-        layout.Boxes[0].Placement.Anchor = OverlayAnchor.TopLeft;
-        layout.Boxes[0].Rows[0].Label = "x";
-        layout.Boxes[0].Rows[0].Items.Clear();
-        Assert.Single(copy.Rows[0].Items[0].SensorIds);
-        Assert.Equal(1, copy.Rows[0].Items[0].Thresholds![0].Value);
+        layout.Second.Placement.Anchor = OverlayAnchor.TopLeft;
+        layout.Second.Cells[0].Label = "x";
+        layout.Second.Cells.Clear();
+        Assert.Single(copy.Cells[0].SensorIds);
+        Assert.Equal(1, copy.Cells[0].Thresholds![0].Value);
+        Assert.Equal((0, 1), (copy.Cells[0].Row, copy.Cells[0].Column)); // a tidy grid of its own
         Assert.Equal("Inter", copy.Style.FontFamily);
-        Assert.Equal(OverlayAnchor.BottomRight, copy.Boxes[0].Placement.Anchor);
-        Assert.Equal("GPU", copy.Boxes[0].Rows[0].Label);
-        Assert.Single(copy.Boxes[0].Rows[0].Items);
+        Assert.Equal(OverlayAnchor.BottomRight, copy.Second.Placement.Anchor);
+        Assert.Equal("GPU", copy.Second.Cells[0].Label);
+        Assert.Single(copy.Second.Cells);
     }
 
     [Fact]

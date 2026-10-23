@@ -18,27 +18,31 @@ internal static class LayoutCopy
             Grouping = src.Grouping,
             Placement = Clone(src.Placement ?? new OverlayPlacement()),
             Style = Clone(src.Style ?? new OverlayStyle()),
-            Rows = Clone(src.Rows),
-            Boxes = (src.Boxes ?? []).Where(b => b is not null).Select(b => new OverlayBox
+            Cells = Clone(src.Cells),
+            Second = new OverlaySecondWindow
+            {
+                Enabled = src.Second?.Enabled ?? false,
+                Placement = Clone(src.Second?.Placement ?? new OverlayPlacement { Anchor = OverlayAnchor.TopRight }),
+                Cells = Clone(src.Second?.Cells),
+            },
+            // older shapes not normalized yet (a layout built in code): Normalize below turns them into cells
+            Items = src.Items is null ? null : Clone(src.Items),
+            Rows = src.Rows?.Where(r => r is not null).Select(Clone).ToList(),
+            Boxes = src.Boxes?.Where(b => b is not null).Select(b => new OverlayBox
             {
                 Id = b.Id,
                 Name = b.Name,
-                Placement = Clone(b.Placement ?? new OverlayPlacement()),
-                Rows = Clone(b.Rows),
+                Placement = b.Placement is null ? null : Clone(b.Placement),
+                Rows = (b.Rows ?? []).Where(r => r is not null).Select(Clone).ToList(),
             }).ToList(),
-            Items = src.Items?.Where(i => i is not null).Select(Clone).ToList(),
         };
         l.Normalize();
         return l;
     }
 
-    private static List<OverlayRow> Clone(List<OverlayRow>? rows)
-        => (rows ?? []).Where(r => r is not null).Select(r => new OverlayRow
-        {
-            Id = r.Id,
-            Label = r.Label,
-            Items = (r.Items ?? []).Where(i => i is not null).Select(Clone).ToList(),
-        }).ToList();
+    private static List<OverlayItem> Clone(List<OverlayItem>? items) => (items ?? []).Where(i => i is not null).Select(Clone).ToList();
+
+    private static OverlayRow Clone(OverlayRow r) => new() { Id = r.Id, Label = r.Label, Items = Clone(r.Items) };
 
     public static OverlayPlacement Clone(OverlayPlacement p) => new()
     {
@@ -91,5 +95,7 @@ internal static class LayoutCopy
         Thresholds = i.Thresholds?.Where(t => t is not null).Select(t => new OverlayThreshold { Value = t.Value, Color = t.Color }).ToList(),
         FontFamily = i.FontFamily,
         ValueSize = i.ValueSize,
+        Row = i.Row,
+        Column = i.Column,
     };
 }

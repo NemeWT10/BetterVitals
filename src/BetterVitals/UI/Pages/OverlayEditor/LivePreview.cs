@@ -65,18 +65,18 @@ internal sealed class AspectBox : Decorator
 }
 
 /// <summary>
-/// The live preview: a monitor mock with the artificial game scene and the real overlay renderer's output for every box
-/// (<see cref="OverlayHost.RenderBoxesToBitmaps"/> at the chosen screen's real height, shown scaled down — so it is
-/// truthful about the share of the screen it takes), corner buttons (simple mode), dragging any box with snapping
-/// (advanced mode, Shift = free), a resolution switch and a close-up of the main box at reference size. Renders on a
-/// worker thread into one reused <see cref="WriteableBitmap"/> per box; only while the page runs it
+/// The live preview: a monitor mock with the artificial game scene and the real overlay renderer's output for every window
+/// (<see cref="OverlayHost.RenderWindowsToBitmaps"/> at the chosen screen's real height, shown scaled down — so it is
+/// truthful about the share of the screen it takes), corner buttons (simple mode), dragging any window with snapping
+/// (advanced mode, Shift = free), a resolution switch and a close-up of the main window at reference size. Renders on a
+/// worker thread into one reused <see cref="WriteableBitmap"/> per window; only while the page runs it
 /// (<see cref="Start"/> / <see cref="Stop"/>).
 /// </summary>
 internal sealed class LivePreview : StackPanel
 {
     private const double MinRenderGapMs = 90;
 
-    /// <summary>One box on the mock: its picture and where it was rendered.</summary>
+    /// <summary>One window on the mock: its picture and where it was rendered.</summary>
     private sealed class PreviewBox(string id, Rectangle rect, ImageBrush brush)
     {
         public string Id { get; } = id;
@@ -301,7 +301,7 @@ internal sealed class LivePreview : StackPanel
         set => _cornerLayer.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>Advanced mode: every box can be dragged on the mock.</summary>
+    /// <summary>Advanced mode: every window can be dragged on the mock.</summary>
     public bool DragEnabled
     {
         get => _dragEnabled;
@@ -316,14 +316,14 @@ internal sealed class LivePreview : StackPanel
     /// <summary>The screen the preview shows.</summary>
     public PreviewResolution Resolution => _selected;
 
-    /// <summary>The main box (or the first box with content): what the close-up shows.</summary>
-    private PreviewBox? Lead => _boxes.Find(b => b.Id == OverlayLayout.MainBoxId && b.W > 0) ?? _boxes.Find(b => b.W > 0);
+    /// <summary>The main window (or the first one with content): what the close-up shows.</summary>
+    private PreviewBox? Lead => _boxes.Find(b => b.Id == OverlayLayout.MainWindowId && b.W > 0) ?? _boxes.Find(b => b.W > 0);
 
-    /// <summary>Size of the last render of the main box (tests).</summary>
+    /// <summary>Size of the last render of the main window (tests).</summary>
     public (int Width, int Height) RenderedSize => Lead is { } b ? (b.W, b.H) : (0, 0);
 
-    /// <summary>Boxes on the mock right now and their rendered size (tests).</summary>
-    public IReadOnlyList<(string BoxId, int Width, int Height)> RenderedBoxes => [.. _boxes.Where(b => b.W > 0).Select(b => (b.Id, b.W, b.H))];
+    /// <summary>Windows on the mock right now and their rendered size (tests).</summary>
+    public IReadOnlyList<(string WindowId, int Width, int Height)> RenderedWindows => [.. _boxes.Where(b => b.W > 0).Select(b => (b.Id, b.W, b.H))];
 
     public int RenderCount { get; private set; }
 
@@ -388,7 +388,7 @@ internal sealed class LivePreview : StackPanel
         foreach (var (a, b) in _corners)
         {
             b.IsChecked = a == corner;
-            b.Visibility = a == corner && _ctx.Layout.Rows.Count > 0 ? Visibility.Hidden : Visibility.Visible;
+            b.Visibility = a == corner && _ctx.Layout.Cells.Count > 0 ? Visibility.Hidden : Visibility.Visible;
         }
     }
 
@@ -436,11 +436,11 @@ internal sealed class LivePreview : StackPanel
         {
             try
             {
-                return (Bitmaps: OverlayHost.RenderBoxesToBitmaps(layout, theme, values, height, culture, unit), Error: (Exception?)null);
+                return (Bitmaps: OverlayHost.RenderWindowsToBitmaps(layout, theme, values, height, culture, unit), Error: (Exception?)null);
             }
             catch (Exception ex)
             {
-                return (Bitmaps: (IReadOnlyList<(string BoxId, OverlayBitmap Bitmap)>?)null, Error: ex);
+                return (Bitmaps: (IReadOnlyList<(string WindowId, OverlayBitmap Bitmap)>?)null, Error: ex);
             }
         }).ContinueWith(t =>
         {
@@ -459,10 +459,10 @@ internal sealed class LivePreview : StackPanel
         }, TaskScheduler.Default);
     }
 
-    private void Apply(IReadOnlyList<(string BoxId, OverlayBitmap Bitmap)> bitmaps, double scale, int monitorHeight)
+    private void Apply(IReadOnlyList<(string WindowId, OverlayBitmap Bitmap)> bitmaps, double scale, int monitorHeight)
     {
-        // boxes that are gone leave the mock
-        foreach (var gone in _boxes.Where(b => !bitmaps.Any(x => x.BoxId == b.Id)).ToList())
+        // windows that are gone leave the mock
+        foreach (var gone in _boxes.Where(b => !bitmaps.Any(x => x.WindowId == b.Id)).ToList())
         {
             if (_dragging == gone) EndDrag(commit: false);
             _layer.Children.Remove(gone.Rect);
@@ -487,7 +487,7 @@ internal sealed class LivePreview : StackPanel
             box.RenderedHeight = monitorHeight;
             box.Brush.Viewbox = new Rect(0, 0, box.W, box.H);
         }
-        // the main box (or the first one) in the close-up
+        // the main window (or the first one) in the close-up
         if (Lead is { } lead)
         {
             _closeBrush.ImageSource = lead.Bitmap;
@@ -568,8 +568,8 @@ internal sealed class LivePreview : StackPanel
             Canvas.SetLeft(b.Rect, x * f);
             Canvas.SetTop(b.Rect, y * f);
         }
-        // simple mode outlines the main box (its corner buttons belong to it)
-        var main = _boxes.Find(b => b.Id == OverlayLayout.MainBoxId && b.W > 0);
+        // simple mode outlines the main window (its corner buttons belong to it)
+        var main = _boxes.Find(b => b.Id == OverlayLayout.MainWindowId && b.W > 0);
         _outline.Visibility = CornersVisible && main is not null && main.Rect.Visibility == Visibility.Visible ? Visibility.Visible : Visibility.Collapsed;
         if (main is not null)
         {
@@ -582,7 +582,7 @@ internal sealed class LivePreview : StackPanel
         ArrangeCloseUp();
     }
 
-    /// <summary>The main box at reference size (its 1080p look) over the part of the scene behind it.</summary>
+    /// <summary>The main window at reference size (its 1080p look) over the part of the scene behind it.</summary>
     private void ArrangeCloseUp()
     {
         if (Lead is not { } lead || _closeEmpty.Visibility == Visibility.Visible) return;
@@ -688,7 +688,7 @@ internal sealed class LivePreview : StackPanel
         Arrange();
     }
 
-    /// <summary>A box was dropped at a new place (argument: its id; the placement fields re-read).</summary>
+    /// <summary>A window was dropped at a new place (argument: its id; the placement fields re-read).</summary>
     public event Action<string>? Dragged;
 
     private void ShowGuide(Rectangle guide, int? at, double f, bool vertical)

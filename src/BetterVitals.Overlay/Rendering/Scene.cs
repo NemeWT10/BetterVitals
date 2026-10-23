@@ -17,7 +17,7 @@ internal interface ISensorLookup
     int Slot(SensorDescriptor sensor);
 }
 
-/// <summary>Everything a <see cref="Scene"/> is built from: one box of a layout.</summary>
+/// <summary>Everything a <see cref="Scene"/> is built from: one window of a (tidy) layout.</summary>
 internal sealed record SceneInput(
     OverlayLayout Layout,
     OverlayTheme Theme,
@@ -26,15 +26,17 @@ internal sealed record SceneInput(
     TemperatureUnit TemperatureUnit,
     Func<OverlayItem, string?>? Labels,
     double Scale,
-    string BoxId = OverlayLayout.MainBoxId);
+    string WindowId = OverlayLayout.MainWindowId);
 
 /// <summary>A vertical divider between two cells (Horizontal / Compact), px.</summary>
 internal readonly record struct Divider(float X, float Top, float Bottom);
 
 /// <summary>
-/// One box of the overlay at one scale: resolved rows and items, fonts, measured text and the arranged geometry, plus
-/// the per-refresh value pipeline (aggregation, formatting into reusable buffers, thresholds, sparklines). Owns its
-/// DirectWrite objects; device-independent (drawn by <see cref="SceneRenderer"/> into any render target).
+/// One window of the overlay at one scale: its grid of cells resolved into rows of items, fonts, measured text and the
+/// arranged geometry — columns line up like a table (one width per column; label, value, unit and sparkline parts
+/// aligned down the column) — plus the per-refresh value pipeline (aggregation, formatting into reusable buffers,
+/// thresholds, sparklines). A grid of one column or one row draws exactly like the flat list of settings schema 1.
+/// Owns its DirectWrite objects; device-independent (drawn by <see cref="SceneRenderer"/> into any render target).
 /// Single-threaded.
 /// </summary>
 internal sealed unsafe class Scene : IDisposable
@@ -47,6 +49,7 @@ internal sealed unsafe class Scene : IDisposable
     private readonly Dictionary<(string?, int, int), nint> _formats = [];
     private readonly Dictionary<string, TextLine> _units = new(StringComparer.Ordinal);
     private readonly List<TextLine> _lines = [];
+    private readonly ColumnWidths _cols;
 
     public Scene(SceneInput input)
     {
@@ -57,7 +60,7 @@ internal sealed unsafe class Scene : IDisposable
         S = (float)input.Scale;
         Arrangement = Style.Arrangement;
         RefreshMs = Math.Clamp(layout.RefreshMs, 250, 2000);
-        BoxId = input.BoxId;
+        WindowId = input.WindowId;
 
         var bg = Rgba.TryParse(Style.BackgroundColor) ?? Theme.Background;
         Background = bg.WithAlpha(bg.A / 255.0 * Math.Clamp(Style.BackgroundOpacity, 0, 1));
@@ -74,30 +77,44 @@ internal sealed unsafe class Scene : IDisposable
         UnitPx = (float)Style.UnitSize * S;
         ValueFamily = Style.ValueFontFamily ?? Style.FontFamily;
 
-        foreach (var src in layout.RowsOf(input.BoxId) ?? [])
+        // the cells row by row, left to right (holes in a row are allowed: a column another row uses)
+        SceneRow? row = null;
+        foreach (var src in OverlayGrid.Ordered((layout.CellsOf(input.WindowId) ?? []).Where(c => c is not null)))
         {
-            if (src?.Items is not { Count: > 0 } items) continue;
-            var row = new SceneRow(src);
-            foreach (var item in items)
+            if (row is null || row.Index != src.Row)
             {
-                if (item is null) continue;
-                var built = BuildItem(item);
-                row.Items.Add(built);
-                Items.Add(built);
+                row = new SceneRow(src.Row);
+                Rows.Add(row);
             }
-            if (row.Items.Count == 0) continue;
-            if (Arrangement == OverlayArrangement.Vertical) LabelRow(row);
-            Rows.Add(row);
+            var built = BuildItem(src);
+            built.Column = Math.Max(0, src.Column);
+            row.Items.Add(built);
+            Items.Add(built);
+            ColumnCount = Math.Max(ColumnCount, built.Column + 1);
         }
+        if (Arrangement == OverlayArrangement.Vertical)
+            foreach (var r in Rows) LabelRow(r);
+        _cols = new ColumnWidths(ColumnCount);
+        ColumnLeft = new float[ColumnCount];
+        ColumnRight = new float[ColumnCount];
         Arrange();
     }
 
     public SceneInput Input { get; }
 
-    /// <summary>The box this scene draws.</summary>
-    public string BoxId { get; }
+    /// <summary>The window this scene draws.</summary>
+    public string WindowId { get; }
 
     public List<SceneRow> Rows { get; } = [];
+
+    /// <summary>Columns of the grid (the widest row).</summary>
+    public int ColumnCount { get; }
+
+    /// <summary>Left edge of each column's content, px (Vertical: column 0 starts with the label column).</summary>
+    public float[] ColumnLeft { get; }
+
+    /// <summary>Right edge of each column's content (units and sparklines included), px.</summary>
+    public float[] ColumnRight { get; }
 
     public OverlayStyle Style { get; }
 
@@ -153,20 +170,29 @@ internal sealed unsafe class Scene : IDisposable
 
     /// <summary>
     /// Vertical rows: the row label for the label column and, for items whose label differs from it, a small label of
-    /// their own in front of the value. A row of one item draws exactly like the old list line.
+    /// their own in front of the value. The label column belongs to column 0: a row with its first column empty has no
+    /// row label, its cells show their own. A row of one item draws exactly like the old list line. The row label is
+    /// the first cell's own label when it has one, otherwise the component ("CPU", "GPU", "FPS"…) of a one-component
+    /// row, otherwise the first cell's label.
     /// </summary>
     private void LabelRow(SceneRow row)
     {
         var first = row.Items[0];
         row.LabelColor = first.LabelColor;
-        var custom = string.IsNullOrWhiteSpace(row.Source.Label) ? null : row.Source.Label.Trim();
-        if (row.Items.Count == 1 && custom is null)
+        if (first.Column != 0)
+        {
+            foreach (var it in row.Items)
+                if (it.SubLabels is null) it.Tag = Line(it.Label.Text, Format(it.Source.FontFamily ?? Style.FontFamily, Style.LabelWeight, LabelPx * TagScale));
+            return;
+        }
+        if (row.Items.Count == 1)
         {
             // the classic line: the item's own label in the label column (rows of a multi-value item: their sub-labels)
             row.Label = first.SubLabels is null ? first.Label : null;
             row.SubLabelsInColumn = first.SubLabels is not null;
             return;
         }
+        var custom = string.IsNullOrWhiteSpace(first.Source.Label) ? null : first.Label.Text;
         var text = custom ?? DefaultLabels.ForRow([.. row.Items.Select(i => i.Label.Text)], [.. row.Items.Select(i => i.Hw)]);
         row.Label = string.Equals(text, first.Label.Text, StringComparison.Ordinal) && first.SubLabels is null
             ? first.Label
@@ -565,29 +591,46 @@ internal sealed unsafe class Scene : IDisposable
     private float CellGap2 => MathF.Round(20 * S);
 
     /// <summary>
-    /// Rows with a label column. The label column, the first value column (right-aligned numbers, then units, then
-    /// sparklines) and the start of the second value are shared by all rows; further values follow at their own width
-    /// (grow-only, so nothing jitters). Rows of one item give exactly the old list.
+    /// Label beside the value. Column 0 is the old list: the label column (row labels), item labels, right-aligned
+    /// numbers, units, sparklines — shared by all rows. Every further column is the same: its own small labels on the
+    /// left, the numbers right-aligned on one edge, then the units and sparklines, as wide as its widest cell. The
+    /// sparkline of a row's last cell runs on into the empty space beside it instead of widening its column. A grid of
+    /// one column is exactly the old list, a grid of one row the old one-line row.
     /// </summary>
     private void ArrangeVertical()
     {
         var p = P;
+        var cols = _cols;
+        cols.Clear();
         float labelCol = 0, tagCol = 0, valueCol = 0, unitCol = 0;
         var graph = false;
         foreach (var row in Rows)
         {
             if (row.Label is { } label) labelCol = MathF.Max(labelCol, label.Width);
-            var first = row.Items[0];
-            if (row.SubLabelsInColumn)
+            for (var k = 0; k < row.Items.Count; k++)
             {
-                // as the list always did: the item's own label (not drawn) still widens the column
-                labelCol = MathF.Max(labelCol, first.Label.Width);
-                foreach (var s in first.SubLabels!) labelCol = MathF.Max(labelCol, s.Width);
+                var it = row.Items[k];
+                var inside = it.Spark is not null && k < row.Items.Count - 1; // a sparkline with a cell after it
+                if (it.Column == 0)
+                {
+                    if (row.SubLabelsInColumn)
+                    {
+                        // as the list always did: the item's own label (not drawn) still widens the column
+                        labelCol = MathF.Max(labelCol, it.Label.Width);
+                        foreach (var s in it.SubLabels!) labelCol = MathF.Max(labelCol, s.Width);
+                    }
+                    tagCol = MathF.Max(tagCol, TagWidth(it, row));
+                    valueCol = MathF.Max(valueCol, BlockWidth(it));
+                    unitCol = MathF.Max(unitCol, it.ShowUnit ? it.UnitColW : 0);
+                    graph |= inside;
+                    continue;
+                }
+                var c = it.Column;
+                cols.Tag[c] = MathF.Max(cols.Tag[c], TagWidth(it, row));
+                cols.Block[c] = MathF.Max(cols.Block[c], BlockWidth(it));
+                cols.Unit[c] = MathF.Max(cols.Unit[c], UnitWidth(it));
+                cols.Graph[c] |= inside;
             }
-            tagCol = MathF.Max(tagCol, TagWidth(first, row));
-            valueCol = MathF.Max(valueCol, BlockWidth(first));
-            unitCol = MathF.Max(unitCol, first.ShowUnit ? first.UnitColW : 0);
-            graph |= first.Spark is not null;
         }
         var gapLv = labelCol > 0 ? MathF.Round(14 * S) : 0;
         var tagX = MathF.Round(p + labelCol + gapLv);
@@ -596,13 +639,23 @@ internal sealed unsafe class Scene : IDisposable
         var end = unitCol > 0 ? unitX + unitCol : valueRight;
         var graphX = end + GraphGap;
         var right = graph ? graphX + GraphW : end;
-
-        // the second value starts at the same x in every row that has one (a row whose first value has a sparkline
-        // starts it after the sparkline instead of pushing every other row that far)
-        float second = 0;
-        foreach (var row in Rows)
-            if (row.Items.Count > 1 && row.Items[0].Spark is null)
-                second = MathF.Max(second, end + CellGap2);
+        if (ColumnCount > 0)
+        {
+            ColumnLeft[0] = MathF.Round(p);
+            ColumnRight[0] = right;
+        }
+        // further columns start one gap after the previous one ends (its widest cell, sparklines included)
+        for (var c = 1; c < ColumnCount; c++)
+        {
+            var x = ColumnRight[c - 1] + CellGap2;
+            cols.X[c] = x;
+            cols.ValueRight[c] = MathF.Round(x + cols.Tag[c] + cols.Block[c]);
+            var cellEnd = cols.ValueRight[c] + cols.Unit[c];
+            cols.GraphX[c] = cellEnd + GraphGap;
+            ColumnLeft[c] = x;
+            ColumnRight[c] = cols.Graph[c] ? cols.GraphX[c] + GraphW : cellEnd;
+            right = MathF.Max(right, ColumnRight[c]);
+        }
 
         var firstItem = Rows.Count > 0 ? Rows[0].Items[0] : null;
         var firstRow = firstItem is not null ? RowHeight(firstItem.ValuePx) : RowHeight(ValuePx);
@@ -627,31 +680,30 @@ internal sealed unsafe class Scene : IDisposable
             for (var k = 0; k < row.Items.Count; k++)
             {
                 var it = row.Items[k];
+                var c = it.Column;
                 it.Top = y;
                 it.Height = BlockHeight(it);
                 it.Baseline = baseline;
                 it.LabelX = MathF.Round(p);
                 it.GraphW = GraphW;
-                if (k == 0)
+                if (c == 0)
                 {
                     it.TagX = tagX;
                     it.ValueRight = valueRight;
                     it.UnitX = unitX;
                     it.GraphX = graphX;
+                    it.CellEnd = it.Spark is not null ? graphX + GraphW : end;
                 }
                 else
                 {
-                    var x = k == 1 ? MathF.Max(second, row.Items[0].CellEnd + CellGap2) : row.Items[k - 1].CellEnd + CellGap2;
-                    row.Dots.Add(MathF.Round(x - CellGap2 / 2));
-                    it.TagX = x;
-                    it.ValueRight = MathF.Round(x + TagWidth(it, row) + BlockWidth(it));
+                    // a dot between this value and the one before it in the row
+                    if (k > 0) row.Dots.Add(MathF.Round(cols.X[c] - CellGap2 / 2));
+                    it.TagX = cols.X[c];
+                    it.ValueRight = cols.ValueRight[c];
                     it.UnitX = it.ValueRight + UnitGap;
-                    var cellEnd = it.ValueRight + UnitWidth(it);
-                    it.GraphX = cellEnd + GraphGap;
+                    it.GraphX = cols.GraphX[c];
+                    it.CellEnd = it.Spark is not null ? it.GraphX + GraphW : it.ValueRight + UnitWidth(it);
                 }
-                it.CellEnd = k == 0
-                    ? it.Spark is not null ? graphX + GraphW : end
-                    : it.Spark is not null ? it.GraphX + GraphW : it.ValueRight + UnitWidth(it);
                 if (it.IsMulti && it.Display == MultiValueDisplay.Bars) it.BarsX = it.ValueRight - it.TextColW - MathF.Round(7 * S) - BarsWidth(it);
                 if (it.Display == MultiValueDisplay.Grid && it.IsMulti) it.GridX = it.ValueRight - BlockWidth(it);
                 right = MathF.Max(right, it.CellEnd);
@@ -668,57 +720,78 @@ internal sealed unsafe class Scene : IDisposable
         }
     }
 
-    /// <summary>Every item with its label above the value, side by side; one band per row.</summary>
+    /// <summary>Every cell with its label above the value; columns as wide as their widest cell, one band per row.</summary>
     private void ArrangeHorizontal()
     {
         var p = P;
+        var cols = _cols;
+        cols.Clear();
         var labelLine = MathF.Ceiling(LabelPx * 1.25f);
         var pv = MathF.Round(MathF.Max(4 * S, p - LabelPx * 0.2f));
         var cellGap = MathF.Round(22 * S);
         var rowGap = Gap + MathF.Round(6 * S);
+        foreach (var row in Rows)
+            foreach (var it in row.Items)
+            {
+                var c = it.Column;
+                var subW = 0f;
+                if (it.SubLabels is { } subs)
+                    foreach (var s in subs) subW = MathF.Max(subW, s.Width);
+                cols.Tag[c] = MathF.Max(cols.Tag[c], subW > 0 ? subW + MathF.Round(8 * S) : 0); // sub-label column
+                cols.Block[c] = MathF.Max(cols.Block[c], BlockWidth(it));
+                cols.Unit[c] = MathF.Max(cols.Unit[c], UnitWidth(it));
+                cols.Graph[c] |= it.Spark is not null;
+                cols.Label[c] = MathF.Max(cols.Label[c], it.Label.Width);
+            }
+        var x = MathF.Round(p);
+        var right = x;
+        for (var c = 0; c < ColumnCount; c++)
+        {
+            var valueW = cols.Block[c] + cols.Unit[c] + (cols.Graph[c] ? GraphGap + GraphW : 0);
+            var w = MathF.Max(cols.Label[c], cols.Tag[c] + valueW);
+            cols.X[c] = x;
+            cols.ValueRight[c] = MathF.Round(x + cols.Tag[c] + cols.Block[c]);
+            cols.GraphX[c] = cols.ValueRight[c] + cols.Unit[c] + GraphGap;
+            ColumnLeft[c] = x;
+            x += MathF.Ceiling(w);
+            ColumnRight[c] = x;
+            right = x;
+            x += cellGap;
+        }
+
         var top = pv;
-        var right = MathF.Round(p);
         foreach (var row in Rows)
         {
-            var x = MathF.Round(p);
             float maxH = 0;
             for (var i = 0; i < row.Items.Count; i++)
             {
                 var it = row.Items[i];
-                var block = BlockWidth(it);
-                var valueW = block + UnitWidth(it) + (it.Spark is not null ? GraphGap + GraphW : 0);
-                var subW = 0f;
-                if (it.SubLabels is { } subs)
-                    foreach (var s in subs) subW = MathF.Max(subW, s.Width);
-                var subColW = subW > 0 ? subW + MathF.Round(8 * S) : 0;
-                var w = MathF.Max(it.Label.Width, subColW + valueW);
-                it.LabelX = x;
+                var c = it.Column;
+                var cx = cols.X[c];
+                it.LabelX = cx;
                 it.LabelBaseline = MathF.Round(top + labelLine * 0.8f);
                 var valueTop = top + labelLine + MathF.Round(2 * S);
                 it.Top = valueTop;
                 it.Height = BlockHeight(it);
-                it.ValueRight = MathF.Round(x + subColW + block);
+                it.ValueRight = cols.ValueRight[c];
                 it.UnitX = it.ValueRight + UnitGap;
-                it.GraphX = it.ValueRight + UnitWidth(it) + GraphGap;
+                it.GraphX = cols.GraphX[c];
                 it.GraphW = GraphW;
-                it.SubLabelX = x;
+                it.SubLabelX = cx;
                 var rowH = RowHeight(it.ValuePx);
                 it.Baseline = MathF.Round(valueTop + (rowH + CapPx(it, it.ValuePx)) / 2);
-                if (it.IsMulti && it.Display == MultiValueDisplay.Bars) it.BarsX = x;
-                if (it.IsMulti && it.Display == MultiValueDisplay.Grid) it.GridX = x;
+                // bars / grid hug their numbers (a narrower block in a wide column starts further right)
+                var inset = cols.Tag[c] + cols.Block[c] - BlockWidth(it);
+                if (it.IsMulti && it.Display == MultiValueDisplay.Bars) it.BarsX = cx + inset;
+                if (it.IsMulti && it.Display == MultiValueDisplay.Grid) it.GridX = cx + inset;
                 maxH = MathF.Max(maxH, labelLine + MathF.Round(2 * S) + it.Height);
-                x += MathF.Ceiling(w);
-                if (i < row.Items.Count - 1)
-                {
-                    row.DividerXs.Add(MathF.Round(x + cellGap / 2) + 0.5f);
-                    x += cellGap;
-                }
+                // a divider between this cell and the one before it in the row
+                if (i > 0) row.DividerXs.Add(MathF.Round(ColumnRight[c - 1] + cellGap / 2) + 0.5f);
             }
             foreach (var d in row.DividerXs) Dividers.Add(new Divider(d, top + MathF.Round(2 * S), top + maxH - MathF.Round(2 * S)));
             row.DividerXs.Clear();
             row.Top = top;
             row.Height = MathF.Max(maxH, RowHeight(row.Items[0].ValuePx));
-            right = MathF.Max(right, x);
             top += row.Height + rowGap;
         }
         if (Rows.Count > 0) top -= rowGap;
@@ -727,63 +800,123 @@ internal sealed unsafe class Scene : IDisposable
         Height = (int)MathF.Ceiling(top + pv);
     }
 
-    /// <summary>Compact cells "CPU 45° | GPU 60°", one line per row.</summary>
+    /// <summary>Compact cells "CPU 45° | GPU 60°", one line per row; columns as wide as their widest cell.</summary>
     private void ArrangeCompact()
     {
         var p = P;
-        float RowH(SceneRow r) => r.Items.Max(i => RowHeight(i.ValuePx));
+        var cols = _cols;
+        cols.Clear();
+        var sep = MathF.Round(11 * S);
+        var labelGap = MathF.Round(6 * S);
+        foreach (var row in Rows)
+            foreach (var it in row.Items)
+            {
+                var c = it.Column;
+                cols.Label[c] = MathF.Max(cols.Label[c], it.Label.Width);
+                if (it.IsMulti) cols.Tag[c] = MathF.Max(cols.Tag[c], BarsWidth(it) + MathF.Round(6 * S)); // bars
+                cols.Block[c] = MathF.Max(cols.Block[c], it.TextColW);
+                cols.Unit[c] = MathF.Max(cols.Unit[c], UnitWidth(it));
+                cols.Graph[c] |= it.Spark is not null;
+            }
+        var x = MathF.Round(p);
+        var right = x;
+        for (var c = 0; c < ColumnCount; c++)
+        {
+            cols.X[c] = x;
+            ColumnLeft[c] = x;
+            // label, bars, number (same order of additions as one cell: one row draws exactly as before)
+            var at = x + (cols.Label[c] + labelGap);
+            cols.GraphX[c] = at; // where the bars of the widest bar block start
+            at += cols.Tag[c];
+            at += cols.Block[c];
+            cols.ValueRight[c] = MathF.Round(at);
+            at = cols.ValueRight[c] + cols.Unit[c];
+            if (cols.Graph[c]) at = at + MathF.Round(7 * S) + MathF.Round(30 * S);
+            ColumnRight[c] = at;
+            right = at;
+            x = at + 2 * sep;
+        }
+
+        float RowH(SceneRow r)
+        {
+            var h = 0f;
+            foreach (var i in r.Items) h = MathF.Max(h, RowHeight(i.ValuePx));
+            return h;
+        }
         var rowH0 = Rows.Count > 0 ? RowH(Rows[0]) : RowHeight(ValuePx);
         var cap0 = Rows.Count > 0 ? CapPx(Rows[0].Items[0], Rows[0].Items[0].ValuePx) : ValuePx * 0.7f;
         var pv = MathF.Round(MathF.Max(3 * S, p * 0.8f - (rowH0 - cap0) / 2));
-        var sep = MathF.Round(11 * S);
-        var labelGap = MathF.Round(6 * S);
         var top = pv;
-        var right = MathF.Round(p);
         foreach (var row in Rows)
         {
             var rowH = RowH(row);
             var cap = CapPx(row.Items[0], row.Items[0].ValuePx);
-            var x = MathF.Round(p);
             var baseline = MathF.Round(top + (rowH + cap) / 2);
             for (var i = 0; i < row.Items.Count; i++)
             {
                 var it = row.Items[i];
+                var c = it.Column;
                 it.Top = top;
                 it.Height = rowH;
-                it.LabelX = x;
+                it.LabelX = cols.X[c];
                 it.Baseline = baseline;
-                x += it.Label.Width + labelGap;
-                if (it.IsMulti)
-                {
-                    it.BarsX = MathF.Round(x);
-                    x += BarsWidth(it) + MathF.Round(6 * S);
-                }
-                x += it.TextColW;
-                it.ValueRight = MathF.Round(x);
+                if (it.IsMulti) it.BarsX = MathF.Round(cols.GraphX[c] + (cols.Tag[c] - (BarsWidth(it) + MathF.Round(6 * S))));
+                it.ValueRight = cols.ValueRight[c];
                 it.UnitX = it.ValueRight + UnitGap;
-                x = it.ValueRight + UnitWidth(it);
                 if (it.Spark is not null)
                 {
                     it.GraphW = MathF.Round(30 * S);
-                    it.GraphX = x + MathF.Round(7 * S);
-                    x = it.GraphX + it.GraphW;
+                    it.GraphX = it.ValueRight + cols.Unit[c] + MathF.Round(7 * S);
                 }
-                if (i < row.Items.Count - 1)
-                {
-                    Dividers.Add(new Divider(MathF.Round(x + sep) + 0.5f, top + rowH * 0.22f, top + rowH * 0.78f));
-                    x += 2 * sep;
-                }
+                // a divider between this cell and the one before it in the row
+                if (i > 0) Dividers.Add(new Divider(MathF.Round(ColumnRight[c - 1] + sep) + 0.5f, top + rowH * 0.22f, top + rowH * 0.78f));
             }
             row.Top = top;
             row.Height = rowH;
             row.Baseline = baseline;
-            right = MathF.Max(right, x);
             top += rowH + Gap;
         }
         if (Rows.Count > 0) top -= Gap;
         else top += rowH0;
         Width = (int)MathF.Ceiling(right + p);
         Height = (int)MathF.Ceiling(top + pv);
+    }
+
+    /// <summary>Per-column scratch widths and positions of <see cref="Arrange"/> (allocated once per scene).</summary>
+    private sealed class ColumnWidths(int n)
+    {
+        public readonly float[] Label = new float[n], Tag = new float[n], Block = new float[n], Unit = new float[n];
+        public readonly float[] X = new float[n], ValueRight = new float[n], GraphX = new float[n];
+        public readonly bool[] Graph = new bool[n];
+
+        public void Clear()
+        {
+            Array.Clear(Label);
+            Array.Clear(Tag);
+            Array.Clear(Block);
+            Array.Clear(Unit);
+            Array.Clear(X);
+            Array.Clear(ValueRight);
+            Array.Clear(GraphX);
+            Array.Clear(Graph);
+        }
+    }
+
+    /// <summary>The grid as arranged now: column and row extents, the cell of every item (px).</summary>
+    public OverlayGridGeometry Geometry()
+    {
+        var rows = Rows.Count == 0 ? 0 : Rows.Max(r => r.Index) + 1;
+        var top = new float[rows];
+        var bottom = new float[rows];
+        foreach (var r in Rows)
+        {
+            top[r.Index] = r.Top;
+            bottom[r.Index] = r.Top + r.Height;
+        }
+        var cells = new List<OverlayGridCell>(Items.Count);
+        foreach (var r in Rows)
+            foreach (var it in r.Items) cells.Add(new OverlayGridCell(it.Source.Id, r.Index, it.Column, MathF.Max(it.CellEnd, ColumnRight[it.Column])));
+        return new OverlayGridGeometry(Width, Height, [.. ColumnLeft], [.. ColumnRight], top, bottom, cells);
     }
 
     public void Dispose()
@@ -801,10 +934,11 @@ internal sealed unsafe class Scene : IDisposable
     }
 }
 
-/// <summary>One row of a <see cref="Scene"/>.</summary>
-internal sealed class SceneRow(OverlayRow source)
+/// <summary>One row of a <see cref="Scene"/>'s grid: its cells left to right.</summary>
+internal sealed class SceneRow(int index)
 {
-    public OverlayRow Source { get; } = source;
+    /// <summary>The grid row.</summary>
+    public int Index { get; } = index;
 
     public List<SceneItem> Items { get; } = [];
 
@@ -867,6 +1001,9 @@ internal sealed class SceneItem
 
     /// <summary>Vertical rows: the item's own label in front of its value, when it differs from the row label.</summary>
     public TextLine? Tag;
+
+    /// <summary>The grid column of the cell.</summary>
+    public int Column;
 
     public TextLine[]? SubLabels;
     public FontFace Face = null!;
