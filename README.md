@@ -18,9 +18,9 @@ The values you pick, on top of any game or app. It draws in its own window, noth
 
 ## Set it up in a minute
 
-Click the values you want, then pick a layout (a list, a row per component or one line) and a corner; the preview shows the result. Advanced mode changes fonts, colors and sizes, moves single values between rows and detaches them into boxes of their own anywhere on the screen.
+Click the values you want, then pick a layout (a list, a row per component or one line) and a corner; the preview shows the result. Advanced mode arranges every value in a table by dragging it on a board that looks like the overlay, adds a second window anywhere on the screen, and changes fonts, colors and sizes.
 
-![The overlay editor in simple mode: GPU values picked as tiles, a live preview on a monitor and a close-up of the overlay in rows](media/overlay-editor.png)
+![The overlay editor in simple mode: GPU values picked as tiles, a live preview on a monitor and a close-up of the overlay](media/overlay-editor.png)
 
 ## Sensors
 

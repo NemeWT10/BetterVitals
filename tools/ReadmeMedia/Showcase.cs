@@ -108,7 +108,7 @@ internal static class Showcase
             foreach (var key in OverlayKeys)
             {
                 var item = friendly.FirstOrDefault(f => f.Key == key) ?? throw new InvalidOperationException("no friendly item " + key);
-                layout.AddItem(new OverlayItem { Id = "readme-" + key, SensorIds = [.. item.SensorIds] }, "readme-row-" + key);
+                layout.AddItem(new OverlayItem { Id = "readme-" + key, SensorIds = [.. item.SensorIds] });
             }
             layout.Placement.Anchor = OverlayAnchor.TopLeft;
             s.Overlay = layout;
@@ -256,7 +256,7 @@ internal static class Showcase
 
         // the overlay of the other pictures, with a small FPS graph (an advanced option)
         var layout = LayoutJson.Clone(SettingsStore.I.Current.Overlay);
-        layout.Rows[0].Items[0].ShowGraph = true;
+        layout.Cells[0].ShowGraph = true;
         var values = PreviewValues(layout);
         var theme = ThemeManager.I.ResolveOverlayTheme();
         var monitorHeight = (int)Math.Round(OverlayPlacementMath.ReferenceHeight * overlayScale);
