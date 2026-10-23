@@ -126,6 +126,9 @@ internal sealed class ColumnTable
     public int Count;
     public ushort[] Slots = new ushort[64];
     public SensorKind[] Kinds = new SensorKind[64];
+
+    /// <summary>Raw columns: 0 = delta coding, 1 = offset from the first value.</summary>
+    public byte[] Modes = new byte[64];
     public int[] Offsets = new int[64];
     public int[] Lengths = new int[64];
 
@@ -143,6 +146,7 @@ internal sealed class ColumnTable
             var size = Math.Max(n, Slots.Length * 2);
             Slots = new ushort[size];
             Kinds = new SensorKind[size];
+            Modes = new byte[size];
             Offsets = new int[size];
             Lengths = new int[size];
         }
@@ -152,7 +156,9 @@ internal sealed class ColumnTable
             slot += (long)Varint.Read(payload, ref pos);
             if (slot > ushort.MaxValue || (uint)pos >= (uint)payload.Length) throw new InvalidDataException("bad slot");
             Slots[i] = (ushort)slot;
-            Kinds[i] = (SensorKind)payload[pos++];
+            var kb = payload[pos++];
+            Kinds[i] = (SensorKind)(kb & 0x7F);
+            Modes[i] = (byte)(kb >> 7);
             Lengths[i] = (int)Varint.Read(payload, ref pos);
         }
         Count = n;
@@ -191,28 +197,42 @@ internal sealed class BlockEncoder
     private byte[] _payload = new byte[16 * 1024];
     private readonly MemoryStream _compressed = new();
     private readonly int[] _lengths = new int[ushort.MaxValue + 1];
+    private readonly byte[] _modes = new byte[ushort.MaxValue + 1];
 
     /// <summary>
-    /// Raw block: per column, <paramref name="rows"/> tokens: 0 = gap, else zigzag(q - previous q) + 1
-    /// (previous starts at 0 and carries across gaps). <paramref name="values"/> is column-major with <paramref name="stride"/>.
+    /// Raw block: per column, <paramref name="rows"/> tokens: 0 = gap, else zigzag(q - reference) + 1.
+    /// Mode 0 (delta): reference = previous value (starts at 0, carries across gaps) — best for trends.
+    /// Mode 1 (offset): reference = the column's first value in the block (the first itself vs 0) — best for jitter around
+    /// a level (voltages, fans, clocks). The encoder picks the mode with the lower estimated cost per column.
+    /// <paramref name="values"/> is column-major with <paramref name="stride"/>.
     /// </summary>
     public int EncodeRaw(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, ReadOnlySpan<float> values, int stride, int rows)
     {
         var cols = slots.Length;
         Ensure(ref _data, cols * rows * Varint.MaxBytes + 16);
+        var qs = rows <= 1024 ? stackalloc long[rows] : new long[rows];
+        var scratch = rows <= 1024 ? stackalloc long[rows] : new long[rows];
         var pos = 0;
         for (var c = 0; c < cols; c++)
         {
             var start = pos;
             var quantum = Quant.Of(kinds[c]);
             var col = values.Slice(c * stride, rows);
-            long prev = 0;
+            var n = 0;
+            for (var r = 0; r < rows; r++)
+                if (Quant.TryQuantize(col[r], quantum, out var q)) qs[n++] = q;
+            var mode = n > 2 && Cost(qs[..n], 1, scratch) < Cost(qs[..n], 0, scratch) ? (byte)1 : (byte)0;
+            _modes[c] = mode;
+
+            long reference = 0;
+            var first = true;
             for (var r = 0; r < rows; r++)
             {
                 if (Quant.TryQuantize(col[r], quantum, out var q))
                 {
-                    Varint.Write(_data, ref pos, Varint.ZigZag(q - prev) + 1);
-                    prev = q;
+                    Varint.Write(_data, ref pos, Varint.ZigZag(q - reference) + 1);
+                    if (mode == 0 || first) reference = q;
+                    first = false;
                 }
                 else
                 {
@@ -222,6 +242,38 @@ internal sealed class BlockEncoder
             _lengths[c] = pos - start;
         }
         return Assemble(slots, kinds, pos);
+    }
+
+    /// <summary>Estimated bits of the tokens after the first: order-0 entropy plus the extra bytes of long varints.</summary>
+    private static double Cost(ReadOnlySpan<long> qs, int mode, Span<long> scratch)
+    {
+        var n = qs.Length - 1;
+        var d = scratch[..n];
+        double extra = 0;
+        for (var i = 0; i < n; i++)
+        {
+            d[i] = qs[i + 1] - (mode == 0 ? qs[i] : qs[0]);
+            var z = Varint.ZigZag(d[i]) + 1;
+            while (z >= 0x80)
+            {
+                extra += 8;
+                z >>= 7;
+            }
+        }
+        d.Sort();
+        double bits = 0;
+        var run = 1;
+        for (var i = 1; i <= n; i++)
+        {
+            if (i < n && d[i] == d[i - 1])
+            {
+                run++;
+                continue;
+            }
+            bits -= run * Math.Log2((double)run / n);
+            run = 1;
+        }
+        return bits + extra;
     }
 
     /// <summary>
@@ -236,6 +288,7 @@ internal sealed class BlockEncoder
         for (var c = 0; c < cols; c++)
         {
             var start = pos;
+            _modes[c] = 0;
             long prevMin = 0;
             for (var b = 0; b < buckets; b++)
             {
@@ -260,7 +313,7 @@ internal sealed class BlockEncoder
     {
         _compressed.SetLength(0);
         _compressed.Write(new byte[BlockHeader.Size]);
-        using (var z = new DeflateStream(_compressed, CompressionLevel.SmallestSize, leaveOpen: true))
+        using (var z = new DeflateStream(_compressed, CompressionLevel.Optimal, leaveOpen: true))
             z.Write(_payload, 0, rawLength);
         var total = (int)_compressed.Length;
         var h = new BlockHeader
@@ -291,7 +344,7 @@ internal sealed class BlockEncoder
             if (slots[c] < prev) throw new InvalidOperationException("columns must be sorted by slot");
             Varint.Write(_payload, ref pos, (ulong)(slots[c] - prev));
             prev = slots[c];
-            _payload[pos++] = (byte)kinds[c];
+            _payload[pos++] = (byte)((byte)kinds[c] | _modes[c] << 7);
             Varint.Write(_payload, ref pos, (ulong)_lengths[c]);
         }
         _data.AsSpan(0, dataLength).CopyTo(_payload.AsSpan(pos));
@@ -308,19 +361,22 @@ internal sealed class BlockEncoder
 internal static class ColumnDecoder
 {
     /// <summary>Raw column → one record per stored sample with time in [from, to).</summary>
-    public static void Raw<TV>(ReadOnlySpan<byte> col, in BlockHeader h, long from, long to, int ordinal, ref TV visitor)
+    public static void Raw<TV>(ReadOnlySpan<byte> col, byte mode, in BlockHeader h, long from, long to, int ordinal, ref TV visitor)
         where TV : IRecVisitor
     {
         var pos = 0;
-        long prev = 0;
+        long reference = 0;
+        var first = true;
         var t = h.Start;
         for (var r = 0; r < h.SampleCount; r++, t += h.Step)
         {
             var token = Varint.Read(col, ref pos);
             if (token == 0) continue;
-            prev += Varint.UnZigZag(token - 1);
+            var q = reference + Varint.UnZigZag(token - 1);
+            if (mode == 0 || first) reference = q;
+            first = false;
             if (t < from || t >= to) continue;
-            visitor.Visit(ordinal, Rec.Sample(t, prev));
+            visitor.Visit(ordinal, Rec.Sample(t, q));
         }
     }
 

@@ -127,7 +127,7 @@ internal sealed partial class HistoryStore
             for (var c = 0; c < n; c++)
             {
                 var v = new AggVisitor();
-                ColumnDecoder.Raw(data.Slice(t.Offsets[c], t.Lengths[c]), h, long.MinValue, long.MaxValue, 0, ref v);
+                ColumnDecoder.Raw(data.Slice(t.Offsets[c], t.Lengths[c]), t.Modes[c], h, long.MinValue, long.MaxValue, 0, ref v);
                 aggs[c] = v.Acc;
             }
             AddPending(_minutes, TimeGrid.Floor(h.Start, TimeGrid.Minute), t.Slots.AsSpan(0, n).ToArray(), t.Kinds.AsSpan(0, n).ToArray(), aggs);

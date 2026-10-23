@@ -314,7 +314,7 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
             var c = _table.IndexOf(slots[i]);
             if (c < 0) continue;
             var col = data.Slice(_table.Offsets[c], _table.Lengths[c]);
-            if (h.Type == Level.Raw) ColumnDecoder.Raw(col, h, from, to, i, ref visitor);
+            if (h.Type == Level.Raw) ColumnDecoder.Raw(col, _table.Modes[c], h, from, to, i, ref visitor);
             else ColumnDecoder.Rollup(col, h, from, to, i, ref visitor);
         }
     }

@@ -169,6 +169,9 @@ internal sealed partial class HistoryStore
 
     // ── series ──
 
+    /// <summary>Upper bound for one chart request (bucket arrays are allocated per query).</summary>
+    public const int MaxPoints = 1_000_000;
+
     private static readonly long[] NiceSteps =
     [
         1 * TimeGrid.Second, 2 * TimeGrid.Second, 5 * TimeGrid.Second, 10 * TimeGrid.Second, 15 * TimeGrid.Second, 30 * TimeGrid.Second,
@@ -187,7 +190,7 @@ internal sealed partial class HistoryStore
             if (BucketCount(from, to, w) <= maxPoints) return w;
         }
         var step = Math.Max(TimeGrid.Day, (to - from) / maxPoints);
-        while (BucketCount(from, to, step) > maxPoints) step += TimeGrid.Day;
+        while (BucketCount(from, to, step) > maxPoints && step < long.MaxValue / 4) step *= 2;
         return step;
     }
 
@@ -254,11 +257,12 @@ internal sealed partial class HistoryStore
     public List<HistoryPoint> Series(SensorRef sensor, long from, long to, int maxPoints, long baseStep, CancellationToken ct)
     {
         if (to <= from) return [];
-        var width = ChooseBucket(from, to, maxPoints, baseStep);
+        var width = ChooseBucket(from, to, Math.Clamp(maxPoints, 1, MaxPoints), baseStep);
         var buckets = new Buckets(from, to, width);
         using var r = OpenReader([sensor]);
         ct.ThrowIfCancellationRequested();
-        r.ReadPlanned(LevelFor(width), from, to, ref buckets);
+        // read whole buckets (the first one starts before `from`), so coarse rollups are never cut off
+        r.ReadPlanned(LevelFor(width), buckets.Start, to, ref buckets);
         return buckets.ToPoints(sensor.Quantum);
     }
 
@@ -393,30 +397,48 @@ internal sealed partial class HistoryStore
     public (long First, long Last)? Coverage(SensorRef sensor)
     {
         using var r = OpenReader([sensor]);
-        var all = new SpanVisitor();
+        // per level: [0] raw (files + buffers + ring), [1] minute, [2] hour (files + pending); rollups carry bucket starts
+        var edges = new SpanVisitor[3];
+        for (var i = 0; i < 3; i++) edges[i] = new SpanVisitor();
         if (sensor.Slot >= 0)
         {
             foreach (var level in (ReadOnlySpan<Level>)[Level.Hour, Level.Minute, Level.Raw])
             {
+                var e = edges[(int)level];
                 var files = r.Session.Files(level).ToList();
                 for (var i = 0; i < files.Count; i++)
                 {
                     var t = r.Session.EdgeTime(files[i], r.Slots, first: true);
                     if (t == long.MaxValue) continue;
-                    all.Visit(0, new Rec { Time = t, Count = 1 });
+                    e.Visit(0, new Rec { Time = t, Count = 1 });
                     break;
                 }
                 for (var i = files.Count - 1; i >= 0; i--)
                 {
                     var t = r.Session.EdgeTime(files[i], r.Slots, first: false);
                     if (t == long.MinValue) continue;
-                    all.Visit(0, new Rec { Time = t, Count = 1 });
+                    e.Visit(0, new Rec { Time = t, Count = 1 });
                     break;
                 }
             }
         }
-        r.ReadUnwritten(long.MinValue, long.MaxValue, ref all);
-        r.ReadPendingRollups(ref all);
-        return all.First == long.MaxValue ? null : (all.First, all.Last);
+        r.ReadUnwritten(long.MinValue, long.MaxValue, ref edges[0]);
+        var pending = new LevelSplit(edges);
+        r.ReadPendingRollups(ref pending);
+
+        // the finest level wins unless a coarser one reaches clearly further (finer data already deleted)
+        long first = edges[0].First, last = edges[0].Last;
+        for (var l = 1; l < 3; l++)
+        {
+            var step = TimeGrid.Step((Level)l);
+            if (edges[l].First != long.MaxValue && (first == long.MaxValue || edges[l].First < TimeGrid.Floor(first, step))) first = edges[l].First;
+            if (edges[l].Last != long.MinValue && edges[l].Last > last) last = edges[l].Last;
+        }
+        return first == long.MaxValue ? null : (first, last);
+    }
+
+    private readonly struct LevelSplit(SpanVisitor[] edges) : IRecVisitor
+    {
+        public void Visit(int ordinal, in Rec rec) => edges[(int)rec.Level].Visit(ordinal, rec);
     }
 }

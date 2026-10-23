@@ -17,7 +17,7 @@ namespace BetterVitals.History;
 public sealed class HistoryService : IHistoryQuery, IDisposable
 {
     /// <summary>Bytes on disk per stored value (all levels) assumed before real data was measured.</summary>
-    internal const double DefaultBytesPerValue = 0.45;
+    internal const double DefaultBytesPerValue = 0.6;
 
     private const string RecordConsumer = "history";
     private const string WatchConsumer = "history-live";
@@ -162,6 +162,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     /// <summary>Writes sealed blocks and due rollups now (the timer does this once a minute).</summary>
     public void Flush()
     {
+        if (!HasSomethingToWrite()) return;
         lock (_store.Gate) _store.Flush(final: false);
     }
 
@@ -417,8 +418,8 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     public Task<IReadOnlyList<HistoryPoint>> GetSeriesAsync(string sensorId, DateTime fromUtc, DateTime toUtc, int maxPoints,
         CancellationToken ct = default)
     {
-        var from = fromUtc.ToUniversalTime().Ticks;
-        var to = toUtc.ToUniversalTime().Ticks;
+        var from = TimeGrid.Utc(fromUtc);
+        var to = TimeGrid.Utc(toUtc);
         return Task.Run<IReadOnlyList<HistoryPoint>>(() =>
         {
             try
@@ -440,8 +441,8 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     /// <inheritdoc />
     public Task<RangeStats?> GetStatsAsync(string sensorId, DateTime fromUtc, DateTime toUtc, CancellationToken ct = default)
     {
-        var from = fromUtc.ToUniversalTime().Ticks;
-        var to = toUtc.ToUniversalTime().Ticks;
+        var from = TimeGrid.Utc(fromUtc);
+        var to = TimeGrid.Utc(toUtc);
         return Task.Run(() =>
         {
             try
@@ -514,8 +515,8 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     {
         try
         {
-            var from = request.FromUtc.ToUniversalTime().Ticks;
-            var to = Math.Min(request.ToUtc.ToUniversalTime().Ticks, _o.Time.GetUtcNow().UtcTicks);
+            var from = TimeGrid.Utc(request.FromUtc);
+            var to = Math.Min(TimeGrid.Utc(request.ToUtc), _o.Time.GetUtcNow().UtcTicks);
             long step;
             int sensors;
             lock (_store.Gate)
@@ -542,8 +543,16 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
         return Task.Run(() =>
         {
             SensorRef[] sensors;
+            var from = TimeGrid.Utc(request.FromUtc);
+            var to = TimeGrid.Utc(request.ToUtc);
             lock (_store.Gate)
             {
+                // walk only where data can exist (keeps "export everything" from scanning empty years)
+                var oldest = _store.Usage().Oldest ?? long.MaxValue;
+                foreach (var id in request.SensorIds)
+                    if (_ring.FirstTime(id, long.MinValue) is var t and < long.MaxValue) oldest = Math.Min(oldest, t);
+                from = Math.Max(from, oldest == long.MaxValue ? to : TimeGrid.Floor(oldest, TimeGrid.Hour));
+                to = Math.Min(to, _o.Time.GetUtcNow().UtcTicks + TimeGrid.Minute);
                 var list = new List<SensorRef>();
                 foreach (var id in request.SensorIds.Distinct(StringComparer.Ordinal))
                 {
@@ -553,7 +562,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
                 }
                 sensors = [.. list];
             }
-            CsvExport.Write(_store, sensors, request, output, progress, ct);
+            CsvExport.Write(_store, sensors, request, from, to, output, progress, ct);
         }, ct);
     }
 

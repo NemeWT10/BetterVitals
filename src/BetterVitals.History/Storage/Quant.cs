@@ -83,6 +83,9 @@ internal static class TimeGrid
     public const long Hour = TimeSpan.TicksPerHour;
     public const long Day = TimeSpan.TicksPerDay;
 
+    /// <summary>UTC ticks; an Unspecified kind is taken as UTC (the API speaks UTC), only Local is converted.</summary>
+    public static long Utc(DateTime d) => d.Kind == DateTimeKind.Local ? d.ToUniversalTime().Ticks : d.Ticks;
+
     public static long Floor(long t, long step) => t >= 0 ? t - t % step : t - ((t % step) + step) % step;
 
     public static long Ceil(long t, long step)

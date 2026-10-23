@@ -31,17 +31,15 @@ internal static class CsvExport
         return zip ? csv / 8 + 256 : csv;
     }
 
-    public static void Write(HistoryStore store, SensorRef[] sensors, ExportRequest req, Stream output, IProgress<double>? progress,
+    public static void Write(HistoryStore store, SensorRef[] sensors, ExportRequest req, long from, long to, Stream output, IProgress<double>? progress,
         CancellationToken ct)
     {
-        var from = req.FromUtc.ToUniversalTime().Ticks;
-        var to = req.ToUtc.ToUniversalTime().Ticks;
         ZipArchive? zip = null;
         Stream target = output;
         if (req.Zip)
         {
             zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true);
-            var name = $"bettervitals-{req.FromUtc.ToUniversalTime():yyyyMMdd-HHmm}-{req.ToUtc.ToUniversalTime():yyyyMMdd-HHmm}.csv";
+            var name = $"bettervitals-{new DateTime(TimeGrid.Utc(req.FromUtc)):yyyyMMdd-HHmm}-{new DateTime(TimeGrid.Utc(req.ToUtc)):yyyyMMdd-HHmm}.csv";
             target = zip.CreateEntry(name, CompressionLevel.SmallestSize).Open();
         }
         try
