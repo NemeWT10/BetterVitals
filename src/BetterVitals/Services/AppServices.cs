@@ -14,6 +14,15 @@ public static class AppServices
 
     /// <summary>History queries (charts, stats, export); null until the history store is attached.</summary>
     public static IHistoryQuery? History { get; set; }
+
+    /// <summary>Keeps sensors in the 15-minute live buffer while a page shows them; null until history is attached.</summary>
+    public static WatchSensors? WatchHistory { get; set; }
+
+    /// <summary>The live overlay (editor: monitors, on-screen positioning). Never null.</summary>
+    public static IOverlayService Overlay { get; set; } = NullOverlayService.Instance;
+
+    /// <summary>Install / driver / autostart / updates. Never null.</summary>
+    public static IPlatformService Platform { get; set; } = NullPlatformService.Instance;
 }
 
 /// <summary>A hub with no sensors (the shell runs without the engine; every value shows "—").</summary>
