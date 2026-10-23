@@ -9,7 +9,11 @@ using Xunit.Abstractions;
 
 namespace BetterVitals.Tests.Robustness;
 
-/// <summary>PROJEKT §7: the overlay must not break — whatever the layout file says and whatever numbers the sensors report.</summary>
+/// <summary>
+/// PROJEKT §7: the overlay must not break — whatever the layout file says and whatever numbers the sensors report.
+/// In the exclusive collection: hundreds of software-rendered frames would otherwise compete with the timing tests (FPS).
+/// </summary>
+[Collection(HeavyCollection.Name)]
 public sealed class OverlayScenarios(ITestOutputHelper output)
 {
     private static readonly double[] Nasty = [double.NaN, double.PositiveInfinity, double.NegativeInfinity, double.MaxValue, double.MinValue, double.Epsilon, -1, 0, 0.5, 1, 11, 4096, 1e9, -1e9];

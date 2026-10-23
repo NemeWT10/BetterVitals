@@ -54,6 +54,19 @@ internal static class LayoutJson
     /// </summary>
     public static (string? Name, OverlayLayout Layout) ReadProfile(string json)
     {
+        try
+        {
+            return ReadProfileCore(json);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or NotSupportedException or JsonException)
+        {
+            // e.g. the same property twice: the JSON tree only complains when it is first walked
+            throw new FormatException("The overlay profile is damaged.", ex);
+        }
+    }
+
+    private static (string? Name, OverlayLayout Layout) ReadProfileCore(string json)
+    {
         JsonNode? root;
         try
         {
