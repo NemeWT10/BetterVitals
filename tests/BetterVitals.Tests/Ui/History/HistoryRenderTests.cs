@@ -36,6 +36,14 @@ public sealed class HistoryRenderTests(ITestOutputHelper output)
         rig.Page.ApplyPreset(RangePreset.Day7, animate: false);
         rig.Settle();
         AssertPng(rig.Save($"history_7d_{theme}_{lang}"));
+
+        // four units: °C left, % right, MHz and W on their own scales (noted under the chart)
+        rig.Page.ApplyPreset(RangePreset.Hour6, animate: false);
+        rig.Page.TogglePicked(rig.Sensor("Core #1", SensorKind.Clock));
+        rig.Page.TogglePicked(rig.Sensor("GPU Package", SensorKind.Power));
+        rig.Settle();
+        Assert.Equal(["MHz", "W"], rig.Page.Chart.OwnScaleUnits);
+        AssertPng(rig.Save($"history_mixed_units_{theme}_{lang}"));
     });
 
     [Theory]

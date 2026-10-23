@@ -49,7 +49,7 @@ public static class ChartMath
     /// Percent units always show 0–100 (values above 100 extend it); non-negative data near zero starts at 0;
     /// a flat line gets a little room around it.
     /// </summary>
-    public static ValueScale Nice(double lo, double hi, double heightPx, string unit, double minSpacing = 34)
+    public static ValueScale Nice(double lo, double hi, double heightPx, string unit, double minSpacing = 30)
     {
         if (double.IsNaN(lo) || double.IsNaN(hi) || double.IsInfinity(lo) || double.IsInfinity(hi))
         {
@@ -71,7 +71,7 @@ public static class ChartMath
     /// may also be 1.5 / 3 / 4 / 6 / 8 × 10ⁿ here; percent stays exactly 0–100.
     /// </summary>
     public static (ValueScale Left, ValueScale Right) Paired(double lo1, double hi1, string unit1, double lo2, double hi2, string unit2,
-        double heightPx, double minSpacing = 34)
+        double heightPx, double minSpacing = 30)
     {
         var target = (int)Math.Max(2, Math.Floor(heightPx / minSpacing));
         var (alo, ahi) = Padded(Finite(lo1, 0), Finite(hi1, 1), unit1);

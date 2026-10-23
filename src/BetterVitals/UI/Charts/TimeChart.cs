@@ -354,11 +354,32 @@ public sealed class TimeChart : FrameworkElement
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Key == Key.Escape && _selected is not null)
+        switch (e.Key)
         {
-            SetSelection(null);
-            e.Handled = true;
+            case Key.Escape when _selected is not null:
+                SetSelection(null);
+                e.Handled = true;
+                break;
+            case Key.Left or Key.Right:
+                // keyboard pan: a tenth of the window per press
+                UserView(ChartMath.Pan(_view, (e.Key == Key.Left ? -1 : 1) * _view.Span / 10, Clock()));
+                e.Handled = true;
+                break;
+            case Key.Add or Key.OemPlus or Key.Subtract or Key.OemMinus:
+                UserView(ChartMath.ZoomAt(_view, 0.5, e.Key is Key.Add or Key.OemPlus ? 0.8 : 1.25, Clock()));
+                e.Handled = true;
+                break;
         }
+    }
+
+    private void UserView(TimeView v)
+    {
+        if (v == _view) return;
+        _viewAnimAt = -1;
+        _view = v;
+        RetargetScales(animate: true);
+        Invalidate(Layer.All);
+        ViewChanged?.Invoke(v, ViewChangeReason.User);
     }
 
     /// <summary>Mouse moved to <paramref name="p"/> (also driven by tests).</summary>
@@ -370,15 +391,7 @@ public sealed class TimeChart : FrameworkElement
         {
             var dx = p.X - _panFrom.X;
             var delta = _plot.Width > 0 ? -(long)(dx / _plot.Width * _panView.Span) : 0;
-            var v = ChartMath.Pan(_panView, delta, Clock());
-            if (v != _view)
-            {
-                _viewAnimAt = -1;
-                _view = v;
-                RetargetScales(animate: true);
-                Invalidate(Layer.All);
-                ViewChanged?.Invoke(v, ViewChangeReason.User);
-            }
+            UserView(ChartMath.Pan(_panView, delta, Clock()));
             return;
         }
         if (_dragFrom is not null)
@@ -440,13 +453,7 @@ public sealed class TimeChart : FrameworkElement
         if (_plot.Width <= 0 || delta == 0) return;
         var anchor = (p.X - _plot.Left) / _plot.Width;
         var factor = Math.Pow(0.8, delta / 120.0);
-        var v = ChartMath.ZoomAt(_view, anchor, factor, Clock());
-        if (v == _view) return;
-        _viewAnimAt = -1;
-        _view = v;
-        RetargetScales(animate: true);
-        Invalidate(Layer.All);
-        ViewChanged?.Invoke(v, ViewChangeReason.User);
+        UserView(ChartMath.ZoomAt(_view, anchor, factor, Clock()));
     }
 
     // ───────────── layout & hit testing ─────────────

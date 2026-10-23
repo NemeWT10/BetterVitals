@@ -274,7 +274,7 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
         _body.HorizontalAlignment = HorizontalAlignment.Stretch;
         for (var i = 0; i < 6; i++) _body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _body.RowDefinitions[4].Height = new GridLength(1, GridUnitType.Star);
-        _body.RowDefinitions[4].MinHeight = 236;
+        _body.RowDefinitions[4].MinHeight = 300;
 
         // 0 · title, subtitle, export
         var head = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
@@ -551,6 +551,7 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
         _chips.Children.Add(_add);
         _chart.SetSeries(_shown.Select(s => s.Series).ToList());
         UpdateOwnScale();
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, FitBody);
     }
 
     private Brush SeriesBrush(int index) => TryFindResource("Brush.Series." + ((index % 8) + 8) % 8) as Brush ?? Brushes.SlateBlue;
