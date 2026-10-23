@@ -286,8 +286,9 @@ internal sealed class BlockEncoder
     }
 
     /// <summary>
-    /// Rollup block: per column and bucket: count (0 = empty, nothing follows), zigzag(min - previous min),
-    /// max - min, sum - min * count. <paramref name="aggs"/> is column-major with <paramref name="buckets"/> per column.
+    /// Rollup block: per column four varint streams: count of every bucket (0 = empty), then for the non-empty buckets
+    /// zigzag(min - previous min), max - min, sum - min × count. <paramref name="aggs"/> is column-major with
+    /// <paramref name="buckets"/> per column.
     /// </summary>
     public int EncodeRollup(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, ReadOnlySpan<Rec> aggs, int buckets)
     {
@@ -299,17 +300,20 @@ internal sealed class BlockEncoder
         {
             var start = pos;
             _modes[c] = 0;
+            var col = aggs.Slice(c * buckets, buckets);
+            // four homogeneous streams compress better than interleaved fields
+            foreach (ref readonly var a in col) Varint.Write(_data, ref pos, (ulong)a.Count);
             long prevMin = 0;
-            for (var b = 0; b < buckets; b++)
+            foreach (ref readonly var a in col)
             {
-                ref readonly var a = ref aggs[c * buckets + b];
-                Varint.Write(_data, ref pos, (ulong)a.Count);
                 if (a.Count == 0) continue;
                 Varint.Write(_data, ref pos, Varint.ZigZag(a.Min - prevMin));
-                Varint.Write(_data, ref pos, (ulong)(a.Max - a.Min));
-                Varint.Write(_data, ref pos, (ulong)(a.Sum - a.Min * a.Count));
                 prevMin = a.Min;
             }
+            foreach (ref readonly var a in col)
+                if (a.Count != 0) Varint.Write(_data, ref pos, (ulong)(a.Max - a.Min));
+            foreach (ref readonly var a in col)
+                if (a.Count != 0) Varint.Write(_data, ref pos, (ulong)(a.Sum - a.Min * a.Count));
             _lengths[c] = pos - start;
         }
         return Assemble(slots, kinds, pos);
@@ -394,16 +398,26 @@ internal static class ColumnDecoder
     public static void Rollup<TV>(ReadOnlySpan<byte> col, in BlockHeader h, long from, long to, int ordinal, ref TV visitor)
         where TV : IRecVisitor
     {
-        var pos = 0;
+        // streams: counts (all buckets), then for the non-empty ones: min deltas, ranges, sum extras
+        var pc = 0;
+        var filled = 0;
+        for (var b = 0; b < h.SampleCount; b++)
+            if (Varint.Read(col, ref pc) != 0) filled++;
+        var pm = pc;
+        var pr = pm;
+        Varint.Skip(col, ref pr, filled);
+        var pe = pr;
+        Varint.Skip(col, ref pe, filled);
+        pc = 0;
         long prevMin = 0;
         var t = h.Start;
         for (var b = 0; b < h.SampleCount; b++, t += h.Step)
         {
-            var count = (long)Varint.Read(col, ref pos);
+            var count = (long)Varint.Read(col, ref pc);
             if (count == 0) continue;
-            var min = prevMin + Varint.UnZigZag(Varint.Read(col, ref pos));
-            var range = (long)Varint.Read(col, ref pos);
-            var extra = (long)Varint.Read(col, ref pos);
+            var min = prevMin + Varint.UnZigZag(Varint.Read(col, ref pm));
+            var range = (long)Varint.Read(col, ref pr);
+            var extra = (long)Varint.Read(col, ref pe);
             prevMin = min;
             if (t < from || t >= to) continue;
             visitor.Visit(ordinal, new Rec { Time = t, Min = min, Max = min + range, Sum = extra + min * count, Count = count, Level = h.Type });

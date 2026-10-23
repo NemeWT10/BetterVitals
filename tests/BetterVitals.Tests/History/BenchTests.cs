@@ -11,7 +11,11 @@ namespace BetterVitals.Tests.History;
 /// thread, flush cost, bytes on disk per sample, query latency. Results go to the test output and to
 /// tests/output/history/bench-*.txt. Budgets are asserted loosely so a slow CI box does not fail them.
 /// </summary>
+[CollectionDefinition("HistoryBench", DisableParallelization = true)]
+public class HistoryBenchCollection;
+
 [Trait("Category", "Bench")]
+[Collection("HistoryBench")]
 public class BenchTests(ITestOutputHelper output)
 {
     private static readonly DateTime T0 = new(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -98,7 +102,9 @@ public class BenchTests(ITestOutputHelper output)
             $"  flush (one 60 s x 100-sensor block + due rollups): {perFlushMs:F3} ms avg over {flushes} flushes",
             $"  live ring memory: {svc.LiveBufferBytes / 1024} KB",
         ]);
-        Assert.Equal(0, allocated);
+        // 0 B in Release; a few KB of one-time runtime noise can show up in Debug under a loaded test host.
+        // Any per-tick allocation would be ≥ 24 B × ticks.
+        Assert.True(allocated < n, $"allocated {allocated} B over {n} ticks; warnings: {string.Join(" | ", rig.Warnings)}");
         Assert.True(perTickUs < 50, $"{perTickUs} µs/tick");
     }
 
