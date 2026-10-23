@@ -23,7 +23,7 @@ internal static class SensorsStrings
         ["sensors.group.Fan"] = ("Wentylatory", "Fans"),
         ["sensors.group.Memory"] = ("Pamięć / dane", "Memory / data"),
         ["sensors.group.Throughput"] = ("Przepustowość", "Throughput"),
-        ["sensors.group.Level"] = ("Poziomy", "Levels"),
+        ["sensors.group.Level"] = ("Poziom i zużycie", "Level and wear"),
         ["sensors.group.Fps"] = ("FPS", "FPS"),
         ["sensors.group.Other"] = ("Inne", "Other"),
 
