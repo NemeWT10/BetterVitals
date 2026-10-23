@@ -38,6 +38,12 @@ public static class ValueFormat
                 (v, unit) = ScaleBytes(v);
                 d = decimals ?? (v >= 100 ? 0 : 1);
                 break;
+            // VRAM and similar: "9285 MB" reads better as "9,1 GB"
+            case SensorKind.SmallData when unit == "MB" && Math.Abs(v) >= 1024:
+                v /= 1024;
+                unit = "GB";
+                d = decimals ?? 1;
+                break;
         }
 
         return v.TryFormat(dest, out var written, Fixed(d), culture) ? written : 0;

@@ -49,6 +49,9 @@ internal sealed class KeyTile : Border
         titles.Children.Add(_label);
         var name = Ui.Text(11, "Brush.TextFaint");
         name.Text = key.Sensor.Name;
+        // verbatim names can be long ("D3D Shared Memory Used"): up to two lines in a narrow tile, then ellipsis
+        name.TextWrapping = TextWrapping.Wrap;
+        name.MaxHeight = 30;
         name.TextTrimming = TextTrimming.CharacterEllipsis;
         titles.Children.Add(name);
         Explain.Explain.SetSensor(titles, key.Sensor);
