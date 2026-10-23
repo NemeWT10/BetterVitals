@@ -19,7 +19,8 @@ public static class Log
     {
         try
         {
-            if (string.IsNullOrEmpty(AppEnv.LogDir)) return;
+            // before AppEnv.Init (or in libraries used without it) there is nowhere safe to write
+            if (string.IsNullOrEmpty(AppEnv.LocalDir)) return;
             lock (Gate)
             {
                 Directory.CreateDirectory(AppEnv.LogDir);

@@ -62,7 +62,7 @@ public static partial class FriendlyCatalog
         new("gpu.vram", HardwareKind.Gpu, false, true, [
             Named(SensorKind.SmallData, "GPU Memory Used"), Named(SensorKind.SmallData, "D3D Dedicated Memory Used"), Named(SensorKind.Data, "GPU Memory Used")]),
         new("gpu.power", HardwareKind.Gpu, false, true, [Named(SensorKind.Power, "GPU Package", "GPU Power", "GPU Board Power", "GPU Total")]),
-        new("gpu.voltage", HardwareKind.Gpu, false, false, [Named(SensorKind.Voltage, "GPU Core")]),
+        new("gpu.voltage", HardwareKind.Gpu, false, false, [Named(SensorKind.Voltage, "GPU Core", "GPU Core Voltage")]),
         new("gpu.fan", HardwareKind.Gpu, false, true, [Named(SensorKind.Fan, "GPU Fan", "GPU Fan 1", "GPU Fan #1")]),
 
         // ── memory ──
@@ -84,8 +84,8 @@ public static partial class FriendlyCatalog
         new("disk.write", HardwareKind.Storage, false, false, [Named(SensorKind.Throughput, "Write Rate")]),
 
         // ── network ──
-        new("net.down", HardwareKind.Network, false, true, [Named(SensorKind.Throughput, "Total Download"), Named(SensorKind.Throughput, "Download Speed")]),
-        new("net.up", HardwareKind.Network, false, true, [Named(SensorKind.Throughput, "Total Upload"), Named(SensorKind.Throughput, "Upload Speed")]),
+        new("net.down", HardwareKind.Network, false, true, [Named(SensorKind.Throughput, "Download Speed")]),
+        new("net.up", HardwareKind.Network, false, true, [Named(SensorKind.Throughput, "Upload Speed")]),
 
         // ── the foreground game ──
         new("fps.fps", HardwareKind.Game, false, true, [Named(SensorKind.Fps, "Framerate")]),
@@ -97,8 +97,11 @@ public static partial class FriendlyCatalog
     /// <summary>Default overlay of the simple mode (user example: FPS, CPU and GPU temperature, top-left).</summary>
     public static IReadOnlyList<string> DefaultOverlayKeys { get; } = ["fps.fps", "cpu.temp", "gpu.temp"];
 
-    /// <summary>Resolves every friendly item that exists on this PC, in catalog order.</summary>
-    public static IReadOnlyList<FriendlyItem> Resolve(IReadOnlyList<HardwareDescriptor> hardware, IReadOnlyList<SensorDescriptor> sensors)
+    /// <summary>
+    /// Resolves every friendly item that exists on this PC, in catalog order. <paramref name="primaryNetwork"/> = name of
+    /// the adapter that carries the internet traffic (see Platform NetworkPrimary); virtual adapters come last.
+    /// </summary>
+    public static IReadOnlyList<FriendlyItem> Resolve(IReadOnlyList<HardwareDescriptor> hardware, IReadOnlyList<SensorDescriptor> sensors, string? primaryNetwork = null)
     {
         var result = new List<FriendlyItem>();
         var byHw = sensors.GroupBy(s => s.HardwareId).ToDictionary(g => g.Key, g => g.OrderBy(s => s.Order).ToList(), StringComparer.Ordinal);
@@ -113,6 +116,11 @@ public static partial class FriendlyCatalog
                 HardwareKind.Gpu => mainGpu is null ? [] : [mainGpu],
                 // the board's sensors live on its SuperIO / EC children, CPU voltages may too
                 HardwareKind.Motherboard => hardware.Where(h => h.Kind == HardwareKind.Motherboard).Select(h => h.Id).ToList(),
+                // physical memory before the page file ("Total Memory" before "Virtual Memory")
+                HardwareKind.Memory => hardware.Where(h => h.Kind == HardwareKind.Memory).OrderBy(h => h.Name.Contains("Virtual", StringComparison.OrdinalIgnoreCase) ? 1 : 0).Select(h => h.Id).ToList(),
+                HardwareKind.Network => hardware.Where(h => h.Kind == HardwareKind.Network)
+                    .OrderBy(h => primaryNetwork is not null && h.Name.Equals(primaryNetwork, StringComparison.OrdinalIgnoreCase) ? 0 : VirtualAdapter().IsMatch(h.Name) ? 2 : 1)
+                    .Select(h => h.Id).ToList(),
                 _ => hardware.Where(h => h.Kind == rule.Category).Select(h => h.Id).ToList(),
             };
             if (rule.Key is "cpu.vcore" or "cpu.soc")
@@ -176,6 +184,10 @@ public static partial class FriendlyCatalog
 
     [GeneratedRegex(@"^CCD ?#?\d+( \(Tdie\))?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CcdTemp();
+
+    /// <summary>Hyper-V / VMware / VirtualBox / WSL switches, Bluetooth PAN, Wi-Fi Direct and other miniport pseudo adapters.</summary>
+    [GeneratedRegex(@"vEthernet|vSwitch|VMware|VMnet|VirtualBox|Hyper-V|WSL|Loopback|Bluetooth|\*\d|Teredo|isatap|TAP-|WireGuard|Tailscale|ZeroTier", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex VirtualAdapter();
 
     [GeneratedRegex(@"^Core #\d+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CoreN();

@@ -6,13 +6,13 @@ namespace BetterVitals.Sensors.Derived;
 
 /// <summary>
 /// Values computed from other sensors, attached to the same hardware so they appear in its card: max / average of
-/// the CPU cores (temperature, clock, load), the hottest DIMM, total network throughput over several adapters.
+/// the CPU cores (temperature, clock, load) and the hottest DIMM.
 /// Created only where they add something (e.g. no "CPU Core Max" when the CPU already reports one, none for 1 core).
 /// Names are English like the hardware's own (never translated).
 /// </summary>
 public sealed partial class DerivedSource : IDependentSource
 {
-    private enum Op : byte { Max, Average, Sum }
+    private enum Op : byte { Max, Average }
 
     private sealed record Spec(Op Op, int[] Inputs);
 
@@ -66,16 +66,8 @@ public sealed partial class DerivedSource : IDependentSource
             }
         }
 
-        // network totals across adapters, attached to the first adapter that has throughput
-        var down = _upstream.Where(s => s.HardwareKind == HardwareKind.Network && s.Kind == SensorKind.Throughput && s.Name.Contains("Download", StringComparison.OrdinalIgnoreCase)).ToList();
-        var up = _upstream.Where(s => s.HardwareKind == HardwareKind.Network && s.Kind == SensorKind.Throughput && s.Name.Contains("Upload", StringComparison.OrdinalIgnoreCase)).ToList();
-        if (down.Select(s => s.HardwareId).Distinct().Count() >= 2)
-        {
-            var host = down[0].HardwareId;
-            Add(outputs, host, HardwareKind.Network, SensorKind.Throughput, "Total Download", Op.Sum, down);
-            Add(outputs, host, HardwareKind.Network, SensorKind.Throughput, "Total Upload", Op.Sum, up);
-        }
-
+        // no network totals: virtual switches (Hyper-V, VMware, WSL) carry the same traffic as the physical adapter,
+        // so a sum counts it twice; the friendly catalog picks the primary adapter instead
         return new SourceInventory([], outputs);
     }
 
@@ -115,7 +107,7 @@ public sealed partial class DerivedSource : IDependentSource
                 acc = spec.Op == Op.Max ? MathF.Max(acc, v) : acc + v;
                 n++;
             }
-            values[d.Index] = n == 0 ? float.NaN : spec.Op == Op.Average ? acc / n : acc;
+            values[d.Index] = n == 0 ? float.NaN : spec.Op == Op.Average ? acc / n : acc; // Max: acc
         }
     }
 
