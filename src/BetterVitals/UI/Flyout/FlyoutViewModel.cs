@@ -118,6 +118,7 @@ public sealed class FlyoutViewModel : ObservableObject
         if (_attached) return;
         _attached = true;
         _dispatcher = dispatcher;
+        PrefillFromHistory();
         _hub.FrameReady += OnFrame;
         if (SettingsStore.I is { } store) store.Changed += OnSettingsChanged;
         Loc.LanguageChanged += OnLanguageChanged;
@@ -134,6 +135,28 @@ public sealed class FlyoutViewModel : ObservableObject
         Loc.LanguageChanged -= OnLanguageChanged;
         _demand?.Dispose();
         _demand = null;
+    }
+
+    /// <summary>
+    /// The last ~1.5 minutes from the history's live buffer (key sensors are recorded, the buffer is in memory), so the
+    /// sparklines are full the moment the flyout opens. A few milliseconds, before live frames start (keeps the order).
+    /// </summary>
+    private void PrefillFromHistory()
+    {
+        if (AppServices.History is not { } history || Tiles.Count == 0) return;
+        try
+        {
+            var to = DateTime.UtcNow;
+            var from = to.AddSeconds(-96);
+            var task = Task.WhenAll(Tiles.Select(t => history.GetSeriesAsync(t.Sensor.Id, from, to, 48)));
+            if (!task.Wait(150)) return;
+            var series = Tiles.Zip(task.Result).ToDictionary(p => p.First.Sensor.Id, p => p.Second.Select(h => h.Avg).ToArray(), StringComparer.Ordinal);
+            Prefill(s => series.GetValueOrDefault(s.Id) ?? []);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("flyout: prefill failed: " + ex.Message);
+        }
     }
 
     /// <summary>Fills the sparklines with earlier values at once (snapshots, or the live buffer later).</summary>
