@@ -1,5 +1,7 @@
 using System.IO;
 using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using BetterVitals.Core;
 
@@ -7,7 +9,9 @@ namespace BetterVitals.Services;
 
 /// <summary>
 /// One process per data folder (the key is <see cref="AppEnv.InstanceKey"/>, so a test instance never talks to the
-/// user's app): a named mutex decides, a second launch sends one command over a named pipe (current user only) and exits.
+/// user's app): a named mutex decides, a second launch sends one command over a named pipe and exits. The pipe is open to
+/// this user only — by the user's SID, so an unelevated launch (Start menu, an update) reaches an elevated primary too;
+/// .NET's CurrentUserOnly would check the token owner, which is the Administrators group in an elevated process.
 /// </summary>
 public sealed class SingleInstance : IDisposable
 {
@@ -31,7 +35,7 @@ public sealed class SingleInstance : IDisposable
         {
             // the primary may bring its window to the front (we are the foreground process right now)
             UI.Native.AllowSetForegroundWindow(UI.Native.ASFW_ANY);
-            using var client = new NamedPipeClientStream(".", _pipeName, PipeDirection.Out, PipeOptions.CurrentUserOnly);
+            using var client = new NamedPipeClientStream(".", _pipeName, PipeDirection.Out);
             client.Connect(3000);
             var bytes = Encoding.UTF8.GetBytes(command);
             client.Write(bytes);
@@ -57,8 +61,8 @@ public sealed class SingleInstance : IDisposable
             {
                 try
                 {
-                    await using var server = new NamedPipeServerStream(_pipeName, PipeDirection.In, 1,
-                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                    await using var server = NamedPipeServerStreamAcl.Create(_pipeName, PipeDirection.In, 1,
+                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, PipeAccess());
                     await server.WaitForConnectionAsync(token);
                     using var ms = new MemoryStream();
                     var buffer = new byte[512];
@@ -85,6 +89,21 @@ public sealed class SingleInstance : IDisposable
                 }
             }
         }, token);
+    }
+
+    /// <summary>
+    /// Read / write for this user's SID (elevated or not), full control for SYSTEM and Administrators, nobody else. No
+    /// integrity label: an unlabeled object counts as medium, so the user's unelevated processes reach an elevated primary.
+    /// </summary>
+    internal static PipeSecurity PipeAccess()
+    {
+        var user = WindowsIdentity.GetCurrent().User ?? throw new InvalidOperationException("no user SID");
+        var security = new PipeSecurity();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
+        security.AddAccessRule(new PipeAccessRule(user, PipeAccessRights.ReadWrite | PipeAccessRights.Synchronize, AccessControlType.Allow));
+        return security;
     }
 
     public void Dispose()

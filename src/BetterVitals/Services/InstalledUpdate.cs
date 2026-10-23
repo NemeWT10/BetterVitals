@@ -24,7 +24,12 @@ internal static class InstalledUpdate
             if (!BuildVersion.ShouldReplace(AppEnv.Version, installed)) return null;
             if (!Ask(installed)) return null; // keeps the installed copy: the normal start hands over to it
 
-            QuitRunningCopy();
+            if (!QuitRunningCopy())
+            {
+                // replacing the file under a copy that keeps running would leave the old version in the tray
+                TellToQuitFirst();
+                return 0;
+            }
             var code = Elevation.IsElevated
                 ? PlatformCommands.Update()
                 : Elevation.RunElevated(Environment.ProcessPath!, PlatformCommands.UpdateArgs, TimeSpan.FromMinutes(2));
@@ -69,22 +74,36 @@ internal static class InstalledUpdate
         return MessageBoxW(IntPtr.Zero, text, "BetterVitals", 0x00000004 /* YESNO */ | 0x00000020 /* ICONQUESTION */ | 0x00010000 /* SETFOREGROUND */) == 6;
     }
 
-    /// <summary>The installed copy may be in the tray: it exits (saving history) so its files can be replaced.</summary>
-    private static void QuitRunningCopy()
+    /// <summary>The installed copy may be in the tray: it exits (saving history) so its files can be replaced. False = still running.</summary>
+    private static bool QuitRunningCopy()
     {
         using (var probe = new SingleInstance(AppEnv.InstanceKey))
         {
-            if (probe.IsPrimary) return;
-            if (!probe.SendToPrimary("quit")) Log.Warn("update: the running copy did not answer");
+            if (probe.IsPrimary) return true;
+            if (!probe.SendToPrimary("quit"))
+            {
+                Log.Warn("update: the running copy did not answer");
+                return false;
+            }
         }
         var deadline = Environment.TickCount64 + 8000;
         while (Environment.TickCount64 < deadline)
         {
             Thread.Sleep(250);
             using var probe = new SingleInstance(AppEnv.InstanceKey);
-            if (probe.IsPrimary) return;
+            if (probe.IsPrimary) return true;
         }
         Log.Warn("update: the running copy did not exit in time");
+        return false;
+    }
+
+    private static void TellToQuitFirst()
+    {
+        var pl = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "pl";
+        var text = pl
+            ? "BetterVitals działa w zasobniku i nie dał się zamknąć.\n\nZamknij go (prawy klik na ikonie → Zakończ) i uruchom ten plik jeszcze raz."
+            : "BetterVitals is running in the tray and could not be closed.\n\nQuit it (right-click its icon → Exit) and run this file again.";
+        MessageBoxW(IntPtr.Zero, text, "BetterVitals", 0x00000030 /* ICONWARNING */ | 0x00010000 /* SETFOREGROUND */);
     }
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]

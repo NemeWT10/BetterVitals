@@ -181,6 +181,18 @@ public sealed class ShellTests
     }
 
     [Fact]
+    public void The_instance_pipe_is_open_to_this_user_elevated_or_not_and_nobody_else()
+    {
+        var sddl = SingleInstance.PipeAccess().GetSecurityDescriptorSddlForm(System.Security.AccessControl.AccessControlSections.All);
+        var user = System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value;
+        Assert.Contains($";;;{user})", sddl, StringComparison.Ordinal); // by SID, not the token owner (Administrators when elevated)
+        Assert.StartsWith("D:P", sddl[sddl.IndexOf("D:", StringComparison.Ordinal)..], StringComparison.Ordinal); // nothing inherited
+        Assert.DoesNotContain(";;;WD)", sddl, StringComparison.Ordinal); // Everyone
+        Assert.DoesNotContain(";;;AU)", sddl, StringComparison.Ordinal); // Authenticated Users
+        Assert.DoesNotContain(";;;BU)", sddl, StringComparison.Ordinal); // Users
+    }
+
+    [Fact]
     public void Icons_sit_on_the_24_grid_and_the_tray_icon_draws() => Sta.Run(() =>
     {
         var icons = (ResourceDictionary)Application.LoadComponent(new Uri("/BetterVitals;component/UI/Themes/Icons.xaml", UriKind.Relative));
