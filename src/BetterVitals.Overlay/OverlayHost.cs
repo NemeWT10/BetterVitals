@@ -26,6 +26,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
     private const uint WmInvoke = Win32.WM_APP + 1, WmInventory = Win32.WM_APP + 2;
     private const string ClassName = "BetterVitals.Overlay";
     private const float FadeMs = 160;
+    private const int MaxSurface = 16384; // the largest texture Direct3D 11 guarantees
     private static readonly Lock ClassGate = new();
     private static bool _classRegistered;
 
@@ -66,6 +67,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
     private bool _refreshRunning;
     private int _refreshInterval;
     private bool _warnedRefresh;
+    private bool _warnedHuge;
     private int _ticks;
     private int _renders;
 
@@ -129,6 +131,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
         ArgumentNullException.ThrowIfNull(theme);
         ArgumentNullException.ThrowIfNull(ctx);
         var copy = LayoutCopy.Clone(layout);
+        copy.Normalize(); // whoever built the layout, the window only ever sees sane numbers
         Post(() => ApplyCore(copy, theme, ctx));
     }
 
@@ -179,6 +182,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
         CultureInfo? culture = null, TemperatureUnit temperatureUnit = TemperatureUnit.Celsius, Func<OverlayItem, string?>? labelResolver = null)
     {
         var copy = LayoutCopy.Clone(layout);
+        copy.Normalize();
         return Offscreen.Render(copy, theme, values, monitorHeightPx, culture, temperatureUnit, labelResolver);
     }
 
@@ -527,7 +531,15 @@ public sealed unsafe partial class OverlayHost : IDisposable
         if (!_dragging) ResolveMonitor();
         var scale = OverlayPlacementMath.Scale(_layout!.Style, _monitor?.Bounds.Height ?? 1080);
         if (_scene is null || Math.Abs(scale - _sceneScale) > 1e-6) BuildScene(scale);
-        if (!EnsureSurface()) return;
+        if (!EnsureSurface())
+        {
+            if (!_warnedHuge) return; // graphics are not ready yet: the retry timer is running
+            StopRefresh(); // too big to ever be shown: nothing to read for it
+            _demand?.Dispose();
+            _demand = null;
+            if (_shown) BeginFade(0);
+            return;
+        }
         if (!_dragging) Position();
         UpdateDemand();
         StartRefresh();
@@ -586,6 +598,14 @@ public sealed unsafe partial class OverlayHost : IDisposable
     {
         var w = _scene!.Width;
         var h = _scene.Height;
+        if (w > MaxSurface || h > MaxSurface)
+        {
+            // more rows than any screen could show: no retry loop, it is drawn again as soon as a layout change makes it smaller
+            if (!_warnedHuge) Log.Warn($"overlay: {w}x{h} px is too big to draw");
+            _warnedHuge = true;
+            return false;
+        }
+        _warnedHuge = false;
         try
         {
             _surface ??= new GpuSurface(_hwnd, _options.PreferWarp);

@@ -228,11 +228,19 @@ public sealed class OverlayLayout
         Style ??= new OverlayStyle();
         Items ??= [];
         Items.RemoveAll(i => i is null);
+        // a number in the file that is no known option (hand-edited, or from a newer version) must not reach the renderer
+        if (!Enum.IsDefined(Visibility)) Visibility = OverlayVisibility.Always;
+        if (!Enum.IsDefined(Placement.Anchor)) Placement.Anchor = OverlayAnchor.TopLeft;
+        if (!Enum.IsDefined(Placement.MonitorMode)) Placement.MonitorMode = OverlayMonitorMode.Primary;
+        if (!Enum.IsDefined(Style.Arrangement)) Style.Arrangement = OverlayArrangement.Vertical;
         foreach (var item in Items)
         {
             item.SensorIds ??= [];
             item.SensorIds.RemoveAll(string.IsNullOrEmpty);
             if (string.IsNullOrEmpty(item.Id)) item.Id = Guid.NewGuid().ToString("N");
+            if (!Enum.IsDefined(item.MultiDisplay)) item.MultiDisplay = MultiValueDisplay.Bars;
+            if (!Enum.IsDefined(item.Aggregation)) item.Aggregation = ValueAggregation.Current;
+            if (item.Label is { Length: > 64 } label) item.Label = label[..64];
             item.AggregationSeconds = Math.Clamp(item.AggregationSeconds, 1, 120);
             if (item.Decimals is { } d) item.Decimals = Math.Clamp(d, 0, 3);
             if (item.ValueSize is { } v) item.ValueSize = Fit(v, 6, 96, 16);

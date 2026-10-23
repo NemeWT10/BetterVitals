@@ -124,6 +124,7 @@ internal sealed class ScriptedSource : ISensorSource
     private readonly int _count;
     private readonly SensorKind _kind;
     private int _discovers, _updates;
+    private readonly int[] _reads;
 
     public ScriptedSource(string name, string hardwareName, int count, SensorKind kind = SensorKind.Temperature)
     {
@@ -131,7 +132,11 @@ internal sealed class ScriptedSource : ISensorSource
         _hardwareName = hardwareName;
         _count = count;
         _kind = kind;
+        _reads = new int[count];
     }
+
+    /// <summary>How many times the sensor with this ordinal was read.</summary>
+    public int Reads(int ordinal) => Volatile.Read(ref _reads[ordinal]);
 
     public string Name { get; }
 
@@ -184,7 +189,11 @@ internal sealed class ScriptedSource : ISensorSource
     {
         Interlocked.Increment(ref _updates);
         if (FailUpdate is { } ex) throw ex;
-        foreach (var d in requested) values[d.Index] = Value(d.Order);
+        foreach (var d in requested)
+        {
+            Interlocked.Increment(ref _reads[d.Order]);
+            values[d.Index] = Value(d.Order);
+        }
     }
 
     public void Dispose()

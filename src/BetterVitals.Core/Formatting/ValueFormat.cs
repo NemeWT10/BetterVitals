@@ -12,8 +12,8 @@ namespace BetterVitals.Core.Formatting;
 public static class ValueFormat
 {
     /// <summary>
-    /// Formats <paramref name="value"/> into <paramref name="dest"/>; returns the characters written (0 when it does
-    /// not fit) and the unit to show. NaN → "—".
+    /// Formats <paramref name="value"/> into <paramref name="dest"/>; returns the characters written (0 only when
+    /// <paramref name="dest"/> is empty) and the unit to show. NaN, infinity and numbers too long to show → "—".
     /// </summary>
     public static int Format(SensorKind kind, float value, Span<char> dest, CultureInfo culture, out string unit,
         int? decimals = null, TemperatureUnit temperature = TemperatureUnit.Celsius, string? baseUnit = null)
@@ -46,7 +46,11 @@ public static class ValueFormat
                 break;
         }
 
-        return v.TryFormat(dest, out var written, Fixed(d), culture) ? written : 0;
+        if (v.TryFormat(dest, out var written, Fixed(d), culture)) return written;
+        // a number that does not fit (a driver that reports 3.4e38 for "invalid") is shown like no value at all
+        if (dest.Length == 0) return 0;
+        dest[0] = '—';
+        return 1;
     }
 
     /// <summary>Convenience for the UI (allocates the string).</summary>

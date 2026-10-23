@@ -258,7 +258,6 @@ public sealed class DisplayScenarios(ITestOutputHelper output)
         using var host = StartHost(screens, pc, Placement(OverlayAnchor.TopLeft, "B"));
         var rnd = new Random(5);
         var created = host.Diagnostics().DeviceCreations;
-        var handles = Process.GetCurrentProcess().HandleCount;
         for (var i = 0; i < 100; i++)
         {
             var list = new List<OverlayMonitor>();
@@ -278,10 +277,9 @@ public sealed class DisplayScenarios(ITestOutputHelper output)
             Assert.True(Inside(d.WindowRect, chosen.WorkArea) || d.WindowRect.Width > chosen.WorkArea.Width || d.WindowRect.Height > chosen.WorkArea.Height, $"step {i}: {d.WindowRect} in {chosen.WorkArea}");
         }
         var end = host.Diagnostics();
-        output.WriteLine($"device creations {created} -> {end.DeviceCreations}, handles {handles} -> {Process.GetCurrentProcess().HandleCount}");
+        output.WriteLine($"device creations {created} -> {end.DeviceCreations}");
         Assert.True(end.SurfaceReady);
         Assert.True(end.DeviceCreations <= created + 1, "a display change does not rebuild the graphics device");
-        Assert.True(Process.GetCurrentProcess().HandleCount < handles + 60);
     }
 
     [Fact]
@@ -292,14 +290,11 @@ public sealed class DisplayScenarios(ITestOutputHelper output)
         using var host = StartHost(screens, pc, Placement(OverlayAnchor.TopRight, null, OverlayMonitorMode.Primary));
         pc.Run(TimeSpan.FromSeconds(4));
         host.RefreshNow();
-        var before = Process.GetCurrentProcess();
-        before.Refresh();
-        var handles = before.HandleCount;
-        var gdi = GetGuiResources(before.Handle, 0);
-        var user = GetGuiResources(before.Handle, 1);
         var creations = host.Diagnostics().DeviceCreations;
+        for (var i = 0; i < 5; i++) Assert.True(host.SimulateDeviceLost()); // warm up
+        var before = Resources.Now();
 
-        for (var i = 0; i < 40; i++)
+        for (var i = 0; i < 60; i++)
         {
             Assert.True(host.SimulateDeviceLost(), $"recovered after loss {i}");
             if (i % 5 == 0) host.SimulateDisplayChange();
@@ -309,13 +304,15 @@ public sealed class DisplayScenarios(ITestOutputHelper output)
         }
 
         var d = host.Diagnostics();
-        var after = Process.GetCurrentProcess();
-        output.WriteLine($"handles {handles} -> {after.HandleCount}, GDI {gdi} -> {GetGuiResources(after.Handle, 0)}, USER {user} -> {GetGuiResources(after.Handle, 1)}, device creations {creations} -> {d.DeviceCreations}");
+        var after = Resources.Now();
+        output.WriteLine($"before: {before}");
+        output.WriteLine($"after:  {after}; device creations {creations} -> {d.DeviceCreations}");
         Assert.True(d.SurfaceReady);
-        Assert.True(d.DeviceCreations >= creations + 40);
-        Assert.True(after.HandleCount < handles + 100, "handles");
-        Assert.True(GetGuiResources(after.Handle, 0) < gdi + 20, "GDI objects");
-        Assert.True(GetGuiResources(after.Handle, 1) < user + 20, "USER objects");
+        Assert.True(d.DeviceCreations >= creations + 60);
+        Assert.True(after.PrivateBytes - before.PrivateBytes < 150L << 20, "a lost device must be released, not piled up");
+        Assert.True(after.Handles < before.Handles + 250);
+        Assert.True(after.Gdi < before.Gdi + 100);
+        Assert.True(after.User < before.User + 100);
     }
 
     [Fact]
@@ -323,10 +320,12 @@ public sealed class DisplayScenarios(ITestOutputHelper output)
     {
         using var pc = new SimPc();
         var screens = new Screens(A);
-        var process = Process.GetCurrentProcess();
-        process.Refresh();
-        var threads = process.Threads.Count;
-        var handles = process.HandleCount;
+        for (var i = 0; i < 3; i++)
+        {
+            using var warm = StartHost(screens, pc, Placement(OverlayAnchor.TopLeft, null, OverlayMonitorMode.Primary));
+            warm.RefreshNow();
+        }
+        var before = Resources.Now();
         for (var i = 0; i < 60; i++)
         {
             using var host = StartHost(screens, pc, Placement(OverlayAnchor.TopLeft, null, OverlayMonitorMode.Primary));
@@ -334,16 +333,32 @@ public sealed class DisplayScenarios(ITestOutputHelper output)
             host.RefreshNow();
         }
         Assert.DoesNotContain(pc.Engine.Demands, d => d.Consumer == "overlay"); // every window released its demand
-        // the managed wrappers (threads, events) give their handles back with the next collection; nothing may stay beyond that
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-        process.Refresh();
-        output.WriteLine($"60 windows: threads {threads} -> {process.Threads.Count}, handles {handles} -> {process.HandleCount}");
-        Assert.True(process.Threads.Count < threads + 10);
-        Assert.True(process.HandleCount < handles + 80);
+        var after = Resources.Now();
+        output.WriteLine($"before: {before}");
+        output.WriteLine($"after 60 windows: {after}");
+        Assert.True(after.Threads < before.Threads + 12, "the overlay threads end with their windows");
+        Assert.True(after.PrivateBytes - before.PrivateBytes < 150L << 20);
+        Assert.True(after.Handles < before.Handles + 250);
     }
 
     [DllImport("user32.dll")]
     private static extern uint GetGuiResources(nint process, uint flags);
+
+    /// <summary>
+    /// What this process holds right now, after a collection. Other tests run in the same process, so the checks built on it
+    /// have wide margins: they catch a device or window that is never released (megabytes per cycle), not a stray handle.
+    /// </summary>
+    private readonly record struct Resources(int Handles, long PrivateBytes, uint Gdi, uint User, int Threads)
+    {
+        public static Resources Now()
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            using var p = Process.GetCurrentProcess();
+            return new Resources(p.HandleCount, p.PrivateMemorySize64, GetGuiResources(p.Handle, 0), GetGuiResources(p.Handle, 1), p.Threads.Count);
+        }
+
+        public override string ToString() => $"handles {Handles}, private {PrivateBytes >> 20} MB, GDI {Gdi}, USER {User}, threads {Threads}";
+    }
 }

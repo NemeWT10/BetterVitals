@@ -23,6 +23,7 @@ public sealed class SettingsStore
 
     private readonly string _path;
     private readonly Lock _gate = new();
+    private readonly Lock _writeGate = new();
     private readonly Timer _saveTimer;
     private bool _dirty;
 
@@ -72,24 +73,27 @@ public sealed class SettingsStore
     {
         try
         {
-            string json;
-            lock (_gate)
+            lock (_writeGate) // one save at a time: a slow one can never land after a newer one
             {
-                if (!_dirty) return;
-                json = JsonSerializer.Serialize(Current, Json);
-                _dirty = false;
-            }
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-                var tmp = _path + ".tmp";
-                File.WriteAllText(tmp, json);
-                File.Move(tmp, _path, overwrite: true);
-            }
-            catch
-            {
-                lock (_gate) _dirty = true;
-                throw;
+                string json;
+                lock (_gate)
+                {
+                    if (!_dirty) return;
+                    json = JsonSerializer.Serialize(Current, Json);
+                    _dirty = false;
+                }
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+                    var tmp = _path + ".tmp";
+                    File.WriteAllText(tmp, json);
+                    File.Move(tmp, _path, overwrite: true);
+                }
+                catch
+                {
+                    lock (_gate) _dirty = true;
+                    throw;
+                }
             }
         }
         catch (Exception ex)
