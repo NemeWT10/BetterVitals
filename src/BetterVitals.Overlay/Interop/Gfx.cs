@@ -290,6 +290,34 @@ internal static unsafe class RT
 
     public static void SetTarget(void* dc, void* image)
         => ((delegate* unmanaged[Stdcall]<void*, void*, void>)Com.Slot(dc, 74))(dc, image);
+
+    public static int CreateBitmap1(void* dc, uint w, uint h, D2DBitmapProps1 props, out void* bitmap)
+    {
+        void* b = null;
+        var size = ((ulong)h << 32) | w;
+        var hr = ((delegate* unmanaged[Stdcall]<void*, ulong, void*, uint, D2DBitmapProps1*, void**, int>)Com.Slot(dc, 57))(dc, size, null, 0, &props, &b);
+        bitmap = b;
+        return hr;
+    }
+}
+
+/// <summary>ID2D1Bitmap1 calls (read-back of the swap chain for tests).</summary>
+internal static unsafe class Bitmap1
+{
+    public static int CopyFromBitmap(void* dest, void* src)
+        => ((delegate* unmanaged[Stdcall]<void*, void*, void*, void*, int>)Com.Slot(dest, 8))(dest, null, src, null);
+
+    /// <summary>D2D1_MAP_OPTIONS_READ = 1; returns pitch and bits.</summary>
+    public static int Map(void* bitmap, out uint pitch, out byte* bits)
+    {
+        var mapped = stackalloc nint[2];
+        var hr = ((delegate* unmanaged[Stdcall]<void*, int, nint*, int>)Com.Slot(bitmap, 14))(bitmap, 1, mapped);
+        pitch = (uint)mapped[0];
+        bits = (byte*)mapped[1];
+        return hr;
+    }
+
+    public static int Unmap(void* bitmap) => ((delegate* unmanaged[Stdcall]<void*, int>)Com.Slot(bitmap, 15))(bitmap);
 }
 
 /// <summary>ID2D1Brush / ID2D1SolidColorBrush.</summary>
