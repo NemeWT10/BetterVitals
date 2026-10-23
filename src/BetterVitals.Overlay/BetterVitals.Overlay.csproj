@@ -1,17 +1,29 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- On-screen overlay: native top-most click-through window, D3D11 + Direct2D/DirectWrite + DirectComposition, own thread. No WPF. -->
+  <!-- On-screen overlay: native top-most click-through window, D3D11 + Direct2D/DirectWrite + DirectComposition, own thread. No WPF.
+       Graphics interop is a thin hand-written COM layer (function pointers, no extra assemblies). -->
   <PropertyGroup>
     <RootNamespace>BetterVitals.Overlay</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- XML docs are required on public types; members of plain records / enums are self-explanatory. -->
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="BetterVitals.Tests" />
     <InternalsVisibleTo Include="BetterVitals" />
+    <InternalsVisibleTo Include="OverlayHarness" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BetterVitals.Core\BetterVitals.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Bundled OFL fonts (Regular + SemiBold, Latin + Latin Extended-A subset; rebuild with Fonts\build_fonts.py). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Fonts\*.ttf" LogicalName="BetterVitals.Overlay.Fonts.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Fonts\*-OFL.txt" LogicalName="BetterVitals.Overlay.Fonts.%(Filename)%(Extension)" />
+    <None Remove="Fonts\build_fonts.py" />
   </ItemGroup>
 
 </Project>
