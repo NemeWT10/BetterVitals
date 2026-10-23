@@ -81,10 +81,14 @@ using var timer = new Timer(_ => Step(), null, 1000, 1000);
 Thread.Sleep(3000);
 var cpuStart = ThreadCpu100ns();
 var r0 = Renders();
+proc.Refresh();
+var procCpu0 = proc.TotalProcessorTime;
 var wall = Stopwatch.StartNew();
 Thread.Sleep(Math.Max(5, seconds) * 1000);
 var cpuEnd = ThreadCpu100ns();
 wall.Stop();
+proc.Refresh();
+var procCpuMs = (proc.TotalProcessorTime - procCpu0).TotalMilliseconds;
 var steadyRenders = Renders() - r0;
 Settle();
 proc.Refresh();
@@ -116,6 +120,7 @@ var report = string.Join(Environment.NewLine,
     $"private bytes: {Mb(pb0)} → {Mb(pb1)} MB (+{Mb(pb1 - pb0)} MB)",
     $"frames rendered in the steady run: {steadyRenders}",
     $"overlay thread CPU, steady: {steadyCpuMs:F1} ms over {wall.Elapsed.TotalSeconds:F1} s = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100:F3} % of one core = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cores:F4} % of the machine",
+    $"whole process CPU, steady (all threads incl. WARP workers and the fake-sensor timer): {procCpuMs:F0} ms = {procCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cores:F4} % of the machine",
     $"one dirty refresh (format + draw + present): {(c1 - c0) / 1e4 / n:F3} ms CPU, {sw.Elapsed.TotalMilliseconds / n:F3} ms wall (incl. cross-thread invoke)",
 ]);
 Console.WriteLine(report);
