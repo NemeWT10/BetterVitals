@@ -76,7 +76,7 @@ public sealed class SettingsSectionTests
         var history = new FakeHistory();
         var view = new RecordingSection(env.Host.Context(history: history));
         Assert.StartsWith("3 sensors · about ", view.SummaryText);
-        Assert.StartsWith("60 MB · data since ", view.UsageText);
+        Assert.StartsWith("63 MB · data since ", view.UsageText); // decimal units and a no-break space, as on the Sensors page
 
         Click(view.ClearButton);
         Assert.True(view.ConfirmVisible);

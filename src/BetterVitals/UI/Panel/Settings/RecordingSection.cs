@@ -148,6 +148,9 @@ internal sealed class RecordingSection : SectionView
         Hour.Relabel();
     }
 
+    /// <summary>Sizes formatted like the Sensors page's status card, so the same estimate reads the same on both pages.</summary>
+    private static string DiskBytes(long bytes) => Pages.Shared.Ui.Bytes(bytes, Loc.I.Culture);
+
     protected override void Refresh()
     {
         var r = Current.Recording;
@@ -163,7 +166,7 @@ internal sealed class RecordingSection : SectionView
         var count = hub.Sensors.Count > 0 ? RecordingPolicy.CountPresent(r, hub) : r.SensorIds.Count;
         var sensors = Loc.Plural("settings.rec.sensors", count);
         var perDay = RecordingPolicy.EstimateBytesPerDay(count, r.IntervalSeconds);
-        _summaryRow.Description = r.Enabled ? Loc.T("settings.rec.summary.desc", sensors, Bytes(perDay)) : Loc.T("settings.rec.summary.off", sensors);
+        _summaryRow.Description = r.Enabled ? Loc.T("settings.rec.summary.desc", sensors, DiskBytes(perDay)) : Loc.T("settings.rec.summary.off", sensors);
 
         // disk
         if (_history is null)
@@ -177,11 +180,11 @@ internal sealed class RecordingSection : SectionView
             _usageRow.Description = u.BytesOnDisk <= 0
                 ? Loc.T("settings.rec.usage.empty")
                 : u.OldestUtc is { } oldest
-                    ? Loc.T("settings.rec.usage.desc", Bytes(u.BytesOnDisk), oldest.ToLocalTime().ToString("d", Loc.I.Culture))
-                    : Bytes(u.BytesOnDisk);
+                    ? Loc.T("settings.rec.usage.desc", DiskBytes(u.BytesOnDisk), oldest.ToLocalTime().ToString("d", Loc.I.Culture))
+                    : DiskBytes(u.BytesOnDisk);
         }
         ClearButton.IsEnabled = _history is not null && !_clearing && (_usage?.BytesOnDisk ?? 0) > 0;
-        _confirmText.Text = Loc.T("settings.rec.clear.confirm", Bytes(_usage?.BytesOnDisk ?? 0));
+        _confirmText.Text = Loc.T("settings.rec.clear.confirm", DiskBytes(_usage?.BytesOnDisk ?? 0));
         ConfirmButton.IsEnabled = !_clearing;
     }
 
