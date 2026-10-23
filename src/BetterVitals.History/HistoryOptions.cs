@@ -1,3 +1,4 @@
+using System.Globalization;
 using BetterVitals.Core;
 
 namespace BetterVitals.History;
@@ -23,6 +24,9 @@ internal sealed class HistoryOptions
     public bool BackgroundStart { get; init; } = true;
 
     public Action<string> Warn { get; init; } = Log.Warn;
+
+    /// <summary>Number and list format of CSV exports; null = the Windows regional format (what Excel opens it with).</summary>
+    public CultureInfo? CsvCulture { get; init; }
 
     private static long? DefaultFreeSpace(string dir)
     {

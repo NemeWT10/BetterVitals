@@ -572,6 +572,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(output);
+        var dialect = new CsvExport.Dialect(_o.CsvCulture ?? System.Globalization.CultureInfo.CurrentCulture);
         return Task.Run(() =>
         {
             SensorRef[] sensors;
@@ -594,7 +595,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
                 }
                 sensors = [.. list];
             }
-            CsvExport.Write(_store, sensors, request, from, to, output, progress, ct);
+            CsvExport.Write(_store, sensors, request, from, to, output, dialect, progress, ct);
         }, ct);
     }
 

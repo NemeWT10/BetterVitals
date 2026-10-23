@@ -7,14 +7,31 @@ using BetterVitals.History.Storage;
 namespace BetterVitals.History;
 
 /// <summary>
-/// "As light as possible" export: CSV, invariant culture, one time column (ISO 8601 UTC) and one column per sensor
+/// "As light as possible" export: CSV in the Windows regional format (Excel opens it in columns: "45,05" split by ';' in
+/// Polish), one time column (UTC, "2026-10-23 20:10:00", which Excel reads as a date) and one column per sensor
 /// ("Name [unit]"; minute / hour exports have "… min", "… avg", "… max"), numbers with the minimal decimals of the
 /// storage quantum and no trailing zeros; optionally a ZIP with that single CSV entry. Streams in time chunks, so memory
 /// stays around a megabyte whatever the range.
 /// </summary>
 internal static class CsvExport
 {
-    private const string TimeFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'";
+    private const string TimeFormat = "yyyy-MM-dd HH:mm:ss";
+
+    /// <summary>The list separator and decimal separator of a culture, made safe for CSV.</summary>
+    internal readonly struct Dialect
+    {
+        public readonly char Separator;
+        public readonly NumberFormatInfo Numbers;
+
+        public Dialect(CultureInfo culture)
+        {
+            var dec = culture.NumberFormat.NumberDecimalSeparator is "," ? "," : ".";
+            var list = culture.TextInfo.ListSeparator;
+            Separator = list.Length == 1 && list != dec && list[0] is not ('"' or '\r' or '\n' or '-' or ':' or ' ') ? list[0] : dec == "," ? ';' : ',';
+            Numbers = (NumberFormatInfo)NumberFormatInfo.InvariantInfo.Clone();
+            Numbers.NumberDecimalSeparator = dec;
+        }
+    }
 
     public static long Estimate(int sensors, ExportResolution resolution, long from, long to, long rawStep, bool zip)
     {
@@ -31,8 +48,8 @@ internal static class CsvExport
         return zip ? csv / 8 + 256 : csv;
     }
 
-    public static void Write(HistoryStore store, SensorRef[] sensors, ExportRequest req, long from, long to, Stream output, IProgress<double>? progress,
-        CancellationToken ct)
+    public static void Write(HistoryStore store, SensorRef[] sensors, ExportRequest req, long from, long to, Stream output, Dialect dialect,
+        IProgress<double>? progress, CancellationToken ct)
     {
         ZipArchive? zip = null;
         Stream target = output;
@@ -47,8 +64,8 @@ internal static class CsvExport
             // UTF-8 with BOM: Excel otherwise shows "Â°C"
             using var w = new StreamWriter(target, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), 1 << 16, leaveOpen: zip is null);
             w.NewLine = "\r\n";
-            WriteHeader(w, sensors, req.Resolution);
-            if (to > from && sensors.Length > 0) WriteRows(w, store, sensors, req.Resolution, from, to, progress, ct);
+            WriteHeader(w, sensors, req.Resolution, dialect.Separator);
+            if (to > from && sensors.Length > 0) WriteRows(w, store, sensors, req.Resolution, from, to, dialect, progress, ct);
             w.Flush();
         }
         finally
@@ -62,31 +79,31 @@ internal static class CsvExport
         progress?.Report(1);
     }
 
-    private static void WriteHeader(StreamWriter w, SensorRef[] sensors, ExportResolution res)
+    private static void WriteHeader(StreamWriter w, SensorRef[] sensors, ExportResolution res, char sep)
     {
-        w.Write("time");
+        w.Write("time (UTC)");
         foreach (var s in sensors)
         {
             var title = s.Unit.Length > 0 ? $"{s.Name} [{s.Unit}]" : s.Name;
             if (res == ExportResolution.Raw)
             {
-                w.Write(',');
-                w.Write(Escape(title));
+                w.Write(sep);
+                w.Write(Escape(title, sep));
             }
             else
             {
                 foreach (var suffix in (ReadOnlySpan<string>)[" min", " avg", " max"])
                 {
-                    w.Write(',');
-                    w.Write(Escape(title + suffix));
+                    w.Write(sep);
+                    w.Write(Escape(title + suffix, sep));
                 }
             }
         }
         w.WriteLine();
     }
 
-    internal static string Escape(string s)
-        => s.AsSpan().IndexOfAny(",\"\r\n") < 0 ? s : "\"" + s.Replace("\"", "\"\"") + "\"";
+    internal static string Escape(string s, char sep = ',')
+        => s.AsSpan().IndexOfAny("\"\r\n") < 0 && !s.Contains(sep) ? s : "\"" + s.Replace("\"", "\"\"") + "\"";
 
     /// <summary>Accumulates records of all sensors into a fixed time grid for one chunk.</summary>
     private sealed class Grid(int sensors, long width, int cells) : IRecVisitor
@@ -127,7 +144,7 @@ internal static class CsvExport
         }
     }
 
-    private static void WriteRows(StreamWriter w, HistoryStore store, SensorRef[] sensors, ExportResolution res, long from, long to,
+    private static void WriteRows(StreamWriter w, HistoryStore store, SensorRef[] sensors, ExportResolution res, long from, long to, Dialect dialect,
         IProgress<double>? progress, CancellationToken ct)
     {
         var (width, cells, level) = res switch
@@ -140,6 +157,8 @@ internal static class CsvExport
         var grid = new Grid(sensors.Length, width, cells);
         var chunk = width * cells;
         Span<char> buf = stackalloc char[64];
+        var sep = dialect.Separator;
+        var numbers = dialect.Numbers;
         HistoryStore.Reader? reader = null;
         try
         {
@@ -172,21 +191,23 @@ internal static class CsvExport
                         var f = formats[s];
                         if (res == ExportResolution.Raw)
                         {
-                            w.Write(',');
-                            if (count > 0) WriteNumber(w, buf, count == 1 ? f.Exact(grid.Sum[i]) : f.Average(grid.Sum[i], count));
+                            w.Write(sep);
+                            if (count > 0) WriteNumber(w, buf, count == 1 ? f.Exact(grid.Sum[i]) : f.Average(grid.Sum[i], count), numbers);
                             continue;
                         }
                         if (count == 0)
                         {
-                            w.Write(",,,");
+                            w.Write(sep);
+                            w.Write(sep);
+                            w.Write(sep);
                             continue;
                         }
-                        w.Write(',');
-                        WriteNumber(w, buf, f.Exact(grid.Min[i]));
-                        w.Write(',');
-                        WriteNumber(w, buf, f.Average(grid.Sum[i], count));
-                        w.Write(',');
-                        WriteNumber(w, buf, f.Exact(grid.Max[i]));
+                        w.Write(sep);
+                        WriteNumber(w, buf, f.Exact(grid.Min[i]), numbers);
+                        w.Write(sep);
+                        WriteNumber(w, buf, f.Average(grid.Sum[i], count), numbers);
+                        w.Write(sep);
+                        WriteNumber(w, buf, f.Exact(grid.Max[i]), numbers);
                     }
                     w.WriteLine();
                 }
@@ -201,9 +222,9 @@ internal static class CsvExport
         }
     }
 
-    private static void WriteNumber(StreamWriter w, Span<char> buf, decimal value)
+    private static void WriteNumber(StreamWriter w, Span<char> buf, decimal value, NumberFormatInfo numbers)
     {
-        if (value.TryFormat(buf, out var n, "0.############", CultureInfo.InvariantCulture)) w.Write(buf[..n]);
+        if (value.TryFormat(buf, out var n, "0.############", numbers)) w.Write(buf[..n]);
     }
 
     /// <summary>Exact decimal rendering of quantized values (q × quantum) with the quantum's number of decimals.</summary>

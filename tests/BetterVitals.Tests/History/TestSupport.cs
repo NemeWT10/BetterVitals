@@ -205,6 +205,7 @@ internal sealed class Rig : IDisposable
             AutoFlush = autoFlush,
             BackgroundStart = false,
             FreeSpace = _ => FreeBytes,
+            CsvCulture = System.Globalization.CultureInfo.InvariantCulture,
             Warn = m =>
             {
                 lock (Warnings) Warnings.Add(m);

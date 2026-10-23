@@ -48,11 +48,11 @@ public class ExportTests
         var ms = new MemoryStream();
         await rig.Service.ExportAsync(new([temp.Id, volt.Id, odd.Id], T0, T0.AddMinutes(3), ExportResolution.Raw, false), ms);
         var lines = ToText(ms.ToArray()).Split("\r\n");
-        Assert.Equal("time,CPU Package [°C],Vcore [V],\"Fan, \"\"Pump\"\" [RPM]\"", lines[0]);
-        Assert.Equal("2026-10-20T10:00:00Z,45,1.2,1000", lines[1]);
-        Assert.Equal("2026-10-20T10:00:01Z,45.05,1.2005,1001", lines[2]);
-        Assert.Equal("2026-10-20T10:00:02Z,45.1,1.2,1002", lines[3]);
-        Assert.Equal("2026-10-20T10:01:00Z,45,1.2,", lines[61]);
+        Assert.Equal("time (UTC),CPU Package [°C],Vcore [V],\"Fan, \"\"Pump\"\" [RPM]\"", lines[0]);
+        Assert.Equal("2026-10-20 10:00:00,45,1.2,1000", lines[1]);
+        Assert.Equal("2026-10-20 10:00:01,45.05,1.2005,1001", lines[2]);
+        Assert.Equal("2026-10-20 10:00:02,45.1,1.2,1002", lines[3]);
+        Assert.Equal("2026-10-20 10:01:00,45,1.2,", lines[61]);
         Assert.Equal(180 + 2, lines.Length); // header + rows + final empty
         Assert.Equal("", lines[^1]);
 
@@ -68,18 +68,18 @@ public class ExportTests
         var ms = new MemoryStream();
         await rig.Service.ExportAsync(new([temp.Id, odd.Id], T0, T0.AddMinutes(3), ExportResolution.Minute, false), ms);
         var lines = ToText(ms.ToArray()).Split("\r\n");
-        Assert.Equal("time,CPU Package [°C] min,CPU Package [°C] avg,CPU Package [°C] max,"
+        Assert.Equal("time (UTC),CPU Package [°C] min,CPU Package [°C] avg,CPU Package [°C] max,"
             + "\"Fan, \"\"Pump\"\" [RPM] min\",\"Fan, \"\"Pump\"\" [RPM] avg\",\"Fan, \"\"Pump\"\" [RPM] max\"", lines[0]);
         // averages carry the quantum's decimals (fan: 1 RPM → 1029.5 rounds to 1030)
-        Assert.Equal("2026-10-20T10:00:00Z,45,45.05,45.1,1000,1030,1059", lines[1]);
-        Assert.Equal("2026-10-20T10:01:00Z,45,45.05,45.1,,,", lines[2]);
-        Assert.Equal("2026-10-20T10:02:00Z,45,45.05,45.1,1120,1150,1179", lines[3]);
+        Assert.Equal("2026-10-20 10:00:00,45,45.05,45.1,1000,1030,1059", lines[1]);
+        Assert.Equal("2026-10-20 10:01:00,45,45.05,45.1,,,", lines[2]);
+        Assert.Equal("2026-10-20 10:02:00,45,45.05,45.1,1120,1150,1179", lines[3]);
         Assert.Equal(5, lines.Length);
 
         var hour = new MemoryStream();
         await rig.Service.ExportAsync(new([temp.Id], T0.AddHours(-1), T0.AddHours(1), ExportResolution.Hour, false), hour);
         var hl = ToText(hour.ToArray()).Split("\r\n");
-        Assert.Equal("2026-10-20T10:00:00Z,45,45.05,45.1", hl[1]);
+        Assert.Equal("2026-10-20 10:00:00,45,45.05,45.1", hl[1]);
         Assert.Equal(3, hl.Length);
     }
 
@@ -122,6 +122,23 @@ public class ExportTests
         Assert.Equal(-0.001m, v.Exact(-2));
         Assert.Equal("a", CsvExport.Escape("a"));
         Assert.Equal("\"a,b\"", CsvExport.Escape("a,b"));
+        Assert.Equal("a,b", CsvExport.Escape("a,b", ';'));
+        Assert.Equal("\"a;b\"", CsvExport.Escape("a;b", ';'));
+    }
+
+    [Fact]
+    public void Dialect_follows_the_regional_format()
+    {
+        var pl = new CsvExport.Dialect(System.Globalization.CultureInfo.GetCultureInfo("pl-PL"));
+        Assert.Equal(';', pl.Separator);
+        Assert.Equal(",", pl.Numbers.NumberDecimalSeparator);
+        var en = new CsvExport.Dialect(System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+        Assert.Equal(',', en.Separator);
+        Assert.Equal(".", en.Numbers.NumberDecimalSeparator);
+        // a list separator equal to the decimal one falls back to ';'
+        var odd = (System.Globalization.CultureInfo)System.Globalization.CultureInfo.GetCultureInfo("pl-PL").Clone();
+        odd.TextInfo.ListSeparator = ",";
+        Assert.Equal(';', new CsvExport.Dialect(odd).Separator);
     }
 
     private sealed class SyncProgress(List<double> list) : IProgress<double>

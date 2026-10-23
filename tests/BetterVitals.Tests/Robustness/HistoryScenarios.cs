@@ -293,7 +293,7 @@ public sealed class HistoryScenarios(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task A_folder_with_spaces_and_Polish_letters_works_and_the_export_ignores_the_UI_culture()
+    public async Task A_folder_with_spaces_and_Polish_letters_works_and_the_export_follows_the_regional_format()
     {
         var culture = CultureInfo.CurrentCulture;
         var ui = CultureInfo.CurrentUICulture;
@@ -327,14 +327,15 @@ public sealed class HistoryScenarios(ITestOutputHelper output)
                 }
                 var lines = text.TrimStart('﻿').Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
                 Assert.True(lines.Length > 1, $"{res} zip={zip}: only {lines.Length} lines");
-                var width = SplitCsv(lines[0]).Length;
+                Assert.StartsWith("time (UTC);", lines[0], StringComparison.Ordinal); // Polish Excel splits on ';'
+                var width = SplitCsv(lines[0], ';').Length;
                 foreach (var line in lines.Skip(1).Take(200))
                 {
-                    var fields = SplitCsv(line);
+                    var fields = SplitCsv(line, ';');
                     Assert.Equal(width, fields.Length);
-                    Assert.True(DateTime.TryParseExact(fields[0], "yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out _), fields[0]);
+                    Assert.True(DateTime.TryParseExact(fields[0], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out _), fields[0]);
                     foreach (var f in fields.Skip(1))
-                        if (f.Length > 0) Assert.True(double.TryParse(f, NumberStyles.Float, CultureInfo.InvariantCulture, out _), $"'{f}' in {line}");
+                        if (f.Length > 0) Assert.True(double.TryParse(f, NumberStyles.Float, CultureInfo.GetCultureInfo("pl-PL"), out _) && !f.Contains('.'), $"'{f}' in {line}");
                 }
             }
         }
@@ -345,8 +346,8 @@ public sealed class HistoryScenarios(ITestOutputHelper output)
         }
     }
 
-    /// <summary>Splits one CSV line (quotes allowed, comma separated).</summary>
-    private static string[] SplitCsv(string line)
+    /// <summary>Splits one CSV line (quotes allowed).</summary>
+    private static string[] SplitCsv(string line, char sep)
     {
         var fields = new List<string>();
         var sb = new System.Text.StringBuilder();
@@ -374,7 +375,7 @@ public sealed class HistoryScenarios(ITestOutputHelper output)
             {
                 quoted = true;
             }
-            else if (c == ',')
+            else if (c == sep)
             {
                 fields.Add(sb.ToString());
                 sb.Clear();
