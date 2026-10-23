@@ -127,6 +127,7 @@ public sealed class HistoryRenderTests(ITestOutputHelper output)
         range.Open(rig.Page.Chart.View);
         range.PickDay(new DateTime(2026, 10, 19));
         range.PickDay(new DateTime(2026, 10, 22));
+        range.VerticalAlignment = VerticalAlignment.Top; // the real popup sizes to its content
         AssertPng(rig.SavePanel(range, $"history_custom_{theme}_{lang}", 340, 520, theme));
 
         rig.Page.Chart.SetSelection((rig.Now - TimeSpan.FromMinutes(40).Ticks, rig.Now - TimeSpan.FromMinutes(10).Ticks));
