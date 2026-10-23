@@ -47,6 +47,37 @@ public sealed class HistoryPageTests
     });
 
     [Fact]
+    public void Hiding_every_series_says_so_and_the_picker_brings_one_back() => Sta.Run(() =>
+    {
+        using var rig = new HistoryRig();
+        rig.Show();
+        var ids = rig.Page.ShownIds.ToList();
+        foreach (var id in ids)
+        {
+            var chip = rig.Page.ChipOf(id)!; // chips are rebuilt, so look each one up
+            chip.IsChecked = false;
+            chip.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        }
+        Assert.All(ids, id => Assert.False(rig.Page.IsSeriesVisible(id)));
+        Assert.Equal(HistoryEmpty.AllHidden, rig.Page.EmptyState); // not "pick a sensor": three are picked
+
+        // the picker opens every time (it is reused) and picking a hidden sensor shows it instead of removing it
+        rig.Page.OpenPicker();
+        rig.Page.OpenPicker();
+        rig.Page.OpenPicker();
+        rig.Page.TogglePicked(rig.Hub.Find(ids[0])!);
+        rig.Settle();
+        Assert.Equal(ids, rig.Page.ShownIds);
+        Assert.True(rig.Page.IsSeriesVisible(ids[0]));
+        Assert.Equal(HistoryEmpty.None, rig.Page.EmptyState);
+        Assert.True(rig.Page.ChipOf(ids[0])!.IsChecked);
+
+        // a visible sensor picked again leaves the chart, as before
+        rig.Page.TogglePicked(rig.Hub.Find(ids[0])!);
+        Assert.DoesNotContain(ids[0], rig.Page.ShownIds);
+    });
+
+    [Fact]
     public void A_sensor_from_another_page_is_preselected_and_kept() => Sta.Run(() =>
     {
         using var rig = new HistoryRig();

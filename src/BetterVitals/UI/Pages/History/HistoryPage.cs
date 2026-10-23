@@ -39,6 +39,9 @@ public enum HistoryEmpty : byte
 {
     None,
     PickSensor,
+
+    /// <summary>Sensors are on the chart, but every series is hidden (its chip was clicked).</summary>
+    AllHidden,
     Collecting,
     NotRecorded,
     NothingRecorded,
@@ -181,6 +184,10 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
     internal bool UsesPreview => _preview;
 
     internal IReadOnlyList<string> ShownIds => _shown.Select(s => s.D.Id).ToList();
+
+    internal ToggleButton? ChipOf(string id) => _shown.FirstOrDefault(s => s.D.Id == id)?.Chip;
+
+    internal bool IsSeriesVisible(string id) => _shown.FirstOrDefault(s => s.D.Id == id)?.Series.Visible == true;
 
     internal RangePreset Preset => _preset;
 
@@ -498,8 +505,19 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
     /// <summary>Toggles a sensor from the picker (tests call it too).</summary>
     internal void TogglePicked(SensorDescriptor d)
     {
-        if (_shown.Any(s => s.D.Id == d.Id)) RemoveSeries(d.Id);
-        else AddSeries(d);
+        if (_shown.FirstOrDefault(s => s.D.Id == d.Id) is not { } shown) AddSeries(d);
+        else if (!shown.Series.Visible) ShowAll([shown]); // a hidden series comes back instead of leaving
+        else RemoveSeries(d.Id);
+    }
+
+    private void ShowAll(IEnumerable<Shown> which)
+    {
+        foreach (var s in which) s.Series.Visible = true;
+        RebuildChips();
+        _chart.VisibilityChanged();
+        _picker?.UpdateStates();
+        UpdateStats();
+        UpdateEmpty();
     }
 
     private void RebuildChips()
@@ -1115,6 +1133,7 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
         var (icon, title, body, action, onAction) = state switch
         {
             HistoryEmpty.PickSensor => ("Icon.Chart", "history.empty.pick.title", "history.empty.pick.body", "history.add", (Action?)OpenPicker),
+            HistoryEmpty.AllHidden => ("Icon.EyeOff", "history.empty.hidden.title", "history.empty.hidden.body", "history.empty.hidden.action", () => ShowAll(_shown)),
             HistoryEmpty.Collecting => ("Icon.Pulse", "history.empty.collecting.title", "history.empty.collecting.body", null, null),
             HistoryEmpty.NotRecorded => ("Icon.Record", "history.empty.notRecorded.title", "history.empty.notRecorded.body", "history.recordThis",
                 () => Record(_shown.Where(s => s.Series.Visible).Select(s => s.D).ToList())),
@@ -1150,7 +1169,7 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
     private HistoryEmpty DecideEmpty()
     {
         var visible = _shown.Where(s => s.Series.Visible).ToList();
-        if (visible.Count == 0) return HistoryEmpty.PickSensor;
+        if (visible.Count == 0) return _shown.Count == 0 ? HistoryEmpty.PickSensor : HistoryEmpty.AllHidden;
         var v = _chart.View;
         foreach (var s in visible)
         {
@@ -1180,6 +1199,17 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
 
     // ───────────── popovers ─────────────
 
+    /// <summary>
+    /// Puts a reused panel in its popover (with room for the shadow). The panel is created once, so it must leave its
+    /// previous frame first: WPF refuses an element that still has a parent, and the popover would never open again.
+    /// </summary>
+    private static void Host(Popup popup, FrameworkElement panel)
+    {
+        if (popup.Child is Border frame && ReferenceEquals(frame.Child, panel)) return;
+        if (panel.Parent is Border previous) previous.Child = null;
+        popup.Child = new Border { Padding = new Thickness(12, 4, 12, 22), Child = panel };
+    }
+
     private SensorPicker CreatePicker()
     {
         var p = new SensorPicker(_hub, id => _shown.Any(s => s.D.Id == id), IsRecorded, () => _shown.Count);
@@ -1187,11 +1217,11 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
         return p;
     }
 
-    private void OpenPicker()
+    internal void OpenPicker()
     {
         var p = Picker;
         p.Refresh();
-        _pickerPopup.Child = new Border { Padding = new Thickness(12, 4, 12, 22), Child = p };
+        Host(_pickerPopup, p);
         _pickerPopup.PlacementTarget = _add.IsVisible ? _add : _chart;
         _pickerPopup.IsOpen = true;
         Dispatcher.BeginInvoke(DispatcherPriority.Input, () => p.Search.Focus());
@@ -1209,7 +1239,7 @@ public sealed class HistoryPage : UserControl, IPage, IDisposable
     {
         var r = RangePickerPanel;
         r.Open(_chart.View);
-        _customPopup.Child = new Border { Padding = new Thickness(12, 4, 12, 22), Child = r };
+        Host(_customPopup, r);
         _customPopup.IsOpen = true;
     }
 
