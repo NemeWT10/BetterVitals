@@ -103,6 +103,15 @@ internal static partial class Program
         }
         var touchedInB = source.GetNodeStats().Where(s => s.Updates != before.GetValueOrDefault(s.HardwareId)).Select(s => s.Name).ToList();
 
+        // ── phase E: idle (no Update): background threads of LHM and its libraries only ──
+        var idleProc = Process.GetCurrentProcess();
+        var idleCpu0 = idleProc.TotalProcessorTime;
+        var idleWatch = Stopwatch.StartNew();
+        Thread.Sleep(15_000);
+        idleProc.Refresh();
+        var idleCpu = idleProc.TotalProcessorTime - idleCpu0;
+        var idleThreads = idleProc.Threads.Count;
+
         // ── phase C: driver pause round trip (ids must stay stable) ──
         var idsBefore = inventory.Sensors.Select(s => s.Id).ToHashSet();
         source.SetDriverPaused(true);
@@ -158,6 +167,11 @@ internal static partial class Program
         r.AppendLine("| GPU | requested | sensors | wall ms / call | CPU ms / call | alloc B / call |");
         r.AppendLine("|---|---|---:|---:|---:|---:|");
         foreach (var row in gpuRows) r.AppendLine(row);
+        r.AppendLine();
+
+        r.AppendLine("## Phase E: idle (no Update calls)");
+        r.AppendLine();
+        r.AppendLine(Inv, $"- {idleWatch.Elapsed.TotalSeconds:F0} s idle: process CPU {idleCpu.TotalMilliseconds:F0} ms ({idleCpu.TotalMilliseconds / idleWatch.Elapsed.TotalMilliseconds * 100:F3} % of one core); threads in process: {idleThreads}");
         r.AppendLine();
 
         r.AppendLine("## Phase B: GPU + memory subset");
