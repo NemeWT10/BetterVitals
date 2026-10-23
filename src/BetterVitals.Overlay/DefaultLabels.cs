@@ -4,7 +4,7 @@ using BetterVitals.Core.Sensors;
 namespace BetterVitals.Overlay;
 
 /// <summary>
-/// Short default overlay labels ("CPU", "GPU", "Hot Spot", "VRAM Tj", "VRAM", "RAM", "FPS", "1% low", "NVMe"…)
+/// Short default overlay labels ("CPU", "GPU", "GPU HS", "VRAM Tj", "VRAM", "RAM", "FPS", "1% low", "NVMe"…)
 /// derived from hardware kind + sensor kind + verbatim sensor name. Pure and allocation-light; shared with the WPF
 /// editor. Sensor names themselves are never translated — these are just compact forms of them.
 /// </summary>
@@ -136,7 +136,7 @@ public static partial class DefaultLabels
         {
             case SensorKind.Temperature:
                 if (lower.Contains("hot spot") || lower.Contains("hotspot") || lower.Contains("hot-spot"))
-                    return Numbered(n, "Hot Spot") ?? "Hot Spot";
+                    return Numbered(n, "GPU HS") ?? "GPU HS";
                 if (lower.Contains("junction")) return "VRAM Tj";
                 if (lower.StartsWith("gpu memory", StringComparison.Ordinal)) return Numbered(n, "VRAM") ?? "VRAM";
                 if (lower is "gpu core" or "gpu" or "core" or "temperature" or "gpu temperature") return "GPU";

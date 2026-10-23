@@ -139,7 +139,7 @@ internal sealed class OverlayController : IOverlayService, IDisposable
         }
     }
 
-    /// <summary>Default label of an item with no label of its own; null = the overlay's short defaults ("CPU", "Hot Spot"…).</summary>
+    /// <summary>Default label of an item with no label of its own; null = the overlay's short defaults ("CPU", "GPU HS"…).</summary>
     private static string? ResolveLabel(OverlayItem item) => null;
 
     private void OnInventoryChanged()

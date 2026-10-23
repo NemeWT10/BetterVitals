@@ -25,8 +25,8 @@ public class OverlayLogicTests
     [InlineData(HardwareKind.Cpu, SensorKind.Power, "Package", "CPU")]
     [InlineData(HardwareKind.Cpu, SensorKind.Voltage, "Core (SVI3 TFN)", "Vcore")]
     [InlineData(HardwareKind.Gpu, SensorKind.Temperature, "GPU Core", "GPU")]
-    [InlineData(HardwareKind.Gpu, SensorKind.Temperature, "GPU Hot Spot", "Hot Spot")]
-    [InlineData(HardwareKind.Gpu, SensorKind.Temperature, "GPU Hot Spot #2", "Hot Spot 2")]
+    [InlineData(HardwareKind.Gpu, SensorKind.Temperature, "GPU Hot Spot", "GPU HS")]
+    [InlineData(HardwareKind.Gpu, SensorKind.Temperature, "GPU Hot Spot #2", "GPU HS 2")]
     [InlineData(HardwareKind.Gpu, SensorKind.Temperature, "GPU Memory Junction", "VRAM Tj")]
     [InlineData(HardwareKind.Gpu, SensorKind.Temperature, "GPU Memory #7", "VRAM 7")]
     [InlineData(HardwareKind.Gpu, SensorKind.SmallData, "GPU Memory Used", "VRAM")]
@@ -64,7 +64,7 @@ public class OverlayLogicTests
         Assert.Equal("1% low", DefaultLabels.ForId(Low1.Id));
         Assert.Equal("FPS", DefaultLabels.ForId(FpsSensor.Id));
         Assert.Equal("Frametime", DefaultLabels.ForId(FrameTime.Id));
-        Assert.Equal("Hot Spot", DefaultLabels.ForId(HotSpot.Id));
+        Assert.Equal("GPU HS", DefaultLabels.ForId(HotSpot.Id));
         Assert.Equal("0.1% low", DefaultLabels.ForId(SensorIds.Sensor(GameHw, SensorKind.Fps, "0.1% Low")));
         Assert.Equal("—", DefaultLabels.ForId("garbage"));
     }

@@ -166,7 +166,7 @@ public sealed class OverlayItem
     /// <summary>Sensor ids; one for a normal item, several for a multi-value item.</summary>
     public List<string> SensorIds { get; set; } = [];
 
-    /// <summary>User label; null = default short label ("CPU", "GPU", "Hot Spot", "FPS"…).</summary>
+    /// <summary>User label; null = default short label ("CPU", "GPU", "GPU HS", "FPS"…).</summary>
     public string? Label { get; set; }
 
     public string? LabelColor { get; set; }
