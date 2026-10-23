@@ -1,0 +1,386 @@
+using System.Buffers.Binary;
+using System.IO.Compression;
+using BetterVitals.Core.Sensors;
+
+namespace BetterVitals.History.Storage;
+
+/// <summary>
+/// Fixed 36-byte block header (little endian):
+/// <code>
+///  0 u32 magic "BVHB"     4 u8 version     5 u8 type (0 raw, 1 minute, 2 hour)
+///  6 u16 sampleCount      8 i64 start (UTC ticks of row 0)
+/// 16 u32 step (ms)       20 u16 columnCount  22 u16 flags (0)
+/// 24 u32 rawLength       28 u32 payloadLength (Deflate bytes that follow)
+/// 32 u32 crc32 over bytes 0..32 and the payload
+/// </code>
+/// </summary>
+internal readonly struct BlockHeader
+{
+    public const int Size = 36;
+    public const uint Magic = 0x42485642; // "BVHB"
+    public const byte CurrentVersion = 1;
+    private const int MaxPayload = 16 << 20;
+
+    public Level Type { get; init; }
+    public int SampleCount { get; init; }
+    public long Start { get; init; }
+    public long Step { get; init; }
+    public int Columns { get; init; }
+    public int RawLength { get; init; }
+    public int PayloadLength { get; init; }
+
+    public long End => Start + SampleCount * Step;
+
+    public void Write(Span<byte> dst)
+    {
+        BinaryPrimitives.WriteUInt32LittleEndian(dst, Magic);
+        dst[4] = CurrentVersion;
+        dst[5] = (byte)Type;
+        BinaryPrimitives.WriteUInt16LittleEndian(dst[6..], (ushort)SampleCount);
+        BinaryPrimitives.WriteInt64LittleEndian(dst[8..], Start);
+        BinaryPrimitives.WriteUInt32LittleEndian(dst[16..], (uint)(Step / TimeSpan.TicksPerMillisecond));
+        BinaryPrimitives.WriteUInt16LittleEndian(dst[20..], (ushort)Columns);
+        BinaryPrimitives.WriteUInt16LittleEndian(dst[22..], 0);
+        BinaryPrimitives.WriteUInt32LittleEndian(dst[24..], (uint)RawLength);
+        BinaryPrimitives.WriteUInt32LittleEndian(dst[28..], (uint)PayloadLength);
+    }
+
+    /// <summary>Parses and sanity-checks a header (CRC is checked separately).</summary>
+    public static bool TryRead(ReadOnlySpan<byte> src, out BlockHeader h)
+    {
+        h = default;
+        if (src.Length < Size || BinaryPrimitives.ReadUInt32LittleEndian(src) != Magic) return false;
+        if (src[4] != CurrentVersion || src[5] > (byte)Level.Hour) return false;
+        var count = BinaryPrimitives.ReadUInt16LittleEndian(src[6..]);
+        var stepMs = BinaryPrimitives.ReadUInt32LittleEndian(src[16..]);
+        var raw = BinaryPrimitives.ReadUInt32LittleEndian(src[24..]);
+        var payload = BinaryPrimitives.ReadUInt32LittleEndian(src[28..]);
+        var start = BinaryPrimitives.ReadInt64LittleEndian(src[8..]);
+        if (count == 0 || stepMs == 0 || payload > MaxPayload || raw > 4 * MaxPayload) return false;
+        if (start < 0 || start > DateTime.MaxValue.Ticks - (long)count * stepMs * TimeSpan.TicksPerMillisecond) return false;
+        h = new BlockHeader
+        {
+            Type = (Level)src[5],
+            SampleCount = count,
+            Start = start,
+            Step = stepMs * TimeSpan.TicksPerMillisecond,
+            Columns = BinaryPrimitives.ReadUInt16LittleEndian(src[20..]),
+            RawLength = (int)raw,
+            PayloadLength = (int)payload,
+        };
+        return true;
+    }
+
+    public static uint StoredCrc(ReadOnlySpan<byte> src) => BinaryPrimitives.ReadUInt32LittleEndian(src[32..]);
+}
+
+/// <summary>A verified block inside a file buffer.</summary>
+internal readonly record struct BlockRef(int PayloadOffset, BlockHeader Header);
+
+/// <summary>Finds valid blocks in a file image; skips torn / corrupted regions by resyncing on the magic.</summary>
+internal static class BlockScanner
+{
+    private static ReadOnlySpan<byte> MagicBytes => "BVHB"u8;
+
+    /// <summary>Appends every CRC-valid block; returns the number of corrupted regions skipped.</summary>
+    public static int Scan(ReadOnlySpan<byte> file, List<BlockRef> blocks)
+    {
+        var bad = 0;
+        var pos = 0;
+        while (pos + BlockHeader.Size <= file.Length)
+        {
+            if (BlockHeader.TryRead(file[pos..], out var h)
+                && pos + BlockHeader.Size + (long)h.PayloadLength <= file.Length
+                && Verify(file.Slice(pos, BlockHeader.Size + h.PayloadLength)))
+            {
+                blocks.Add(new BlockRef(pos + BlockHeader.Size, h));
+                pos += BlockHeader.Size + h.PayloadLength;
+                continue;
+            }
+            bad++;
+            var next = file[(pos + 1)..].IndexOf(MagicBytes);
+            if (next < 0) break;
+            pos += 1 + next;
+        }
+        return bad;
+    }
+
+    private static bool Verify(ReadOnlySpan<byte> block)
+    {
+        var crc = Crc32.Append(Crc32.Compute(block[..32]), block[BlockHeader.Size..]);
+        return crc == BlockHeader.StoredCrc(block);
+    }
+
+    /// <summary>Builds header + CRC in front of an already compressed payload.</summary>
+    public static void Seal(Span<byte> block, in BlockHeader h)
+    {
+        h.Write(block);
+        var crc = Crc32.Append(Crc32.Compute(block[..32]), block.Slice(BlockHeader.Size, h.PayloadLength));
+        BinaryPrimitives.WriteUInt32LittleEndian(block[32..], crc);
+    }
+}
+
+/// <summary>Column table at the start of every (uncompressed) payload: count, then per column slot delta, kind, byte length.</summary>
+internal sealed class ColumnTable
+{
+    public int Count;
+    public ushort[] Slots = new ushort[64];
+    public SensorKind[] Kinds = new SensorKind[64];
+    public int[] Offsets = new int[64];
+    public int[] Lengths = new int[64];
+
+    /// <summary>Upper bound of the table size for <paramref name="columns"/> columns.</summary>
+    public static int MaxSize(int columns) => 5 + columns * 9;
+
+    /// <summary>Parses the table; returns the payload offset where column data starts.</summary>
+    public int Parse(ReadOnlySpan<byte> payload)
+    {
+        var pos = 0;
+        var n = (int)Varint.Read(payload, ref pos);
+        if (n > ushort.MaxValue) throw new InvalidDataException("bad column count");
+        if (Slots.Length < n)
+        {
+            var size = Math.Max(n, Slots.Length * 2);
+            Slots = new ushort[size];
+            Kinds = new SensorKind[size];
+            Offsets = new int[size];
+            Lengths = new int[size];
+        }
+        var slot = 0L;
+        for (var i = 0; i < n; i++)
+        {
+            slot += (long)Varint.Read(payload, ref pos);
+            if (slot > ushort.MaxValue || (uint)pos >= (uint)payload.Length) throw new InvalidDataException("bad slot");
+            Slots[i] = (ushort)slot;
+            Kinds[i] = (SensorKind)payload[pos++];
+            Lengths[i] = (int)Varint.Read(payload, ref pos);
+        }
+        Count = n;
+        var off = pos;
+        for (var i = 0; i < n; i++)
+        {
+            Offsets[i] = off;
+            off += Lengths[i];
+        }
+        return pos;
+    }
+
+    public int IndexOf(int slot)
+    {
+        // columns are sorted by slot
+        var lo = 0;
+        var hi = Count - 1;
+        while (lo <= hi)
+        {
+            var mid = (lo + hi) >> 1;
+            var s = Slots[mid];
+            if (s == slot) return mid;
+            if (s < slot) lo = mid + 1;
+            else hi = mid - 1;
+        }
+        return -1;
+    }
+
+    public int End(int index) => Offsets[index] + Lengths[index];
+}
+
+/// <summary>Encodes payloads (column table + columns) and compresses them into full blocks.</summary>
+internal sealed class BlockEncoder
+{
+    private byte[] _data = new byte[16 * 1024];
+    private byte[] _payload = new byte[16 * 1024];
+    private readonly MemoryStream _compressed = new();
+    private readonly int[] _lengths = new int[ushort.MaxValue + 1];
+
+    /// <summary>
+    /// Raw block: per column, <paramref name="rows"/> tokens: 0 = gap, else zigzag(q - previous q) + 1
+    /// (previous starts at 0 and carries across gaps). <paramref name="values"/> is column-major with <paramref name="stride"/>.
+    /// </summary>
+    public int EncodeRaw(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, ReadOnlySpan<float> values, int stride, int rows)
+    {
+        var cols = slots.Length;
+        Ensure(ref _data, cols * rows * Varint.MaxBytes + 16);
+        var pos = 0;
+        for (var c = 0; c < cols; c++)
+        {
+            var start = pos;
+            var quantum = Quant.Of(kinds[c]);
+            var col = values.Slice(c * stride, rows);
+            long prev = 0;
+            for (var r = 0; r < rows; r++)
+            {
+                if (Quant.TryQuantize(col[r], quantum, out var q))
+                {
+                    Varint.Write(_data, ref pos, Varint.ZigZag(q - prev) + 1);
+                    prev = q;
+                }
+                else
+                {
+                    _data[pos++] = 0;
+                }
+            }
+            _lengths[c] = pos - start;
+        }
+        return Assemble(slots, kinds, pos);
+    }
+
+    /// <summary>
+    /// Rollup block: per column and bucket: count (0 = empty, nothing follows), zigzag(min - previous min),
+    /// max - min, sum - min * count. <paramref name="aggs"/> is column-major with <paramref name="buckets"/> per column.
+    /// </summary>
+    public int EncodeRollup(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, ReadOnlySpan<Rec> aggs, int buckets)
+    {
+        var cols = slots.Length;
+        Ensure(ref _data, cols * buckets * 4 * Varint.MaxBytes + 16);
+        var pos = 0;
+        for (var c = 0; c < cols; c++)
+        {
+            var start = pos;
+            long prevMin = 0;
+            for (var b = 0; b < buckets; b++)
+            {
+                ref readonly var a = ref aggs[c * buckets + b];
+                Varint.Write(_data, ref pos, (ulong)a.Count);
+                if (a.Count == 0) continue;
+                Varint.Write(_data, ref pos, Varint.ZigZag(a.Min - prevMin));
+                Varint.Write(_data, ref pos, (ulong)(a.Max - a.Min));
+                Varint.Write(_data, ref pos, (ulong)(a.Sum - a.Min * a.Count));
+                prevMin = a.Min;
+            }
+            _lengths[c] = pos - start;
+        }
+        return Assemble(slots, kinds, pos);
+    }
+
+    /// <summary>The uncompressed payload of the last Encode call.</summary>
+    public ReadOnlySpan<byte> Payload(int length) => _payload.AsSpan(0, length);
+
+    /// <summary>Compresses the last payload and appends header + data to <paramref name="output"/>; returns the block size.</summary>
+    public int AppendBlock(Stream output, Level type, long start, long step, int samples, int columns, int rawLength)
+    {
+        _compressed.SetLength(0);
+        _compressed.Write(new byte[BlockHeader.Size]);
+        using (var z = new DeflateStream(_compressed, CompressionLevel.SmallestSize, leaveOpen: true))
+            z.Write(_payload, 0, rawLength);
+        var total = (int)_compressed.Length;
+        var h = new BlockHeader
+        {
+            Type = type,
+            SampleCount = samples,
+            Start = start,
+            Step = step,
+            Columns = columns,
+            RawLength = rawLength,
+            PayloadLength = total - BlockHeader.Size,
+        };
+        var buf = _compressed.GetBuffer();
+        BlockScanner.Seal(buf.AsSpan(0, total), h);
+        output.Write(buf, 0, total);
+        return total;
+    }
+
+    private int Assemble(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, int dataLength)
+    {
+        var cols = slots.Length;
+        Ensure(ref _payload, ColumnTable.MaxSize(cols) + dataLength);
+        var pos = 0;
+        Varint.Write(_payload, ref pos, (ulong)cols);
+        var prev = 0;
+        for (var c = 0; c < cols; c++)
+        {
+            if (slots[c] < prev) throw new InvalidOperationException("columns must be sorted by slot");
+            Varint.Write(_payload, ref pos, (ulong)(slots[c] - prev));
+            prev = slots[c];
+            _payload[pos++] = (byte)kinds[c];
+            Varint.Write(_payload, ref pos, (ulong)_lengths[c]);
+        }
+        _data.AsSpan(0, dataLength).CopyTo(_payload.AsSpan(pos));
+        return pos + dataLength;
+    }
+
+    private static void Ensure(ref byte[] buf, int size)
+    {
+        if (buf.Length < size) buf = new byte[Math.Max(size, buf.Length * 2)];
+    }
+}
+
+/// <summary>Decodes columns of an inflated payload into records.</summary>
+internal static class ColumnDecoder
+{
+    /// <summary>Raw column → one record per stored sample with time in [from, to).</summary>
+    public static void Raw<TV>(ReadOnlySpan<byte> col, in BlockHeader h, long from, long to, int ordinal, ref TV visitor)
+        where TV : IRecVisitor
+    {
+        var pos = 0;
+        long prev = 0;
+        var t = h.Start;
+        for (var r = 0; r < h.SampleCount; r++, t += h.Step)
+        {
+            var token = Varint.Read(col, ref pos);
+            if (token == 0) continue;
+            prev += Varint.UnZigZag(token - 1);
+            if (t < from || t >= to) continue;
+            visitor.Visit(ordinal, Rec.Sample(t, prev));
+        }
+    }
+
+    /// <summary>Rollup column → one record per non-empty bucket with start in [from, to).</summary>
+    public static void Rollup<TV>(ReadOnlySpan<byte> col, in BlockHeader h, long from, long to, int ordinal, ref TV visitor)
+        where TV : IRecVisitor
+    {
+        var pos = 0;
+        long prevMin = 0;
+        var t = h.Start;
+        for (var b = 0; b < h.SampleCount; b++, t += h.Step)
+        {
+            var count = (long)Varint.Read(col, ref pos);
+            if (count == 0) continue;
+            var min = prevMin + Varint.UnZigZag(Varint.Read(col, ref pos));
+            var range = (long)Varint.Read(col, ref pos);
+            var extra = (long)Varint.Read(col, ref pos);
+            prevMin = min;
+            if (t < from || t >= to) continue;
+            visitor.Visit(ordinal, new Rec { Time = t, Min = min, Max = min + range, Sum = extra + min * count, Count = count, Level = h.Type });
+        }
+    }
+}
+
+/// <summary>Inflates (a prefix of) a payload into a reusable buffer.</summary>
+internal sealed class Inflater
+{
+    private byte[] _out = new byte[16 * 1024];
+    private DeflateStream? _z;
+    private int _have;
+    private int _target;
+
+    public ReadOnlySpan<byte> Data => _out.AsSpan(0, _have);
+
+    /// <summary>Starts a block; inflates at least <paramref name="need"/> bytes (or all when shorter).</summary>
+    public void Begin(byte[] file, in BlockRef block, int need)
+    {
+        _z?.Dispose();
+        _target = block.Header.RawLength;
+        if (_out.Length < _target) _out = new byte[Math.Max(_target, _out.Length * 2)];
+        _z = new DeflateStream(new MemoryStream(file, block.PayloadOffset, block.Header.PayloadLength, writable: false), CompressionMode.Decompress);
+        _have = 0;
+        Fill(need);
+    }
+
+    /// <summary>Ensures at least <paramref name="need"/> bytes are inflated (clamped to the payload's raw length).</summary>
+    public void Fill(int need)
+    {
+        if (need > _target) need = _target;
+        while (_have < need && _z is not null)
+        {
+            var n = _z.Read(_out, _have, need - _have);
+            if (n <= 0) throw new InvalidDataException("payload shorter than its header says");
+            _have += n;
+        }
+    }
+
+    public void End()
+    {
+        _z?.Dispose();
+        _z = null;
+    }
+}
