@@ -22,7 +22,7 @@ internal static class OverlayFixtures
             Unit = unit,
         };
 
-    public static readonly SensorDescriptor Fps = Sensor(GameHw, HardwareKind.Game, SensorKind.Fps, "FPS");
+    public static readonly SensorDescriptor FpsSensor = Sensor(GameHw, HardwareKind.Game, SensorKind.Fps, "FPS");
     public static readonly SensorDescriptor Low1 = Sensor(GameHw, HardwareKind.Game, SensorKind.Fps, "1% Low");
     public static readonly SensorDescriptor FrameTime = Sensor(GameHw, HardwareKind.Game, SensorKind.FrameTime, "Frametime");
     public static readonly SensorDescriptor CpuTemp = Sensor(CpuHw, HardwareKind.Cpu, SensorKind.Temperature, "Core (Tctl/Tdie)");

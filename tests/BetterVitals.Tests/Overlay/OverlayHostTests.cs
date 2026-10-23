@@ -14,15 +14,15 @@ public class OverlayHostTests
 {
     private static (OverlayHost Host, FakeHub Hub, OverlayLayout Layout) Start(bool enabled = true)
     {
-        var hub = new FakeHub(Fps, CpuTemp, GpuTemp, HotSpot);
-        hub.Set(Fps, 144);
+        var hub = new FakeHub(FpsSensor, CpuTemp, GpuTemp, HotSpot);
+        hub.Set(FpsSensor, 144);
         hub.Set(CpuTemp, 61);
         hub.Set(GpuTemp, 70);
         hub.Set(HotSpot, 92);
         var layout = new OverlayLayout
         {
             Enabled = enabled,
-            Items = [Item(Fps), Item(CpuTemp), Item(GpuTemp), Item(HotSpot)],
+            Items = [Item(FpsSensor), Item(CpuTemp), Item(GpuTemp), Item(HotSpot)],
         };
         var host = new OverlayHost(new OverlayHostOptions { NeverShow = true });
         host.Start();
@@ -90,7 +90,7 @@ public class OverlayHostTests
             Assert.NotNull(back);
             BetterVitals.Overlay.Rendering.Offscreen.WritePng(back!, Path.Combine(OutputDir, "swapchain-readback.png"));
             var primary = OverlayHost.GetMonitors().First(m => m.IsPrimary);
-            var values = new PreviewSensor[] { new(Fps, 144), new(CpuTemp, 61), new(GpuTemp, 70), new(HotSpot, 92) };
+            var values = new PreviewSensor[] { new(FpsSensor, 144), new(CpuTemp, 61), new(GpuTemp, 70), new(HotSpot, 92) };
             var off = OverlayHost.RenderToBitmap(layout, OverlayTheme.Default, values, primary.Bounds.Height);
             Assert.Equal(off.Width, back!.Width);
             Assert.Equal(off.Height, back.Height);
@@ -129,7 +129,7 @@ public class OverlayHostTests
             var d = host.Diagnostics();
             Assert.True(d.SurfaceReady);
             Assert.Equal(before + 1, d.DeviceCreations);
-            hub.Set(Fps, 120);
+            hub.Set(FpsSensor, 120);
             Assert.True(host.RefreshNow());
         }
     }
@@ -246,10 +246,10 @@ public class OverlayHostTests
     [InlineData(false)]
     public void Both_devices_render_the_same_picture(bool warp)
     {
-        var hub = new FakeHub(Fps, HotSpot);
-        hub.Set(Fps, 60);
+        var hub = new FakeHub(FpsSensor, HotSpot);
+        hub.Set(FpsSensor, 60);
         hub.Set(HotSpot, 101);
-        var layout = new OverlayLayout { Enabled = true, Items = [Item(Fps), Item(HotSpot)] };
+        var layout = new OverlayLayout { Enabled = true, Items = [Item(FpsSensor), Item(HotSpot)] };
         using var host = new OverlayHost(new OverlayHostOptions { NeverShow = true, PreferWarp = warp });
         host.Start();
         host.Apply(layout, OverlayTheme.Default, Ctx(hub));
@@ -257,7 +257,7 @@ public class OverlayHostTests
         Assert.True(d.SurfaceReady);
         if (warp) Assert.True(d.Warp); // the GPU may be missing on a CI box: then WARP is the fallback
         var back = host.ReadBack()!;
-        var off = OverlayHost.RenderToBitmap(layout, OverlayTheme.Default, [new(Fps, 60), new(HotSpot, 101)],
+        var off = OverlayHost.RenderToBitmap(layout, OverlayTheme.Default, [new(FpsSensor, 60), new(HotSpot, 101)],
             OverlayHost.GetMonitors().First(m => m.IsPrimary).Bounds.Height);
         long diff = 0;
         for (var i = 0; i < off.Pixels.Length; i++) diff += Math.Abs(off.Pixels[i] - back.Pixels[i]);

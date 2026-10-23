@@ -62,7 +62,7 @@ public class OverlayLogicTests
     public void Labels_from_ids_of_sensors_not_present_yet()
     {
         Assert.Equal("1% low", DefaultLabels.ForId(Low1.Id));
-        Assert.Equal("FPS", DefaultLabels.ForId(Fps.Id));
+        Assert.Equal("FPS", DefaultLabels.ForId(FpsSensor.Id));
         Assert.Equal("Frametime", DefaultLabels.ForId(FrameTime.Id));
         Assert.Equal("Hot Spot", DefaultLabels.ForId(HotSpot.Id));
         Assert.Equal("0.1% low", DefaultLabels.ForId(SensorIds.Sensor(GameHw, SensorKind.Fps, "0.1% Low")));
@@ -169,8 +169,8 @@ public class OverlayLogicTests
     [InlineData(OverlayArrangement.Compact)]
     public void Layout_scales_with_the_monitor(OverlayArrangement arrangement)
     {
-        PreviewSensor[] values = [new(Fps, 144), new(CpuTemp, 65), new(HotSpot, 91)];
-        var layout = new OverlayLayout { Items = [Item(Fps), Item(CpuTemp), Item(HotSpot)] };
+        PreviewSensor[] values = [new(FpsSensor, 144), new(CpuTemp, 65), new(HotSpot, 91)];
+        var layout = new OverlayLayout { Items = [Item(FpsSensor), Item(CpuTemp), Item(HotSpot)] };
         using var hd = MakeScene(layout, values, 1080, arrangement);
         using var qhd = MakeScene(layout, values, 1440, arrangement);
         using var uhd = MakeScene(layout, values, 2160, arrangement);
@@ -184,8 +184,8 @@ public class OverlayLogicTests
     [Fact]
     public void Vertical_layout_measures_like_the_spec()
     {
-        PreviewSensor[] values = [new(Fps, 144), new(CpuTemp, 65), new(GpuTemp, 70), new(HotSpot, 91)];
-        using var s = MakeScene(new OverlayLayout { Items = [Item(Fps), Item(CpuTemp), Item(GpuTemp), Item(HotSpot)] }, values);
+        PreviewSensor[] values = [new(FpsSensor, 144), new(CpuTemp, 65), new(GpuTemp, 70), new(HotSpot, 91)];
+        using var s = MakeScene(new OverlayLayout { Items = [Item(FpsSensor), Item(CpuTemp), Item(GpuTemp), Item(HotSpot)] }, values);
         // 4 rows of 22 px + 3 gaps of 4 px + vertical padding, label 12 / value 16 / unit 11 px.
         Assert.InRange(s.Height, 4 * 22 + 3 * 4 + 2 * 5, 4 * 22 + 3 * 4 + 2 * 12);
         Assert.InRange(s.Width, 110, 220);
@@ -230,8 +230,8 @@ public class OverlayLogicTests
     [Fact]
     public void Colors_default_to_category_text_and_dim()
     {
-        using var s = MakeScene(new OverlayLayout { Items = [Item(CpuTemp), Item(GpuTemp), new() { SensorIds = [Fps.Id], LabelColor = "#112233", ValueColor = "#445566" }] },
-            [new(CpuTemp, 50), new(GpuTemp, 50), new(Fps, 60)]);
+        using var s = MakeScene(new OverlayLayout { Items = [Item(CpuTemp), Item(GpuTemp), new() { SensorIds = [FpsSensor.Id], LabelColor = "#112233", ValueColor = "#445566" }] },
+            [new(CpuTemp, 50), new(GpuTemp, 50), new(FpsSensor, 60)]);
         Assert.Equal(OverlayTheme.Default.CategoryColor(HardwareKind.Cpu), s.Items[0].LabelColor);
         Assert.Equal(OverlayTheme.Default.CategoryColor(HardwareKind.Gpu), s.Items[1].LabelColor);
         Assert.Equal(OverlayTheme.Default.Text, s.Items[0].ValueColor);
@@ -274,7 +274,7 @@ public class OverlayLogicTests
     [Fact]
     public void Compact_joins_the_degree_sign_and_hides_duplicate_units()
     {
-        using var s = MakeScene(new OverlayLayout { Items = [Item(CpuTemp), Item(Fps)] }, [new(CpuTemp, 64), new(Fps, 144)], arrangement: OverlayArrangement.Compact);
+        using var s = MakeScene(new OverlayLayout { Items = [Item(CpuTemp), Item(FpsSensor)] }, [new(CpuTemp, 64), new(FpsSensor, 144)], arrangement: OverlayArrangement.Compact);
         Assert.Equal("64°", new string(s.Items[0].Main.Text));
         Assert.Null(s.Items[0].UnitLine);
         Assert.Null(s.Items[1].UnitLine); // "FPS 144", not "FPS 144 FPS"
@@ -293,13 +293,13 @@ public class OverlayLogicTests
     public void Update_does_not_allocate()
     {
         var cores = CoreClocks(16);
-        var values = new List<PreviewSensor> { new(Fps, 144), new(CpuTemp, 60), new(HotSpot, 90), new(Vram, 9000), new(FrameTime, 7) };
+        var values = new List<PreviewSensor> { new(FpsSensor, 144), new(CpuTemp, 60), new(HotSpot, 90), new(Vram, 9000), new(FrameTime, 7) };
         values.AddRange(cores.Select(c => new PreviewSensor(c, 5000)));
         var layout = new OverlayLayout
         {
             Items =
             [
-                new() { SensorIds = [Fps.Id], ShowGraph = true },
+                new() { SensorIds = [FpsSensor.Id], ShowGraph = true },
                 new() { SensorIds = [CpuTemp.Id], Aggregation = ValueAggregation.Average },
                 Item(HotSpot), Item(Vram), Item(FrameTime),
                 new() { SensorIds = [.. cores.Select(c => c.Id)], MultiDisplay = MultiValueDisplay.Bars },
@@ -325,7 +325,7 @@ public class OverlayLogicTests
     public void Render_to_png_writes_a_png()
     {
         var path = Path.Combine(OutputDir, "api-render.png");
-        var (w, h) = OverlayHost.RenderToPng(new OverlayLayout { Items = [Item(Fps)] }, OverlayTheme.Default, [new PreviewSensor(Fps, 60)], 1080, path);
+        var (w, h) = OverlayHost.RenderToPng(new OverlayLayout { Items = [Item(FpsSensor)] }, OverlayTheme.Default, [new PreviewSensor(FpsSensor, 60)], 1080, path);
         var bytes = File.ReadAllBytes(path);
         Assert.Equal(0x89, bytes[0]);
         Assert.Equal((byte)'P', bytes[1]);

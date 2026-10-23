@@ -15,7 +15,7 @@ public class OverlayRenderTests
 
     private static PreviewSensor[] SimpleValues =>
     [
-        new(Fps, 143.6f),
+        new(FpsSensor, 143.6f),
         new(CpuTemp, 64.4f),
         new(GpuTemp, 71.2f),
         new(HotSpot, 93.4f),
@@ -24,7 +24,7 @@ public class OverlayRenderTests
     private static OverlayLayout SimpleLayout(OverlayArrangement arrangement = OverlayArrangement.Vertical) => new()
     {
         Style = new OverlayStyle { Arrangement = arrangement },
-        Items = [Item(Fps), Item(CpuTemp), Item(GpuTemp), Item(HotSpot)],
+        Items = [Item(FpsSensor), Item(CpuTemp), Item(GpuTemp), Item(HotSpot)],
     };
 
     private static void Save(OverlayBitmap bmp, string name) => Offscreen.WritePng(bmp, Path.Combine(OutputDir, name));
@@ -81,7 +81,7 @@ public class OverlayRenderTests
         var loads = CoreLoads(16);
         var values = new List<PreviewSensor>
         {
-            new(Fps, 141, Wave(141, 12)),
+            new(FpsSensor, 141, Wave(141, 12)),
             new(Low1, 98),
             new(FrameTime, 7.1f, Wave(7.1f, 1.2f, seed: 3)),
             new(CpuTemp, 76.5f, Wave(72, 6, seed: 2)),
@@ -104,7 +104,7 @@ public class OverlayRenderTests
             Style = new OverlayStyle(),
             Items =
             [
-                new() { SensorIds = [Fps.Id], ShowGraph = true },
+                new() { SensorIds = [FpsSensor.Id], ShowGraph = true },
                 Item(Low1),
                 new() { SensorIds = [FrameTime.Id], ShowGraph = true },
                 new() { SensorIds = [CpuTemp.Id], ShowGraph = true, Aggregation = ValueAggregation.Max, AggregationSeconds = 10 },
@@ -136,7 +136,7 @@ public class OverlayRenderTests
             [
                 new() { SensorIds = [.. cores.Select(c => c.Id)], MultiDisplay = MultiValueDisplay.Grid },
                 new() { SensorIds = [.. cores.Take(4).Select(c => c.Id)], MultiDisplay = MultiValueDisplay.Rows },
-                Item(Fps),
+                Item(FpsSensor),
             ],
         };
         Save(Offscreen.Render(Build(grid, values, 1080), false, GameBackdrop), "multi-grid-rows-1080-ingame.png");
