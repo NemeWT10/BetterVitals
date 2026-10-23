@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs one command line on a private, invisible Windows desktop (CreateDesktop + CreateProcess with lpDesktop):
+       test windows of the app never reach the user's screen, mouse or keyboard. SwitchDesktop is never called.
+       Output of the child is relayed through pipes; the exit code of the child is returned.
+       Usage: HiddenDesktopRunner [timeout seconds] [cwd dir], a double dash, then the command line. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>HiddenDesktopRunner</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+</Project>
