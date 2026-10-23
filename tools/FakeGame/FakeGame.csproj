@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Test "game": a tiny D3D11 flip-model swap chain presenting at a fixed rate on a hidden desktop (never on screen). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>FakeGame</RootNamespace>
+    <AssemblyName>FakeGame</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>
