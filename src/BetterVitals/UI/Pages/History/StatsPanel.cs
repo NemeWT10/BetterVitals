@@ -56,6 +56,7 @@ public sealed class StatsPanel : Border
         head.Children.Add(_scope);
         DockPanel.SetDock(head, Dock.Top);
         root.Children.Add(head);
+        Grid.SetIsSharedSizeScope(_table, true);
         root.Children.Add(_table);
         Child = root;
         _hint.SetBinding(TextBlock.TextProperty, new Binding("[history.stats.selectHint]") { Source = Loc.I, Mode = BindingMode.OneWay });
@@ -149,7 +150,12 @@ public sealed class StatsPanel : Border
     private void AddCell(int row, int column, string value, string unit, string? when, long whenUtc)
     {
         var cell = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 8, 5), VerticalAlignment = VerticalAlignment.Center };
+        // value + unit share one width per column, so the min / max times line up under each other
+        var slot = new Grid();
+        slot.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, SharedSizeGroup = "StatsValue" + column });
         var line = new StackPanel { Orientation = Orientation.Horizontal };
+        Grid.SetColumn(line, 0);
+        slot.Children.Add(line);
         var v = new TextBlock { Text = value, FontSize = 16, VerticalAlignment = VerticalAlignment.Center };
         v.SetResourceReference(StyleProperty, "Text.Value");
         v.FontSize = 16;
@@ -161,7 +167,7 @@ public sealed class StatsPanel : Border
             u.Margin = new Thickness(4, 0, 0, 2);
             line.Children.Add(u);
         }
-        cell.Children.Add(line);
+        cell.Children.Add(slot);
         if (when is not null)
         {
             var b = new Button { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(6, 1, 6, 2), HorizontalAlignment = HorizontalAlignment.Left, ToolTip = Loc.T("history.stats.goto") };
