@@ -36,6 +36,9 @@ internal sealed class LhmNode
 
     public HardwareDescriptor Descriptor { get; set; } = null!;
 
+    /// <summary>LHM identifier ("/amdcpu/0", "/memory/dimm/2"…).</summary>
+    public string Identifier { get; init; } = "";
+
     /// <summary>NVIDIA / AMD: LHM's private D3D adapter id field, nulled during updates that need no "D3D …" sensor.</summary>
     public System.Reflection.FieldInfo? D3dField { get; set; }
 

@@ -184,6 +184,20 @@ public class LhmClassifierTests
         => Assert.Equal(expected, LhmClassifier.IsDriverBackedHardware(type, identifier));
 
     [Theory]
+    [InlineData(HardwareType.Cpu, "/amdcpu/0", SensorType.Temperature, true)]
+    [InlineData(HardwareType.Cpu, "/amdcpu/0", SensorType.Voltage, true)]
+    [InlineData(HardwareType.Cpu, "/amdcpu/0", SensorType.Clock, true)]
+    [InlineData(HardwareType.Cpu, "/amdcpu/0", SensorType.Load, false)]
+    [InlineData(HardwareType.SuperIO, "/lpc/nct6701d/0", SensorType.Fan, true)]
+    [InlineData(HardwareType.Memory, "/memory/dimm/0", SensorType.Temperature, true)]
+    [InlineData(HardwareType.Memory, "/ram", SensorType.Data, false)]
+    [InlineData(HardwareType.GpuIntel, "/gpu-intel-integrated/0", SensorType.Power, true)]
+    [InlineData(HardwareType.GpuIntel, "/gpu-intel-integrated/0", SensorType.Load, false)]
+    [InlineData(HardwareType.GpuNvidia, "/gpu-nvidia/0", SensorType.Temperature, false)]
+    public void Driver_only_sensors(HardwareType type, string identifier, SensorType sensorType, bool expected)
+        => Assert.Equal(expected, LhmClassifier.NeedsDriver(type, identifier, sensorType));
+
+    [Theory]
     [InlineData("Ethernet 2-QoS Packet Scheduler-0000", true)]
     [InlineData("Ethernet 2-WFP Native MAC Layer LightWeight Filter-0000", true)]
     [InlineData("vSwitch (Default Switch)-Hyper-V Virtual Switch Extension Filter-0000", true)]

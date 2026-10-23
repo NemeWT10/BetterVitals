@@ -18,6 +18,11 @@ internal enum LhmSensorFlags : byte
     NeedsPcie = 8,
     /// <summary>GPU "D3D …" sensors (D3DKMT statistics query).</summary>
     NeedsD3d = 16,
+    /// <summary>
+    /// Only meaningful with a working PawnIO (CPU temperatures / clocks / VID / power, mainboard, DIMM, Intel iGPU power):
+    /// without it LHM reports fake zeros (0 °C, 0 W, VID 1.55 V), so the value is NaN.
+    /// </summary>
+    NeedsDriver = 32,
 
     /// <summary>Everything a node update can be asked for (discovery warm-up).</summary>
     AllNeeds = NeedsSmart | NeedsPcie | NeedsD3d,
@@ -103,6 +108,19 @@ internal static class LhmClassifier
             flags |= LhmSensorFlags.NeedsD3d;
         return flags;
     }
+
+    /// <summary>
+    /// Sensors LHM can only read through PawnIO. CPU loads come from Windows and stay; everything else on the CPU,
+    /// mainboard (SuperIO / EC), DIMMs and the Intel iGPU power (MSR) needs the driver.
+    /// </summary>
+    public static bool NeedsDriver(HardwareType hardwareType, string identifier, SensorType sensorType) => hardwareType switch
+    {
+        HardwareType.Cpu => sensorType != SensorType.Load,
+        HardwareType.Motherboard or HardwareType.SuperIO or HardwareType.EmbeddedController => true,
+        HardwareType.Memory => identifier.StartsWith("/memory/dimm", StringComparison.OrdinalIgnoreCase),
+        HardwareType.GpuIntel => sensorType == SensorType.Power && identifier.StartsWith("/gpu-intel-integrated", StringComparison.OrdinalIgnoreCase),
+        _ => false,
+    };
 
     /// <summary>
     /// SMART / NVMe health and "Data Read / Written"-style counters: 60 s; other storage sensors (temperatures, activity,

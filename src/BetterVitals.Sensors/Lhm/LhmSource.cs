@@ -53,6 +53,7 @@ public sealed class LhmSource : ISensorSource
     private bool _suspended;
     private bool _updateFailureLogged;
     private bool? _deviceOpens;
+    private bool _driverWorks;
     private long _lhmAllocThisCall;
     private volatile bool _pauseWanted;
     private volatile bool _deviceChangePending;
@@ -188,12 +189,15 @@ public sealed class LhmSource : ISensorSource
             var needs = plan.Needs;
             for (var i = 0; i < nodes.Length; i++) nodes[i].Readable = RefreshNode(nodes[i], needs[i], now);
 
-            var paused = _pausedApplied;
+            // paused: PawnIO sensors are NaN; driver not working: also LHM's fake zeros of driver-only sensors
+            var blocked = _pausedApplied
+                ? LhmSensorFlags.DriverBacked | LhmSensorFlags.NeedsDriver
+                : _driverWorks ? LhmSensorFlags.None : LhmSensorFlags.NeedsDriver;
             var entries = plan.Entries;
             for (var i = 0; i < requested.Length; i++)
             {
                 var slot = requested[i].Index;
-                if ((uint)slot < (uint)values.Length) values[slot] = Read(entries[i], paused);
+                if ((uint)slot < (uint)values.Length) values[slot] = Read(entries[i], blocked);
             }
         }
         catch (Exception ex)
@@ -557,6 +561,7 @@ public sealed class LhmSource : ISensorSource
         {
             var (s, kind) = mapped[j];
             var flags = LhmClassifier.Classify(node.Type, hw.Name, s.SensorType, s.Name);
+            if (LhmClassifier.NeedsDriver(node.Type, node.Identifier, s.SensorType)) flags |= LhmSensorFlags.NeedsDriver;
             var d = new SensorDescriptor
             {
                 Id = ids[j],
@@ -669,7 +674,10 @@ public sealed class LhmSource : ISensorSource
         {
             Log.Warn($"lhm: identifying '{hw.Name}' failed: {ex.Message}");
         }
-        var node = new LhmNode(hw, type, LhmClassifier.MapHardware(type), stableKey, LhmClassifier.IsDriverBackedHardware(type, identifier), gate);
+        var node = new LhmNode(hw, type, LhmClassifier.MapHardware(type), stableKey, LhmClassifier.IsDriverBackedHardware(type, identifier), gate)
+        {
+            Identifier = identifier,
+        };
         try
         {
             node.D3dField = LhmGpuTweaks.D3dField(hw, out var d3dId);
@@ -784,10 +792,10 @@ public sealed class LhmSource : ISensorSource
         }
     }
 
-    private static float Read(LhmSensorEntry? e, bool paused)
+    private static float Read(LhmSensorEntry? e, LhmSensorFlags blocked)
     {
         if (e?.Sensor is not { } s || !e.Node.Readable) return float.NaN;
-        if (paused && (e.Flags & LhmSensorFlags.DriverBacked) != 0) return float.NaN;
+        if ((e.Flags & blocked) != 0) return float.NaN;
         return LhmClassifier.Sanitize(s.Value, e.Scale, (e.Flags & LhmSensorFlags.HotSpotLike) != 0);
     }
 
@@ -827,6 +835,7 @@ public sealed class LhmSource : ISensorSource
 
     private void UpdateStatus()
     {
+        _driverWorks = IsElevated && _pawnIoVersion is not null && _deviceOpens != false;
         var s = LhmDriverStatus.Compute(_openFailed, _pausedApplied, _pawnIoVersion, IsElevated, _deviceOpens);
         if (s != _status.Value) _status = new StatusBox(s);
     }
