@@ -25,6 +25,30 @@
     <InternalsVisibleTo Include="BetterVitals.Tests" />
   </ItemGroup>
 
+  <!-- Single-file publish: WPF's native libraries are NOT self-extracted to %TEMP% (an elevated process must never load
+       DLLs from a user-writable folder); they ride inside as resources and NativeRuntime writes them to a safe folder.
+       Measured in BetterShot: an uncompressed bundle keeps the tray far lighter. -->
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <!-- the WPF native libraries of the runtime pack this publish uses (same version as the bundled runtime) -->
+  <Target Name="BvEmbedWpfNative" BeforeTargets="PrepareResourceNames" Condition="'$(PublishSingleFile)' == 'true'">
+    <PropertyGroup>
+      <BvWpfNativeDir>$(NuGetPackageRoot)microsoft.windowsdesktop.app.runtime.$(RuntimeIdentifier)\$(BundledNETCoreAppPackageVersion)\runtimes\$(RuntimeIdentifier)\native\</BvWpfNativeDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <BvWpfNative Include="$(BvWpfNativeDir)*_cor3.dll" />
+      <EmbeddedResource Include="@(BvWpfNative)" LogicalName="BetterVitals.Native.%(Filename)%(Extension)" WithCulture="false" Type="Non-Resx" />
+    </ItemGroup>
+    <Error Condition="'@(BvWpfNative)' == ''" Text="WPF native libraries not found in $(BvWpfNativeDir) — the single-file exe would not start." />
+    <Message Importance="high" Text="BetterVitals: embedding WPF native libraries: @(BvWpfNative->'%(Filename)%(Extension)', ', ')" />
+  </Target>
+
   <ItemGroup>
     <ProjectReference Include="..\BetterVitals.Core\BetterVitals.Core.csproj" />
     <ProjectReference Include="..\BetterVitals.Sensors\BetterVitals.Sensors.csproj" />

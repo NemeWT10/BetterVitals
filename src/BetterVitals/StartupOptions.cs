@@ -27,6 +27,12 @@ public sealed record StartupOptions
 
     public bool TrayProbe { get; init; }
 
+    /// <summary>
+    /// <c>--real-sensors</c> (with test mode): the real sources (LibreHardwareMonitor, FPS, native) instead of the fake PC,
+    /// still without tray icon and with the test data folder — for perf measurements of the real thing in the background.
+    /// </summary>
+    public bool RealSensors { get; init; }
+
     public string? OpenPage { get; init; }
 
     public static StartupOptions Parse(IReadOnlyList<string> args)
@@ -58,6 +64,9 @@ public sealed record StartupOptions
                     break;
                 case "--tray-probe":
                     o = o with { TestMode = true, TrayProbe = true };
+                    break;
+                case "--real-sensors":
+                    o = o with { RealSensors = true };
                     break;
                 case "--open":
                     o = o with { OpenPage = Next() ?? "overview" };

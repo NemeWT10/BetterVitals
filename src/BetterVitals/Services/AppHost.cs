@@ -43,11 +43,11 @@ internal sealed class AppHost : IDisposable
 
     public ISensorHub Hub => _engine;
 
-    private AppHost(Dispatcher ui, bool testMode)
+    private AppHost(Dispatcher ui, bool testMode, bool realSensors)
     {
         _ui = ui;
         var sources = new List<ISensorSource>();
-        if (testMode)
+        if (testMode && !realSensors)
         {
             sources.Add(new FakeSensorSource(FakeProfile.DesktopAmdNvidia));
         }
@@ -103,7 +103,7 @@ internal sealed class AppHost : IDisposable
         Log.Info($"host: started (elevated={Elevation.IsElevated}, installed={Installer.IsInstalled}, pawnio={PawnIo.InstalledVersion?.ToString() ?? "none"})");
     }
 
-    public static AppHost Start(Dispatcher ui, bool testMode) => Current = new AppHost(ui, testMode);
+    public static AppHost Start(Dispatcher ui, bool testMode, bool realSensors = false) => Current = new AppHost(ui, testMode, realSensors);
 
     /// <summary>Releases the single-instance mutex before another copy takes over (elevation hand-over, update restart).</summary>
     public static void ReleaseSingleInstance()

@@ -72,10 +72,28 @@ public static class NativeRuntime
         }
     }
 
+    /// <summary>Load order: dependencies first (wpfgfx and PresentationNative import the C runtime; wpfgfx loads D3DCompiler).</summary>
+    private static readonly string[] LoadOrder =
+        ["vcruntime140_cor3.dll", "D3DCompiler_47_cor3.dll", "PresentationNative_cor3.dll", "wpfgfx_cor3.dll", "PenImc_cor3.dll"];
+
     private static void AddSearchDirectory(string dir)
     {
-        // both: AddDllDirectory serves LoadLibraryEx with LOAD_LIBRARY_SEARCH_USER_DIRS (DllImport with safe search
-        // paths), SetDllDirectory the classic search order used by native-to-native loads (wpfgfx → D3DCompiler).
+        // WPF's DllImports do not search AddDllDirectory / SetDllDirectory folders, so the libraries are loaded here
+        // by full path: a later load by name returns the module that is already in the process — exactly these files.
+        foreach (var name in LoadOrder)
+        {
+            var path = Path.Combine(dir, name);
+            if (!File.Exists(path)) continue;
+            try
+            {
+                NativeLibrary.Load(path);
+            }
+            catch (Exception ex)
+            {
+                Core.Log.Warn($"native runtime: {name}: {ex.Message}");
+            }
+        }
+        // still useful for native-to-native loads that go through the classic search order
         AddDllDirectory(dir);
         SetDllDirectoryW(dir);
     }

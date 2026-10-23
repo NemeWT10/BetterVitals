@@ -57,7 +57,7 @@ public partial class App : Application
         SettingsStore.I.Changed += OnSettingsChanged;
 
         // the sensors, history, overlay and Windows integration (test mode: a fake PC, no hardware access)
-        _host = AppHost.Start(Dispatcher, AppEnv.TestMode);
+        _host = AppHost.Start(Dispatcher, AppEnv.TestMode, _options.RealSensors);
         if (AppEnv.TestMode) _host.WarmUp(TimeSpan.FromSeconds(5));
 
         _messages = new MessageWindow();
