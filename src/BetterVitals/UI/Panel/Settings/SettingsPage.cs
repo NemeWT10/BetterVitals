@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using BetterVitals.Localization;
+using BetterVitals.Services;
 
 namespace BetterVitals.UI.Panel;
 
@@ -119,6 +120,13 @@ internal static class ShellPages
 {
     [ModuleInitializer]
     internal static void Register()
+    {
+        if (!PlatformCommands.IsHelperProcess) RegisterNow();
+    }
+
+    // never even compiled in a helper process (--install…): it must not load WPF
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RegisterNow()
     {
         PageRegistry.Register(Placeholder(PageIds.Overview, "nav.overview", "Icon.Dashboard", 10));
         PageRegistry.Register(Placeholder(PageIds.History, "nav.history", "Icon.Chart", 20));

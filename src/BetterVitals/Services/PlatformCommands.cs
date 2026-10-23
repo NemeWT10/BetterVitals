@@ -27,6 +27,14 @@ internal static class PlatformCommands
 
     public static string AutostartArgs(string sid, bool enabled) => $"--set-autostart {(enabled ? 1 : 0)} --user-sid {sid}";
 
+    private static readonly string[] HelperSwitches = ["--install", "--install-pawnio", "--set-autostart", "--uninstall"];
+
+    /// <summary>
+    /// This process runs a helper mode. Known before Main (module initializers ask it): an elevated helper started from
+    /// Downloads must not load WPF, whose native parts would then be looked up next to the exe.
+    /// </summary>
+    public static bool IsHelperProcess { get; } = Environment.GetCommandLineArgs().Skip(1).Any(a => HelperSwitches.Contains(a, StringComparer.OrdinalIgnoreCase));
+
     /// <summary>Exit code when <paramref name="args"/> asks for a helper mode, null for a normal start.</summary>
     public static int? TryRun(IReadOnlyList<string> args)
     {

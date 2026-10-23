@@ -545,5 +545,12 @@ internal static class SensorsPageRegistration
 {
     [ModuleInitializer]
     internal static void Register()
+    {
+        if (!PlatformCommands.IsHelperProcess) RegisterNow();
+    }
+
+    // never even compiled in a helper process (--install…): it must not load WPF
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RegisterNow()
         => PageRegistry.Register(new PageInfo(PageIds.Sensors, "nav.sensors", "Icon.List", 30, ctx => new SensorsPage(ctx)) { Priority = 1 });
 }

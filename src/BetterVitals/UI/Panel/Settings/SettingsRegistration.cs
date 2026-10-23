@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using BetterVitals.Services;
 
 namespace BetterVitals.UI.Panel;
 
@@ -7,6 +8,13 @@ internal static class SettingsRegistration
 {
     [ModuleInitializer]
     internal static void Register()
+    {
+        if (!PlatformCommands.IsHelperProcess) RegisterNow();
+    }
+
+    // never even compiled in a helper process (--install…): it must not load WPF
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RegisterNow()
     {
         SettingsSections.Register(new SettingsSection(SettingsPageParameter.Recording, "settings.recording", 20, ctx => new RecordingSection(ctx)));
         SettingsSections.Register(new SettingsSection(SettingsPageParameter.Overlay, "settings.overlay", 30, ctx => new OverlayBehaviorSection(ctx)));

@@ -8,6 +8,7 @@ using BetterVitals.Localization;
 using BetterVitals.UI.Dev;
 using BetterVitals.UI.Pages.Shared;
 using BetterVitals.UI.Panel;
+using BetterVitals.Services;
 
 namespace BetterVitals.UI.Pages.Overview;
 
@@ -285,5 +286,12 @@ internal static class OverviewPageRegistration
 {
     [ModuleInitializer]
     internal static void Register()
+    {
+        if (!PlatformCommands.IsHelperProcess) RegisterNow();
+    }
+
+    // never even compiled in a helper process (--install…): it must not load WPF
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RegisterNow()
         => PageRegistry.Register(new PageInfo(PageIds.Overview, "nav.overview", "Icon.Dashboard", 10, ctx => new OverviewPage(ctx)) { Priority = 1 });
 }

@@ -24,6 +24,13 @@ internal static class HistoryPageRegistration
 {
     [ModuleInitializer]
     internal static void Register()
+    {
+        if (!PlatformCommands.IsHelperProcess) RegisterNow();
+    }
+
+    // never even compiled in a helper process (--install…): it must not load WPF
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RegisterNow()
         => PageRegistry.Register(new PageInfo(PageIds.History, "nav.history", "Icon.History", 20, ctx => new HistoryPage(ctx)) { Priority = 1 });
 }
 

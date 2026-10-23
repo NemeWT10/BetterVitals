@@ -20,6 +20,13 @@ internal static class OverlayEditorRegistration
 {
     [ModuleInitializer]
     internal static void Register()
+    {
+        if (!PlatformCommands.IsHelperProcess) RegisterNow();
+    }
+
+    // never even compiled in a helper process (--install…): it must not load WPF
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RegisterNow()
         => PageRegistry.Register(new PageInfo(PageIds.Overlay, "nav.overlay", "Icon.Overlay", 40, ctx => new OverlayEditorPage(ctx)) { Priority = 1 });
 }
 
