@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Dev tool: runs LhmSource unelevated in the background and writes tests/output/sensorprobe/report.md. Not in the solution. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>SensorProbe</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BetterVitals.Sensors\BetterVitals.Sensors.csproj" />
+  </ItemGroup>
+
+</Project>
