@@ -33,8 +33,11 @@ public static class Installer
     /// <summary>The launcher task of this user exists (an unelevated start can relaunch elevated without UAC).</summary>
     public static bool HasLauncher(string userSid) => ScheduledTasks.Exists(ScheduledTasks.LauncherName(userSid));
 
-    /// <summary>Elevated: performs the whole install. Safe to repeat (repair / re-install / update of tasks).</summary>
-    public static InstallResult Install(InstallOptions o, string version)
+    /// <summary>
+    /// Elevated: performs the whole install. Safe to repeat (repair / re-install / update of tasks).
+    /// <paramref name="nativeSource"/> = the app assembly carrying WPF's native libraries (see <see cref="NativeRuntime"/>).
+    /// </summary>
+    public static InstallResult Install(InstallOptions o, string version, System.Reflection.Assembly? nativeSource = null)
     {
         if (!Elevation.IsElevated) return new InstallResult(false, null, "not elevated");
         try
@@ -42,6 +45,7 @@ public static class Installer
             Directory.CreateDirectory(InstallDir);
             var source = Path.GetFullPath(Environment.ProcessPath ?? throw new InvalidOperationException("no process path"));
             if (!string.Equals(source, Path.GetFullPath(InstalledExe), StringComparison.OrdinalIgnoreCase)) CopyExe(source, InstalledExe);
+            if (nativeSource is not null) NativeRuntime.WriteBeside(nativeSource, InstallDir);
 
             WriteUninstallEntry(version);
             try { Shortcut.Create(StartMenuLink, InstalledExe, "BetterVitals"); }
