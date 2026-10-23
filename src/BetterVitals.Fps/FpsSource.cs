@@ -59,7 +59,8 @@ public sealed class FpsSource : ISensorSource
     /// <param name="sessionName">ETW session name; tests use their own so they never touch the app's session.</param>
     public FpsSource(string? sessionName = null)
     {
-        _sessionName = sessionName ?? (AppEnv.TestMode ? DefaultSessionName + "-Test" : DefaultSessionName);
+        // a test-mode instance gets a name of its own data folder: parallel test runs never stop each other's session
+        _sessionName = sessionName ?? (AppEnv.TestMode ? $"{DefaultSessionName}-{AppEnv.InstanceKey}" : DefaultSessionName);
         var hw = new HardwareDescriptor { Id = HardwareId, Name = "Foreground app", Kind = HardwareKind.Game, Source = "fps" };
         _inventory = new SourceInventory([hw],
         [

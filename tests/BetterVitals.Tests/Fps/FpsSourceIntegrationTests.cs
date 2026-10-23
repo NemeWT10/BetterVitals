@@ -14,7 +14,7 @@ namespace BetterVitals.Tests.Fps;
 [Collection(EtwCollection.Name)]
 public sealed class FpsSourceIntegrationTests(ITestOutputHelper output)
 {
-    private const string SessionName = "BetterVitals-Present-Test";
+    private const string SessionName = "BetterVitals-Present-UnitTest";
 
     private static (FpsSource Source, SensorDescriptor[] Sensors) Create()
     {

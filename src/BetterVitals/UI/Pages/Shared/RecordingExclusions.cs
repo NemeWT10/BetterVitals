@@ -9,23 +9,26 @@ namespace BetterVitals.UI.Pages.Shared;
 /// <see cref="Core.Catalog.RecordingPolicy.MissingKeySensors"/>, so a key sensor taken out of the "Key" preset is never
 /// re-added when the policy tops the recorded set up (new hardware, next start). Switching a sensor on again takes it
 /// out of the set; the "Key" and "All" presets clear it for what they add, "Nothing" puts every key sensor in.
-/// Persisted as a small JSON array next to settings.json (recording-removed.json) until the integration moves it into
-/// <c>RecordingSettings</c>. Thread-safe.
+/// The app's instance lives in <c>RecordingSettings.RemovedSensorIds</c> (settings.json); a file-backed instance exists for tests.
+/// Thread-safe.
 /// </summary>
 public sealed class RecordingExclusions
 {
     private static RecordingExclusions? _instance;
 
     private readonly string? _path;
+    private readonly bool _inSettings;
     private readonly Lock _gate = new();
     private HashSet<string>? _ids;
 
     public RecordingExclusions(string? path) => _path = path;
 
+    private RecordingExclusions(bool inSettings) => _inSettings = inSettings;
+
     /// <summary>The app's set (next to settings.json; in memory only when no data folder is set up).</summary>
     public static RecordingExclusions I
     {
-        get => _instance ??= new RecordingExclusions(string.IsNullOrEmpty(AppEnv.RoamingDir) ? null : Path.Combine(AppEnv.RoamingDir, "recording-removed.json"));
+        get => _instance ??= Core.Settings.SettingsStore.I is not null ? new RecordingExclusions(inSettings: true) : new RecordingExclusions((string?)null);
         set => _instance = value;
     }
 
@@ -66,7 +69,7 @@ public sealed class RecordingExclusions
         return true;
     });
 
-    private HashSet<string> Ids => _ids ??= Load();
+    private HashSet<string> Ids => _inSettings ? Core.Settings.SettingsStore.I.Current.Recording.RemovedSensorIds : _ids ??= Load();
 
     private void Change(Func<HashSet<string>, bool> change)
     {
@@ -76,6 +79,8 @@ public sealed class RecordingExclusions
             if (!change(Ids)) return;
             toSave = _path is null ? null : Ids.Order(StringComparer.Ordinal).ToArray();
         }
+        // in settings: mark dirty, save (debounced) and let listeners know
+        if (_inSettings) Core.Settings.SettingsStore.I.Mutate("recording", static _ => { });
         if (toSave is not null) Save(toSave);
         Changed?.Invoke();
     }
