@@ -43,6 +43,11 @@ internal sealed class AppHost : IDisposable
 
     public ISensorHub Hub => _engine;
 
+    /// <summary>Diagnostics (perf probe): the engine and the LHM source (null with fake sensors).</summary>
+    internal SensorEngine Engine => _engine;
+
+    internal LhmSource? Lhm => _lhm;
+
     private AppHost(Dispatcher ui, bool testMode, bool realSensors)
     {
         _ui = ui;

@@ -58,7 +58,8 @@ public partial class App : Application
 
         // the sensors, history, overlay and Windows integration (test mode: a fake PC, no hardware access)
         _host = AppHost.Start(Dispatcher, AppEnv.TestMode, _options.RealSensors);
-        if (AppEnv.TestMode) _host.WarmUp(TimeSpan.FromSeconds(5));
+        // (not for the perf probe on real sensors: it measures a normal start, which reads only what is asked for)
+        if (AppEnv.TestMode && !(_options.TrayProbe && _options.RealSensors)) _host.WarmUp(TimeSpan.FromSeconds(5));
         if (_options.SnapshotDir is not null)
         {
             // snapshots show the History page over weeks of generated data (a fresh test store would be empty)
