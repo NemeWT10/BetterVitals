@@ -6,15 +6,17 @@ using BetterVitals.Core.Overlay;
 using BetterVitals.Core.Sensors;
 using BetterVitals.Overlay;
 
-// Overlay cost probe. Usage: OverlayHarness [--gpu] [--seconds N] [--out file]
+// Overlay cost probe. Usage: OverlayHarness [--gpu] [--seconds N] [--boxes N] [--out file]
 //   Runs the real overlay host (window + D3D11 + DirectComposition + Direct2D) with fake sensors at the default
 //   1 s refresh, values changing every tick, and reports the process working set / private bytes before and after,
-//   plus the overlay thread's CPU time. The window is created but never shown.
+//   plus the overlay thread's CPU time. The windows are created but never shown. --boxes N splits the six items into N boxes
+//   (N windows on the one shared device).
 //   --show exists only for a person to look at the overlay on their own desktop; automated runs never use it.
 
 var warp = !args.Contains("--gpu");
 var show = args.Contains("--show");
 var seconds = ArgInt("--seconds", 20);
+var boxes = Math.Clamp(ArgInt("--boxes", 1), 1, 6);
 var outFile = ArgStr("--out");
 
 var hub = new HarnessHub();
@@ -29,7 +31,16 @@ var layout = new OverlayLayout
     Enabled = true,
     Items = [.. new[] { fps, cpuT, gpuT, hot, load, vram }.Select(s => new OverlayItem { SensorIds = [s.Id] })],
 };
-layout.Items[0].ShowGraph = true;
+layout.Normalize(); // a row per item
+layout.Rows[0].Items[0].ShowGraph = true;
+// N boxes of (about) the same number of rows; the main box keeps the first ones
+var perBox = layout.Rows.Count / boxes;
+for (var b = boxes - 1; b >= 1; b--)
+{
+    var id = "box" + b;
+    layout.MoveRowToNewBox(layout.Rows[b * perBox].Id, id, layout.NewBoxPlacement());
+    while (layout.Rows.Count > b * perBox) layout.MoveRow(layout.Rows[b * perBox].Id, id, null);
+}
 
 var tick = 0;
 void Step()
@@ -45,7 +56,7 @@ void Step()
 Step();
 
 // Warm the runtime bits the app has anyway (BCL, Core, LINQ) before the baseline.
-_ = layout.Items.Select(i => i.Id).ToList();
+_ = layout.AllItems().Select(i => i.Id).ToList();
 _ = string.Format(CultureInfo.InvariantCulture, "{0}", 1.5);
 var proc = Process.GetCurrentProcess();
 Settle();
@@ -114,7 +125,7 @@ var cores = Environment.ProcessorCount;
 var steadyCpuMs = (cpuEnd - cpuStart) / 1e4;
 var report = string.Join(Environment.NewLine,
 [
-    $"device: {(warp ? "WARP" : "hardware")}, cores: {cores}, steady run: {wall.Elapsed.TotalSeconds:F1} s at 1 s refresh",
+    $"device: {(warp ? "WARP" : "hardware")}, cores: {cores}, boxes: {boxes} ({string.Join(" + ", layout.AllBoxes().Select(b => b.Rows.Sum(r => r.Items.Count)))} items), steady run: {wall.Elapsed.TotalSeconds:F1} s at 1 s refresh",
     $"private working set (Task Manager 'Memory'): {Mb(pws0)} → {Mb(pws1)} MB (+{Mb(pws1 - pws0)} MB)",
     $"working set (incl. shared DLL pages): {Mb(ws0)} → {Mb(ws1)} MB (+{Mb(ws1 - ws0)} MB)",
     $"private bytes: {Mb(pb0)} → {Mb(pb1)} MB (+{Mb(pb1 - pb0)} MB)",

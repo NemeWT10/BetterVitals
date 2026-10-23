@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Windows.Threading;
 using BetterVitals.Core;
+using BetterVitals.Core.Overlay;
 using BetterVitals.Services;
 using BetterVitals.UI.Panel;
 using BetterVitals.UI.Tray;
@@ -104,7 +105,8 @@ internal static class TrayProbe
         {
             var host = AppHost.Current!;
             var overlay = Core.Settings.SettingsStore.I.Current.Overlay.Enabled;
-            r.Add($"perf probe {AppEnv.Version} · {Environment.ProcessorCount} processors visible, {ProcessStats.MachineProcessors} in the machine · TSC {ProcessStats.TscHz / 1e9:0.000} GHz · elevated={BetterVitals.Platform.Elevation.IsElevated} · overlay={overlay} · window {window.TotalSeconds:0} s");
+            var boxes = overlay ? await SplitOverlay() : 0;
+            r.Add($"perf probe {AppEnv.Version} · {Environment.ProcessorCount} processors visible, {ProcessStats.MachineProcessors} in the machine · TSC {ProcessStats.TscHz / 1e9:0.000} GHz · elevated={BetterVitals.Platform.Elevation.IsElevated} · overlay={overlay}{(overlay ? $" ({boxes} box{(boxes == 1 ? "" : "es")})" : "")} · window {window.TotalSeconds:0} s");
             r.Add($"runtime: tiered compilation={AppContext.GetData("System.Runtime.TieredCompilation") ?? "default"}, tiered PGO={AppContext.GetData("System.Runtime.TieredPGO") ?? "default"}, conserve memory={AppContext.GetData("System.GC.ConserveMemory") ?? "default"}, env DOTNET_TieredCompilation={Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "-"} DOTNET_TieredPGO={Environment.GetEnvironmentVariable("DOTNET_TieredPGO") ?? "-"}");
             r.Add("");
             Mark("start");
@@ -181,6 +183,36 @@ internal static class TrayProbe
         }
         Write("perf-probe.txt", r);
         AppShell.I.Quit();
+    }
+
+    /// <summary>
+    /// <c>--perf-overlay-boxes N</c>: once the default overlay items exist, detaches rows (then items) of the main box
+    /// until the overlay has N boxes — the cost of several overlay windows. Returns the number of boxes.
+    /// </summary>
+    private static async Task<int> SplitOverlay()
+    {
+        var args = Environment.GetCommandLineArgs();
+        var at = Array.FindIndex(args, a => a.Equals("--perf-overlay-boxes", StringComparison.OrdinalIgnoreCase));
+        var want = at >= 0 && at + 1 < args.Length && int.TryParse(args[at + 1], NumberStyles.Integer, Inv, out var n) ? Math.Clamp(n, 1, Core.Overlay.OverlayLayout.MaxBoxes) : 1;
+        var store = Core.Settings.SettingsStore.I;
+        for (var i = 0; i < 60 && store.Current.Overlay.IsEmpty; i++) await Task.Delay(500); // the defaults come with the sensors
+        if (want > 1)
+        {
+            store.Mutate("overlay", s =>
+            {
+                var o = s.Overlay;
+                while (o.Boxes.Count + 1 < want && o.CanAddBox())
+                {
+                    if (o.Rows.Count > 1) o.MoveRowToNewBox(o.Rows[^1].Id, Core.Overlay.OverlayLayout.NewId(), o.NewBoxPlacement());
+                    else if (o.Rows.Count == 1 && o.Rows[0].Items.Count > 1) o.MoveItemToNewBox(o.Rows[0].Items[^1].Id, Core.Overlay.OverlayLayout.NewId(), Core.Overlay.OverlayLayout.NewId(), o.NewBoxPlacement());
+                    else break;
+                }
+            });
+            await Task.Delay(3000);
+        }
+        var overlay = store.Current.Overlay;
+        Log.Info($"perf: overlay with {overlay.Boxes.Count + 1} boxes, {overlay.AllItems().Count()} items");
+        return overlay.Boxes.Count + 1;
     }
 
     private static async Task Measure(List<string> r, AppHost host, string title, TimeSpan window)

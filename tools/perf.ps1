@@ -7,7 +7,8 @@
   copy) and runs it with --tray-probe --perf on a private, invisible desktop through HiddenDesktopRunner — never on the
   user's desktop, no tray icon, test data folders under tests\output\perf. Scenarios:
     tray     default settings (Key preset recorded every 2 s): tray rest → panel open (all sensors 1 s) → tray again
-    overlay  the same with Overlay.Enabled = true and the default overlay items
+    overlay  the same with Overlay.Enabled = true and the default overlay items (one box)
+    overlay3 the same, the default items split into three boxes (three overlay windows)
   The app writes perf-probe.txt (UI\Dev\TrayProbe.cs); this script copies it to tests\output\perf\<Label>-<scenario>.txt
   and prints the summary lines.
 
@@ -15,9 +16,10 @@
   tools\perf.ps1                                  # publish, both scenarios, 90 s windows, real sensors
   tools\perf.ps1 -NoBuild -Scenario tray -Window 120 -Label tc-off
   tools\perf.ps1 -FakeSensors                     # the fake PC instead of LHM / ETW / native
+  tools\perf.ps1 -Scenario overlay3 -TrayOnly     # three overlay boxes, the tray window only
 #>
 param(
-    [ValidateSet('all', 'tray', 'overlay')] [string] $Scenario = 'all',
+    [ValidateSet('all', 'tray', 'overlay', 'overlay3')] [string] $Scenario = 'all',
     [int] $Window = 90,
     [string] $Label = 'run',
     [string] $Exe,
@@ -60,7 +62,7 @@ foreach ($s in $scenarios) {
         Remove-Item $resolved -Recurse -Force
     }
     New-Item -ItemType Directory -Force (Join-Path $data 'roaming') | Out-Null
-    if ($s -eq 'overlay') {
+    if ($s -like 'overlay*') {
         # the default items (FPS, CPU / GPU temperature…) are filled by the app once the sensors are known
         '{ "Overlay": { "Enabled": true } }' | Set-Content -Encoding utf8 (Join-Path $data 'roaming\settings.json')
     }
@@ -68,6 +70,7 @@ foreach ($s in $scenarios) {
     $appArgs = @('--tray-probe', '--perf', "$Window", '--data-dir', $data)
     if (-not $FakeSensors) { $appArgs += '--real-sensors' }
     if ($TrayOnly) { $appArgs += '--perf-tray-only' }
+    if ($s -eq 'overlay3') { $appArgs += @('--perf-overlay-boxes', '3') }
     $timeout = 200 + 3 * $Window
     Write-Host "== $Label / $s ($Window s windows, timeout $timeout s)"
     $sw = [Diagnostics.Stopwatch]::StartNew()
