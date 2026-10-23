@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -48,6 +48,12 @@
     <Error Condition="'@(BvWpfNative)' == ''" Text="WPF native libraries not found in $(BvWpfNativeDir) — the single-file exe would not start." />
     <Message Importance="high" Text="BetterVitals: embedding WPF native libraries: @(BvWpfNative->'%(Filename)%(Extension)', ', ')" />
   </Target>
+
+  <!-- Settings > About shows the repository's license and third-party notices (embedded, never out of date). -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\LICENSE" LogicalName="BetterVitals.LICENSE.txt" Link="UI\About\LICENSE.txt" />
+    <EmbeddedResource Include="..\..\THIRD-PARTY-NOTICES.md" LogicalName="BetterVitals.THIRD-PARTY-NOTICES.md" Link="UI\About\THIRD-PARTY-NOTICES.md" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BetterVitals.Core\BetterVitals.Core.csproj" />

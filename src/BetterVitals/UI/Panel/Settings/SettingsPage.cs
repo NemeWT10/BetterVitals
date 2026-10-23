@@ -11,6 +11,21 @@ public static class SettingsPageParameter
 {
     /// <summary>Scroll to the About section.</summary>
     public const string About = "about";
+
+    /// <summary>Scroll to Recording (history on / off, retention, disk use).</summary>
+    public const string Recording = "recording";
+
+    /// <summary>Scroll to the overlay behavior section.</summary>
+    public const string Overlay = "overlay";
+
+    /// <summary>Scroll to Startup (start with Windows).</summary>
+    public const string Startup = "startup";
+
+    /// <summary>Scroll to Updates.</summary>
+    public const string Updates = "updates";
+
+    /// <summary>Scroll to Permissions and driver (full / basic mode, PawnIO).</summary>
+    public const string Permissions = "permissions";
 }
 
 /// <summary>
@@ -112,7 +127,7 @@ internal static class ShellPages
         PageRegistry.Register(new PageInfo(PageIds.Settings, "nav.settings", "Icon.Settings", 90, ctx => new SettingsPage(ctx)) { Priority = 0 });
 
         SettingsSections.Register(new SettingsSection("general", "settings.general", 10, _ => new GeneralSection()) { Priority = 0 });
-        SettingsSections.Register(new SettingsSection(SettingsPageParameter.About, "settings.about", 1000, _ => new AboutSection()) { Priority = 0 });
+        SettingsSections.Register(new SettingsSection(SettingsPageParameter.About, "settings.about", 1000, ctx => new About.AboutView(ctx)) { Priority = 0 });
     }
 
     private static PageInfo Placeholder(string id, string titleKey, string icon, int order)
