@@ -6,8 +6,8 @@ using BetterVitals.Sensors.Fake;
 namespace ReadmeMedia;
 
 /// <summary>
-/// The PC in every picture: the desktop profile of <see cref="FakeSensorSource"/> (Ryzen 7 9800X3D, RTX 5080, a game
-/// running) plus the derived sensors, in the real <see cref="SensorEngine"/> — but its clock only moves when this rig
+/// The PC in every picture: the desktop profile of <see cref="FakeSensorSource"/> as a <see cref="ShowcasePc"/>
+/// (Ryzen 7 9700X, RTX 5070 Ti, a game running) plus the derived sensors, in the real <see cref="SensorEngine"/> — but its clock only moves when this rig
 /// says so: one step = one fake second = exactly one frame. The values depend on the fake time only, so every run gives
 /// the same numbers, session min / max and sparklines. The engine stands still afterwards (no more frames).
 /// </summary>
@@ -34,7 +34,7 @@ internal sealed class FakeRig : IDisposable
     {
         _now = NowUtc.Ticks - seconds * TimeSpan.TicksPerSecond;
         Func<long> clock = () => Interlocked.Read(ref _now);
-        Engine = new SensorEngine([new DerivedSource(), new FakeSensorSource(FakeProfile.DesktopAmdNvidia, seed: 1, clock)], clock);
+        Engine = new SensorEngine([new DerivedSource(), new ShowcasePc(new FakeSensorSource(FakeProfile.DesktopAmdNvidia, seed: 1, clock))], clock);
         Engine.FrameReady += OnFrame;
         Engine.Start();
         var deadline = Environment.TickCount64 + 10_000;

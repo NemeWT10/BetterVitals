@@ -203,8 +203,8 @@ internal static class Showcase
         {
             var page = (HistoryPage)panel.PageElement(PageIds.History)!;
             // three temperatures on one scale: CPU, GPU and the GPU's hot spot (instead of the default CPU load)
-            page.TogglePicked(_rig.Sensor("AMD Ryzen 7 9800X3D", SensorKind.Load, "CPU Total"));
-            page.TogglePicked(_rig.Sensor("NVIDIA GeForce RTX 5080", SensorKind.Temperature, "GPU Hot Spot"));
+            page.TogglePicked(_rig.Sensor(ShowcasePc.Cpu, SensorKind.Load, "CPU Total"));
+            page.TogglePicked(_rig.Sensor(ShowcasePc.Gpu, SensorKind.Temperature, "GPU Hot Spot"));
             page.ApplyPreset(RangePreset.Hour6, animate: false);
             await SettleHistory(panel, page);
             var now = _rig.Now;
@@ -341,7 +341,7 @@ internal static class Showcase
             page.Apply();
             await Settle(panel, 80);
 
-            var hotspot = _rig.Sensor("NVIDIA GeForce RTX 5080", SensorKind.Temperature, "GPU Hot Spot");
+            var hotspot = _rig.Sensor(ShowcasePc.Gpu, SensorKind.Temperature, "GPU Hot Spot");
             var anchor = Descendants<FrameworkElement>(panel)
                 .FirstOrDefault(e => e.IsVisible && ReferenceEquals(BetterVitals.UI.Explain.Explain.GetSensor(e), hotspot))
                 ?? throw new InvalidOperationException("the GPU Hot Spot row is not visible");
