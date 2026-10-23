@@ -146,6 +146,15 @@ internal static class TrayProbe
             Mark($"panel closed +30 s ({TrayRest.Trims} trims)");
             r.Add("");
             await Measure(r, host, "tray after panel", window);
+
+            // a device change (what WM_DEVICECHANGE does): LHM hot-plug groups + NVIDIA re-enumeration, then re-discovery
+            var updates0 = host.Lhm?.GetNodeStats().Where(n => n.Kind == Core.Sensors.HardwareKind.Gpu).Sum(n => n.Updates) ?? 0;
+            host.OnDriverInstalled();
+            await Task.Delay(10000);
+            Mark("device change +10 s");
+            await Task.Delay(30000);
+            var updates1 = host.Lhm?.GetNodeStats().Where(n => n.Kind == Core.Sensors.HardwareKind.Gpu).Sum(n => n.Updates) ?? 0;
+            Mark($"device change +40 s ({TrayRest.Trims} trims, GPU updates +{updates1 - updates0})");
             Mark("end");
         }
         catch (Exception ex)

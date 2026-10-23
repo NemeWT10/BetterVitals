@@ -170,6 +170,10 @@ internal sealed class AppHost : IDisposable
         var key = SensorPresentation.KeySensors(_engine, SettingsStore.I.Current.Flyout.PinnedSensorIds).Select(s => s.Id).ToArray();
         if (_trayDemand is null) _trayDemand = _engine.Demand("tray", key, TimeSpan.FromSeconds(5));
         else _trayDemand.Update(key, TimeSpan.FromSeconds(5));
+
+        // a (re)discovery leaves tens of MB behind (LHM drive enumeration, NVML / ADL init after a re-open): give it back
+        // when nothing is on screen, as after closing the last window
+        if (!TrayRest.AnyWindowVisible()) TrayRest.Settle();
     }
 
     private void OnSettingsChanged(string section)
