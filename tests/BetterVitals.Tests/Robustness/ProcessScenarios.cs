@@ -217,7 +217,11 @@ public sealed class ProcessScenarios(ITestOutputHelper output)
         output.WriteLine($"run 1 recorded {points1} points of {id}");
         Assert.InRange(points1, 2, 12);
 
-        // ── run 2: normal start with repaired files, then the plug is pulled ──
+        // ── run 2: normal start with repaired files and the overlay on (its window lives on the hidden desktop), then the plug is pulled ──
+        var settingsPath = Path.Combine(roaming, "settings.json");
+        var store = SettingsStore.CreateDetached(settingsPath, settings);
+        store.Mutate("overlay", s => s.Overlay.Enabled = true);
+        store.Flush();
         var t2 = DateTime.UtcNow;
         using (var app = AppProcess.Start(home, output))
         {
@@ -233,10 +237,13 @@ public sealed class ProcessScenarios(ITestOutputHelper output)
             app.RequestQuit();
             Assert.Equal(0, app.WaitForExit(30));
             Assert.DoesNotContain(app.LogLines, l => l.Contains("[ERROR]", StringComparison.Ordinal) && !l.Contains("settings: unreadable", StringComparison.Ordinal));
+            Assert.Contains(app.LogLines, l => l.Contains("[INFO] overlay: surface", StringComparison.Ordinal)); // the overlay window was created ...
+            Assert.DoesNotContain(app.LogLines, l => (l.Contains("[WARN] overlay:", StringComparison.Ordinal) || l.Contains("[ERROR] overlay:", StringComparison.Ordinal))); // ... and had nothing to complain about
         }
         Assert.Equal(garbage, File.ReadAllBytes(Path.Combine(roaming, "settings.bad.json")));
         var again = SettingsStore.Load(Path.Combine(roaming, "settings.json"));
         Assert.Equal(settings.Recording.SensorIds.Count, again.Recording.SensorIds.Count);
+        Assert.True(again.Overlay.Enabled);
         var points3 = await ReadBack(history, id, t3, DateTime.UtcNow.AddMinutes(1));
         var pointsAll = await ReadBack(history, id, t1, DateTime.UtcNow.AddMinutes(1));
         output.WriteLine($"run 3 recorded {points3} points; all runs together {pointsAll} (the killed run's unwritten minute may be gone: {t3 - t2})");

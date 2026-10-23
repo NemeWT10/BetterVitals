@@ -139,8 +139,11 @@ public sealed class ConcurrencyScenarios(ITestOutputHelper output)
         // and none of them was lost: the sensors of each are still read (in engine time ~1 s passes in 2.5 ms real)
         Assert.True(SpinWait.SpinUntil(() => engine.IsPresent(0), 5000));
         var before = Enumerable.Range(0, Workers * PerWorker).Select(source.Reads).ToArray();
-        Thread.Sleep(400);
-        for (var o = 0; o < Workers * PerWorker; o++) Assert.True(source.Reads(o) > before[o], $"sensor {o} of worker {o / PerWorker} is not being read any more");
+        for (var o = 0; o < Workers * PerWorker; o++)
+        {
+            var sensor = o;
+            Assert.True(SpinWait.SpinUntil(() => source.Reads(sensor) > before[sensor], 10_000), $"sensor {o} of worker {o / PerWorker} is not being read any more");
+        }
 
         // and no demand leaks: with the last one disposed nothing is read any more
         foreach (var k in keeps) k.Dispose();

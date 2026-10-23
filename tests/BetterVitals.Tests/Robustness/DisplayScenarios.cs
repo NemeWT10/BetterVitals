@@ -11,8 +11,10 @@ namespace BetterVitals.Tests.Robustness;
 /// <summary>
 /// PROJEKT §7 / §12: monitors that vanish and come back, resolution and scaling changes, a lost graphics device. The placement
 /// math is checked on synthetic monitor lists; the live overlay window (never shown) gets those lists through the host's
-/// monitor source, so no real display is touched.
+/// monitor source, so no real display is touched. In the exclusive collection: the leak checks read process-wide counters,
+/// which other tests running at the same time would disturb.
 /// </summary>
+[Collection(HeavyCollection.Name)]
 public sealed class DisplayScenarios(ITestOutputHelper output)
 {
     private static OverlayMonitor Mon(string key, int x, int y, int w, int h, bool primary = false, int taskbar = 48)

@@ -3,6 +3,7 @@ using BetterVitals.Core.Overlay;
 using BetterVitals.Core.Sensors;
 using BetterVitals.Core.Settings;
 using BetterVitals.Overlay;
+using BetterVitals.Overlay.Interop;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -176,5 +177,64 @@ public sealed class OverlayScenarios(ITestOutputHelper output)
             else Assert.Equal(wanted, asked);
         }
         host.SetVisible(true);
+    }
+
+    [Fact]
+    public void The_overlay_window_keeps_its_safety_properties_through_device_loss_display_changes_and_new_layouts()
+    {
+        // click-through, never activated, not in Alt+Tab, hidden from screen capture (Discord, OBS, Game Bar) — whatever happens to it
+        const uint want = Win32.WS_EX_TOPMOST | Win32.WS_EX_TOOLWINDOW | Win32.WS_EX_NOACTIVATE | Win32.WS_EX_TRANSPARENT | Win32.WS_EX_LAYERED | Win32.WS_EX_NOREDIRECTIONBITMAP;
+        using var pc = new SimPc();
+        var ids = pc.Engine.Sensors.Select(s => s.Id).Take(6).ToArray();
+        var screens = new List<OverlayMonitor> { new("A", @"\\.\DISPLAYA", "A", new PixelRect(0, 0, 2560, 1440), new PixelRect(0, 0, 2560, 1400), true) };
+        using var host = new OverlayHost(new OverlayHostOptions { NeverShow = true, MonitorSource = () => screens });
+        host.Start();
+        var layout = new OverlayLayout { Enabled = true, Items = [.. ids.Select(i => new OverlayItem { SensorIds = [i] })] };
+        var ctx = new OverlayContext { Hub = pc.Engine, Animations = false };
+        host.Apply(layout, OverlayTheme.Default, ctx);
+
+        void Check(string when, uint affinity)
+        {
+            var d = host.Diagnostics();
+            Assert.Equal(want, d.ExStyle & want);
+            Assert.Equal(0u, d.ExStyle & 0x00040000u); // WS_EX_APPWINDOW: no taskbar button
+            Assert.Equal(affinity, d.DisplayAffinity);
+            output.WriteLine($"{when}: ok");
+        }
+
+        Check("start", Win32.WDA_EXCLUDEFROMCAPTURE);
+        for (var i = 0; i < 10; i++)
+        {
+            host.SimulateDeviceLost();
+            host.SimulateDisplayChange();
+            pc.Run(TimeSpan.FromSeconds(1));
+            host.RefreshNow();
+        }
+        Check("after 10 device losses and display changes", Win32.WDA_EXCLUDEFROMCAPTURE);
+
+        layout.HideFromCapture = false; // the user chose to show the overlay to the audience
+        host.Apply(layout, OverlayTheme.Default, ctx);
+        Check("capture allowed by choice", Win32.WDA_NONE);
+        host.SimulateDeviceLost();
+        Check("... and still after a device loss", Win32.WDA_NONE);
+
+        layout.HideFromCapture = true;
+        layout.Style.ScalePercent = 150;
+        layout.Placement.Anchor = OverlayAnchor.BottomCenter;
+        host.Apply(layout, OverlayTheme.Default, ctx);
+        host.SetVisible(false);
+        host.SetVisible(true);
+        screens.Clear();
+        host.SimulateDisplayChange();
+        screens.Add(new OverlayMonitor("B", @"\\.\DISPLAYB", "B", new PixelRect(0, 0, 1920, 1080), new PixelRect(0, 0, 1920, 1040), true));
+        host.SimulateDisplayChange();
+        Check("hidden again, new layout, monitor gone and back", Win32.WDA_EXCLUDEFROMCAPTURE);
+
+        // edit mode makes the window clickable for a moment; leaving it restores everything
+        host.EnterEditMode(_ => { }, () => { });
+        Assert.Equal(0u, host.Diagnostics().ExStyle & Win32.WS_EX_TRANSPARENT);
+        Assert.Equal(Win32.WDA_EXCLUDEFROMCAPTURE, host.Diagnostics().DisplayAffinity);
+        host.ExitEditMode(false);
+        Check("after edit mode", Win32.WDA_EXCLUDEFROMCAPTURE);
     }
 }

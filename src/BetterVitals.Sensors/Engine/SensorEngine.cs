@@ -24,6 +24,7 @@ public sealed class SensorEngine : ISensorHub, IDisposable
     private readonly AutoResetEvent _wake = new(false);
     private Thread? _thread;
     private volatile bool _stop;
+    private int _disposed;
 
     // ── registry: written on the engine thread, published as immutable snapshots ──
     private readonly Dictionary<string, int> _indexById = new(StringComparer.Ordinal);
@@ -112,8 +113,9 @@ public sealed class SensorEngine : ISensorHub, IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _stop = true;
-        _wake.Set();
+        Wake();
         if (_thread is { } t && t != Thread.CurrentThread) t.Join(TimeSpan.FromSeconds(5));
         foreach (var s in _sources)
         {
@@ -123,25 +125,38 @@ public sealed class SensorEngine : ISensorHub, IDisposable
         _wake.Dispose();
     }
 
+    /// <summary>Wakes the engine thread; a late caller (a window closing during shutdown) may find the engine already gone.</summary>
+    private void Wake()
+    {
+        try
+        {
+            _wake.Set();
+        }
+        catch (ObjectDisposedException)
+        {
+            // nothing left to wake
+        }
+    }
+
     /// <summary>Before sleep / hibernate (from the app's power notification).</summary>
     public void NotifySuspend()
     {
         _suspendRequested = true;
-        _wake.Set();
+        Wake();
     }
 
     /// <summary>After resume: sources re-open and re-discover; the schedule realigns.</summary>
     public void NotifyResume()
     {
         _resumeRequested = true;
-        _wake.Set();
+        Wake();
     }
 
     /// <summary>Forget the session min / max / average ("reset" in the UI).</summary>
     public void ResetStats()
     {
         _resetStats = true;
-        _wake.Set();
+        Wake();
     }
 
     /// <summary>A source reported new / vanished hardware; re-discover after a short quiet period.</summary>
@@ -151,7 +166,7 @@ public sealed class SensorEngine : ISensorHub, IDisposable
     {
         Interlocked.Exchange(ref _inventoryDirtySince, _utcNow());
         _inventoryDirty = true;
-        _wake.Set();
+        Wake();
     }
 
     private void Run()
@@ -473,7 +488,7 @@ public sealed class SensorEngine : ISensorHub, IDisposable
             demand.IntervalTicks = Math.Max(BaseTickTicks, interval.Ticks);
         }
         _demandDirty = true;
-        _wake.Set();
+        Wake();
     }
 
     private void RemoveDemand(DemandEntry demand)
@@ -483,7 +498,7 @@ public sealed class SensorEngine : ISensorHub, IDisposable
             if (!_demands.Remove(demand)) return;
         }
         _demandDirty = true;
-        _wake.Set();
+        Wake();
     }
 
     // ───────────────────────── ISensorHub ─────────────────────────
@@ -516,7 +531,7 @@ public sealed class SensorEngine : ISensorHub, IDisposable
         var d = new DemandEntry(this, consumer, sensorIds.Distinct(StringComparer.Ordinal).ToArray(), Math.Max(BaseTickTicks, interval.Ticks));
         lock (_gate) _demands.Add(d);
         _demandDirty = true;
-        _wake.Set();
+        Wake();
         return d;
     }
 

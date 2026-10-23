@@ -80,7 +80,7 @@ public sealed class SessionStats
         {
             if (stamps[i] != seq) continue;
             var v = values[i];
-            if (float.IsNaN(v)) continue;
+            if (!float.IsFinite(v)) continue; // NaN and infinity would poison the sum for the rest of the session
             if (_count[i] == 0)
             {
                 _min[i] = v;

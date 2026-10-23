@@ -7,7 +7,11 @@ using Xunit.Abstractions;
 
 namespace BetterVitals.Tests.Robustness;
 
-/// <summary>PROJEKT §12: damaged history files, an unusable history folder, a disk that fills up.</summary>
+/// <summary>
+/// PROJEKT §12: damaged history files, an unusable history folder, a disk that fills up. In the exclusive collection: one
+/// check reads the managed heap size, which tests running at the same time would disturb.
+/// </summary>
+[Collection(HeavyCollection.Name)]
 public sealed class HistoryScenarios(ITestOutputHelper output)
 {
     private static HistoryOptions Options(SimClock clock, List<string> warnings) => new()
