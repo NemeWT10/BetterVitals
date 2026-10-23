@@ -83,8 +83,10 @@ public sealed class UpdateService : IDisposable
             if (release is null || release.Version <= _current) return (UpdateCheckOutcome.UpToDate, null, newEtag);
             return (UpdateCheckOutcome.Available, release, newEtag);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or IOException)
+        catch (Exception ex)
         {
+            // anything a proxy, a portal or a broken answer can cause (an unexpected JSON shape throws InvalidOperationException):
+            // skipped, never thrown, or the update cycle would stop for the session
             Core.Log.Info("update: check skipped: " + ex.Message);
             return (UpdateCheckOutcome.Skipped, null, etag);
         }
@@ -168,7 +170,7 @@ public sealed class UpdateService : IDisposable
             }
             return true;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or FormatException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
             Core.Log.Warn("update: download failed: " + ex.Message);
             try { File.Delete(targetPath); } catch { /* gone */ }

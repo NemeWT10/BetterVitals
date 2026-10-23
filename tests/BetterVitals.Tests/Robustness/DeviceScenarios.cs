@@ -311,6 +311,34 @@ public sealed class DeviceScenarios(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task A_fake_PC_whose_reads_throw_for_minutes_leaves_a_gap_one_log_line_per_minute_and_recovers()
+    {
+        using var log = new LogCapture();
+        using var app = new SimApp("dev-throw");
+        var pc = app.Pc;
+        var cpuTemp = pc.Sensor(Cpu, SensorKind.Temperature, "Core (Tctl/Tdie)");
+        app.Run(TimeSpan.FromMinutes(2));
+        var tFail = pc.Clock.Utc;
+        pc.Fake.ThrowOnUpdate = true;
+        app.Run(TimeSpan.FromMinutes(5));
+        var tBack = pc.Clock.Utc;
+        Assert.True(float.IsNaN(pc.Engine.Latest[cpuTemp.Index]));
+        pc.Fake.ThrowOnUpdate = false;
+        app.Run(TimeSpan.FromMinutes(2));
+
+        var logged = log.MineWith("ERROR", "engine: fake update failed");
+        output.WriteLine($"{logged} log lines for 5 minutes of failures");
+        Assert.InRange(logged, 4, 6);
+        Assert.False(float.IsNaN(pc.Engine.Latest[cpuTemp.Index]));
+        app.History.Suspend();
+        var series = await app.Series(cpuTemp.Id, tFail.AddMinutes(-3), tBack.AddMinutes(3));
+        Assert.DoesNotContain(series, p => p.TimeUtcTicks > tFail.AddSeconds(4).Ticks && p.TimeUtcTicks < tBack.Ticks);
+        Assert.Contains(series, p => p.TimeUtcTicks < tFail.Ticks);
+        Assert.Contains(series, p => p.TimeUtcTicks > tBack.AddSeconds(4).Ticks);
+        Assert.Empty(app.Warnings);
+    }
+
+    [Fact]
     public void A_throwing_FrameReady_handler_does_not_stop_the_engine_nor_flood_the_log()
     {
         using var log = new LogCapture();

@@ -1,3 +1,4 @@
+using System.Globalization;
 using BetterVitals.Core.History;
 using BetterVitals.Core.Sensors;
 using BetterVitals.Core.Settings;
@@ -289,5 +290,101 @@ public sealed class HistoryScenarios(ITestOutputHelper output)
         Assert.True(series.Count >= 3 * 30 + 60, $"{series.Count} points of the last 20 minutes");
         Assert.True(Directory.Exists(path));
         _ = t0;
+    }
+
+    [Fact]
+    public async Task A_folder_with_spaces_and_Polish_letters_works_and_the_export_ignores_the_UI_culture()
+    {
+        var culture = CultureInfo.CurrentCulture;
+        var ui = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = new CultureInfo("pl-PL");
+        try
+        {
+            using var app = new SimApp("żółć gęślą jaźń — test");
+            var pc = app.Pc;
+            var ids = app.Recording.SensorIds.Order().Take(8).ToArray();
+            var t0 = pc.Clock.Utc;
+            app.Run(TimeSpan.FromMinutes(5));
+            app.History.Suspend();
+            Assert.Contains("żółć", app.HistoryDir, StringComparison.Ordinal);
+            Assert.NotEmpty(Directory.GetFiles(app.HistoryDir));
+
+            foreach (var res in Enum.GetValues<ExportResolution>())
+            foreach (var zip in new[] { false, true })
+            {
+                using var ms = new MemoryStream();
+                await app.History.ExportAsync(new ExportRequest(ids, t0.AddMinutes(-1), pc.Clock.Utc.AddMinutes(1), res, zip), ms);
+                string text;
+                if (zip)
+                {
+                    using var archive = new System.IO.Compression.ZipArchive(new MemoryStream(ms.ToArray()));
+                    using var reader = new StreamReader(Assert.Single(archive.Entries).Open());
+                    text = await reader.ReadToEndAsync();
+                }
+                else
+                {
+                    text = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                }
+                var lines = text.TrimStart('﻿').Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+                Assert.True(lines.Length > 1, $"{res} zip={zip}: only {lines.Length} lines");
+                var width = SplitCsv(lines[0]).Length;
+                foreach (var line in lines.Skip(1).Take(200))
+                {
+                    var fields = SplitCsv(line);
+                    Assert.Equal(width, fields.Length);
+                    Assert.True(DateTime.TryParseExact(fields[0], "yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out _), fields[0]);
+                    foreach (var f in fields.Skip(1))
+                        if (f.Length > 0) Assert.True(double.TryParse(f, NumberStyles.Float, CultureInfo.InvariantCulture, out _), $"'{f}' in {line}");
+                }
+            }
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentUICulture = ui;
+        }
+    }
+
+    /// <summary>Splits one CSV line (quotes allowed, comma separated).</summary>
+    private static string[] SplitCsv(string line)
+    {
+        var fields = new List<string>();
+        var sb = new System.Text.StringBuilder();
+        var quoted = false;
+        for (var i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+            if (quoted)
+            {
+                if (c == '"' && i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    sb.Append('"');
+                    i++;
+                }
+                else if (c == '"')
+                {
+                    quoted = false;
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            else if (c == '"')
+            {
+                quoted = true;
+            }
+            else if (c == ',')
+            {
+                fields.Add(sb.ToString());
+                sb.Clear();
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+        fields.Add(sb.ToString());
+        return [.. fields];
     }
 }
