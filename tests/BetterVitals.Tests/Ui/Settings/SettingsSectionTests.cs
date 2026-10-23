@@ -319,13 +319,17 @@ public sealed class SettingsSectionTests
         hub.RaiseInventory();
         Assert.Equal("Paused", view.SourceRows.Single().State);
 
+        env.Store.Mutate("general", s => s.General.Autostart = true);
         Click(view.BasicButton);
         Assert.Equal(ReadMode.Basic, env.Store.Current.Driver.Mode);
         Assert.Equal("Basic from the next start", view.ModePill.Text);
-        // back to full without any prompt: already installed and elevated
+        // the autostart moves to the per-user entry (re-applied in basic mode)
+        Assert.Equal("SetAutostart(True)", p.Calls[^1]);
+        // back to full without any prompt: already installed and elevated; the task takes the autostart back
+        p.Calls.Clear();
         Wait(view.EnableFullAsync());
         Assert.Equal(ReadMode.Full, env.Store.Current.Driver.Mode);
-        Assert.DoesNotContain(p.Calls, c => c.StartsWith("InstallFullMode", StringComparison.Ordinal));
+        Assert.Equal(["SetAutostart(True)"], p.Calls);
         view.DetachForTests();
         Assert.Equal(0, p.StateChangedSubscribers);
     });

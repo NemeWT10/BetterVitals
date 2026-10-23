@@ -258,6 +258,8 @@ internal sealed class PermissionsSection : SectionView
     private void UseBasic()
     {
         Store.Mutate("driver", s => s.Driver.Mode = ReadMode.Basic);
+        // basic mode starts unelevated: its autostart moves from the elevated task to the per-user Run entry
+        if (Current.General.Autostart) _ = _platform.SetAutostartAsync(true);
         Toast("settings.perm.basicSoon", ToastKind.Info);
     }
 
@@ -269,6 +271,8 @@ internal sealed class PermissionsSection : SectionView
         Store.Mutate("driver", s => s.Driver.Mode = ReadMode.Full);
         if (p.IsElevated && p.IsInstalled)
         {
+            // back from basic: the elevated task takes the autostart over again (no prompt, we are elevated)
+            if (Current.General.Autostart) _ = p.SetAutostartAsync(true);
             Toast("settings.perm.fullOn", ToastKind.Success);
             return;
         }

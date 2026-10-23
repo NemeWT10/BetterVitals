@@ -47,6 +47,7 @@ internal sealed class PlatformService : IPlatformService, IDisposable
         };
         SettingsStore.I.Changed += section => { if (section == "updates") _ui.BeginInvoke(ScheduleUpdateCheck); };
         ScheduleUpdateCheck();
+        _ = Task.Run(ReconcileAutostart);
     }
 
     public bool IsElevated => Elevation.IsElevated;
@@ -156,6 +157,7 @@ internal sealed class PlatformService : IPlatformService, IDisposable
         {
             // basic mode / a copy that is not installed: an unelevated per-user start, never a UAC prompt
             ok = UserAutostart.Set(enabled, Environment.ProcessPath!);
+            if (ok) await Task.Run(() => DisableAutostartTask(sid));
         }
         else if (Elevation.IsElevated)
         {
@@ -166,9 +168,38 @@ internal sealed class PlatformService : IPlatformService, IDisposable
             var code = await Task.Run(() => Elevation.RunElevated(Environment.ProcessPath!, PlatformCommands.AutostartArgs(sid, enabled), TimeSpan.FromMinutes(1)));
             ok = code == PlatformCommands.Ok;
         }
+        // the elevated task and the Run entry are never both active
+        if (ok && Installer.IsInstalled && SettingsStore.I.Current.Driver.Mode == ReadMode.Full) UserAutostart.Set(false, Environment.ProcessPath!);
         if (ok) SettingsStore.I.Mutate("general", s => s.General.Autostart = enabled);
         Raise();
         return ok ? enabled : AutostartEnabled;
+    }
+
+    /// <summary>
+    /// Basic mode starts through the per-user Run entry; the elevated autostart task belongs to full mode. Turning it off
+    /// needs elevation, so an unelevated switch leaves it until the next elevated start (see <see cref="ReconcileAutostart"/>).
+    /// </summary>
+    private static void DisableAutostartTask(string sid)
+    {
+        if (!Installer.IsInstalled || !Elevation.IsElevated) return;
+        var name = ScheduledTasks.AutostartName(sid);
+        if (ScheduledTasks.Exists(name) && !ScheduledTasks.SetEnabled(name, false)) Log.Warn("platform: could not turn off the autostart task");
+    }
+
+    /// <summary>An elevated start in basic mode (the old task started it): move the autostart to the Run entry, no prompt.</summary>
+    private static void ReconcileAutostart()
+    {
+        var s = SettingsStore.I.Current;
+        if (AppEnv.TestMode || s.Driver.Mode != ReadMode.Basic || !Elevation.IsElevated || !Installer.IsInstalled) return;
+        try
+        {
+            if (s.General.Autostart) UserAutostart.Set(true, Environment.ProcessPath!);
+            DisableAutostartTask(Elevation.CurrentUserSid);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("platform: autostart reconcile failed: " + ex.Message);
+        }
     }
 
     // ───────────────────────── updates ─────────────────────────
