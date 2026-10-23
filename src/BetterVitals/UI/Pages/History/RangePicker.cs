@@ -177,7 +177,7 @@ public sealed class RangePicker : Border
     {
         time = default;
         var s = text.Trim();
-        string[] formats = [TimeTicks.ShortTime(Culture), TimeTicks.LongTime(Culture), "H:mm", "HH:mm", "H.mm", "H", "h:mm tt", "h tt", "H:mm:ss"];
+        string[] formats = [TimeTicks.ShortTime(Culture), TimeTicks.LongTime(Culture), "H:mm", "HH:mm", "H.mm", "%H", "h:mm tt", "h tt", "H:mm:ss"];
         if (!DateTime.TryParseExact(s, formats, Culture, DateTimeStyles.AllowWhiteSpaces, out var dt) &&
             !DateTime.TryParseExact(s, formats, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out dt)) return false;
         time = dt.TimeOfDay;

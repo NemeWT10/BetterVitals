@@ -534,7 +534,7 @@ public sealed class TimeChart : FrameworkElement
             if (t >= 1) _fadeAt = -1;
             else busy = true;
         }
-        if (layers != Layer.None)
+        if (layers != Layer.None || _dirty != Layer.None)
         {
             _dirty |= layers;
             Redraw();
@@ -634,7 +634,6 @@ public sealed class TimeChart : FrameworkElement
             C("Bg", Color.FromRgb(0x0F, 0x11, 0x17)),
             dark,
             series);
-        if (TryFindResource("Font.Ui") is FontFamily) { /* the chart's text uses Segoe UI Variable Text like Font.Ui */ }
         _paletteLoaded = true;
     }
 

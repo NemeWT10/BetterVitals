@@ -427,7 +427,7 @@ public static class ChartMath
     public static (double Lo, double Hi) Extent(ReadOnlySpan<HistoryPoint> pts, long from, long to)
     {
         double lo = double.MaxValue, hi = double.MinValue;
-        for (var i = Math.Max(0, LowerBound(pts, from) - 1); i < pts.Length; i++)
+        for (var i = LowerBound(pts, from); i < pts.Length; i++)
         {
             var p = pts[i];
             if (p.TimeUtcTicks > to) break;
