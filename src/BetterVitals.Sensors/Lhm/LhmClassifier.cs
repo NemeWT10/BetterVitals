@@ -51,6 +51,11 @@ internal static class LhmClassifier
     public static readonly TimeSpan StorageInterval = TimeSpan.FromSeconds(10);
     /// <summary>PawnIO MMIO hot spot / memory chip reads: not more often than once a second (PROJEKT §5).</summary>
     public static readonly TimeSpan HotSpotInterval = TimeSpan.FromSeconds(1);
+    /// <summary>
+    /// NVIDIA "GPU PCIe Rx / Tx": NVML samples the bus for ~20 ms per counter and blocks the engine thread meanwhile
+    /// (~63 of the ~72 ms of an RTX 5080 update, measured), so not more often than every 2 s.
+    /// </summary>
+    public static readonly TimeSpan PcieInterval = TimeSpan.FromSeconds(2);
 
     private static readonly SensorKind?[] KindBySensorType = BuildKindMap();
 
@@ -137,12 +142,13 @@ internal static class LhmClassifier
 
     /// <summary>
     /// SMART / NVMe health and "Data Read / Written"-style counters: 60 s; other storage sensors (temperatures, activity,
-    /// space): 10 s; PawnIO hot spot / memory chips: 1 s; everything else: no limit.
+    /// space): 10 s; NVIDIA PCIe throughput: 2 s; PawnIO hot spot / memory chips: 1 s; everything else: no limit.
     /// </summary>
     public static TimeSpan MinInterval(HardwareType hardwareType, SensorType sensorType, LhmSensorFlags flags)
     {
         if (hardwareType == HardwareType.Storage)
             return (flags & LhmSensorFlags.NeedsSmart) != 0 && sensorType != SensorType.Temperature ? SlowStorageInterval : StorageInterval;
+        if ((flags & LhmSensorFlags.NeedsPcie) != 0) return PcieInterval;
         if ((flags & LhmSensorFlags.DriverBacked) != 0) return HotSpotInterval;
         return TimeSpan.Zero;
     }

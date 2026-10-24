@@ -165,6 +165,11 @@ public class LhmClassifierTests
         Assert.Equal(TimeSpan.Zero, LhmClassifier.MinInterval(HardwareType.Network, SensorType.Data, LhmSensorFlags.None));
         var hot = LhmClassifier.Classify(HardwareType.GpuNvidia, "NVIDIA GeForce RTX 5080", SensorType.Temperature, "GPU Hot Spot");
         Assert.Equal(TimeSpan.FromSeconds(1), LhmClassifier.MinInterval(HardwareType.GpuNvidia, SensorType.Temperature, hot));
+        // NVML PCIe throughput blocks the engine thread ~20 ms per counter: every 2 s at most; other GPU sensors stay free
+        var pcie = LhmClassifier.Classify(HardwareType.GpuNvidia, "NVIDIA GeForce RTX 5080", SensorType.Throughput, "GPU PCIe Tx");
+        Assert.Equal(TimeSpan.FromSeconds(2), LhmClassifier.MinInterval(HardwareType.GpuNvidia, SensorType.Throughput, pcie));
+        var load = LhmClassifier.Classify(HardwareType.GpuNvidia, "NVIDIA GeForce RTX 5080", SensorType.Load, "GPU Core");
+        Assert.Equal(TimeSpan.Zero, LhmClassifier.MinInterval(HardwareType.GpuNvidia, SensorType.Load, load));
     }
 
     [Fact]
