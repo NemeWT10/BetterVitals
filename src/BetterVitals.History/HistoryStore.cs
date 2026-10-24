@@ -1,3 +1,4 @@
+using System.Buffers;
 using BetterVitals.Core.Sensors;
 using BetterVitals.History.Recording;
 using BetterVitals.History.Storage;
@@ -438,21 +439,45 @@ internal sealed partial class HistoryStore
         return (bytes, oldest == long.MaxValue ? null : oldest);
     }
 
-    /// <summary>Start of the first valid block among the first 256 KB of a file (blocks are appended in time order).</summary>
+    /// <summary>
+    /// Start of the first valid block of a file (blocks are appended in time order): usually just the first block is
+    /// read; a damaged start falls back to scanning the first 256 KB.
+    /// </summary>
     private static long FirstBlockStart(string path)
     {
         try
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1);
-            var buf = new byte[(int)Math.Min(fs.Length, 256 * 1024)];
-            var n = fs.ReadAtLeast(buf, buf.Length, throwOnEndOfStream: false);
-            var blocks = new List<BlockRef>();
-            BlockScanner.Scan(buf.AsSpan(0, n), blocks);
-            return blocks.Count > 0 ? blocks.Min(b => b.Header.Start) : long.MaxValue;
+            Span<byte> head = stackalloc byte[BlockHeader.Size];
+            if (fs.ReadAtLeast(head, head.Length, throwOnEndOfStream: false) == head.Length && BlockHeader.TryRead(head, out var h)
+                && BlockHeader.Size + (long)h.PayloadLength <= fs.Length)
+            {
+                fs.Position = 0;
+                var first = ScanStart(fs, BlockHeader.Size + h.PayloadLength);
+                if (first != long.MaxValue) return first;
+                fs.Position = 0;
+            }
+            return ScanStart(fs, (int)Math.Min(fs.Length, 256 * 1024));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return long.MaxValue;
+        }
+    }
+
+    private static long ScanStart(FileStream fs, int length)
+    {
+        var buf = ArrayPool<byte>.Shared.Rent(Math.Max(1, length));
+        try
+        {
+            var n = fs.ReadAtLeast(buf.AsSpan(0, length), length, throwOnEndOfStream: false);
+            var blocks = new List<BlockRef>();
+            BlockScanner.Scan(buf.AsSpan(0, n), blocks);
+            return blocks.Count > 0 ? blocks.Min(b => b.Header.Start) : long.MaxValue;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buf);
         }
     }
 
