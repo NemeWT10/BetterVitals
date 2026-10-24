@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using BetterVitals.Core.Sensors;
 using BetterVitals.History.Storage;
 using Xunit;
@@ -160,6 +161,134 @@ public class FormatTests
             }
         }
         inf.End();
+    }
+
+    /// <summary>Column shapes for the rollup encodings: constant counts, gaps, all empty, extreme values, a single bucket.</summary>
+    private static Rec[] RollupColumns(int buckets, out ushort[] slots, out SensorKind[] kinds)
+    {
+        slots = [0, 4, 5, 9, 12, 40];
+        kinds = [SensorKind.Temperature, SensorKind.Throughput, SensorKind.Load, SensorKind.Voltage, SensorKind.Clock, SensorKind.Fan];
+        var aggs = new Rec[slots.Length * buckets];
+        var rnd = new Random(11);
+        for (var b = 0; b < buckets; b++)
+        {
+            // 0: every bucket full (constant count), slowly moving
+            var m = 900 + b / 3;
+            aggs[0 * buckets + b] = new Rec { Min = m, Max = m + 2, Count = 30, Sum = m * 30L + rnd.Next(0, 61) };
+            // 1: random counts and gaps, wide ranges
+            if (b % 5 != 2)
+            {
+                var min = rnd.NextInt64(-1_000_000, 1_000_000);
+                var count = rnd.Next(1, 61);
+                var max = min + rnd.Next(0, 100_000);
+                aggs[1 * buckets + b] = new Rec { Min = min, Max = max, Count = count, Sum = min * count + rnd.NextInt64(0, (max - min) * count + 1) };
+            }
+            // 2: all empty
+            // 3: extreme quantized values (|q| = 2^40) with the largest bucket counts of an hour rollup
+            var lo = b % 2 == 0 ? -Quant.Limit : Quant.Limit - 7;
+            aggs[3 * buckets + b] = new Rec { Min = lo, Max = b % 2 == 0 ? Quant.Limit : Quant.Limit, Count = 3600, Sum = b % 2 == 0 ? 0 : (Quant.Limit - 3) * 3600 };
+            // 4: constant count, constant value
+            aggs[4 * buckets + b] = new Rec { Min = 52000, Max = 52000, Count = 60, Sum = 52000 * 60L };
+            // 5: only the last bucket
+            if (b == buckets - 1) aggs[5 * buckets + b] = new Rec { Min = -5, Max = 7, Count = 3, Sum = 1 };
+        }
+        return aggs;
+    }
+
+    private static List<(int Col, Rec R)> DecodeAll(byte[] file, int columns)
+    {
+        var blocks = new List<BlockRef>();
+        Assert.Equal(0, BlockScanner.Scan(file, blocks));
+        var b = Assert.Single(blocks);
+        var inf = new Inflater();
+        inf.Begin(file, b, b.Header.RawLength);
+        var table = new ColumnTable();
+        table.Parse(inf.Data);
+        Assert.Equal(columns, table.Count);
+        var all = new List<(int, Rec)>();
+        for (var c = 0; c < table.Count; c++)
+        {
+            var v = new Collect();
+            ColumnDecoder.Rollup(inf.Data.Slice(table.Offsets[c], table.Lengths[c]), b.Header, long.MinValue, long.MaxValue, c, ref v);
+            all.AddRange(v.Items);
+        }
+        inf.End();
+        return all;
+    }
+
+    [Theory]
+    [InlineData(60)]
+    [InlineData(24)]
+    [InlineData(1)]
+    public void Rollup_version_2_decodes_exactly_like_version_1(int buckets)
+    {
+        var aggs = RollupColumns(buckets, out var slots, out var kinds);
+        var start = new DateTime(2026, 10, 23, 5, 0, 0, DateTimeKind.Utc).Ticks;
+
+        // version 2: what this build writes
+        var enc = new BlockEncoder();
+        var len = enc.EncodeRollup(slots, kinds, aggs, buckets);
+        var ms = new MemoryStream();
+        enc.AppendBlock(ms, Level.Minute, start, TimeSpan.TicksPerMinute, buckets, slots.Length, len);
+        var v2 = ms.ToArray();
+        Assert.Equal(2, v2[4]);
+
+        // version 1: built by hand like older builds did
+        var data = new byte[1 << 16];
+        var table = new byte[ColumnTable.MaxSize(slots.Length)];
+        var tp = 0;
+        Varint.Write(table, ref tp, (ulong)slots.Length);
+        var dp = 0;
+        for (var c = 0; c < slots.Length; c++)
+        {
+            var end = BlockEncoder.WriteRollupV1(data, dp, aggs.AsSpan(c * buckets, buckets));
+            Varint.Write(table, ref tp, (ulong)(slots[c] - (c == 0 ? 0 : slots[c - 1])));
+            table[tp++] = (byte)kinds[c];
+            Varint.Write(table, ref tp, (ulong)(end - dp));
+            dp = end;
+        }
+        var payload = table.AsSpan(0, tp).ToArray().Concat(data.AsSpan(0, dp).ToArray()).ToArray();
+        var z = new MemoryStream();
+        z.Write(new byte[BlockHeader.Size]);
+        using (var d = new DeflateStream(z, CompressionLevel.Optimal, leaveOpen: true)) d.Write(payload);
+        var v1 = z.ToArray();
+        BlockScanner.Seal(v1, new BlockHeader
+        {
+            Type = Level.Minute, Version = 1, SampleCount = buckets, Start = start, Step = TimeSpan.TicksPerMinute, Columns = slots.Length,
+            RawLength = payload.Length, PayloadLength = v1.Length - BlockHeader.Size,
+        });
+        Assert.Equal(1, v1[4]);
+
+        var a = DecodeAll(v1, slots.Length);
+        var b = DecodeAll(v2, slots.Length);
+        Assert.Equal(a.Count, b.Count);
+        for (var i = 0; i < a.Count; i++)
+        {
+            Assert.Equal(a[i].Col, b[i].Col);
+            Assert.Equal((a[i].R.Time, a[i].R.Min, a[i].R.Max, a[i].R.Sum, a[i].R.Count, a[i].R.Level), (b[i].R.Time, b[i].R.Min, b[i].R.Max, b[i].R.Sum, b[i].R.Count, b[i].R.Level));
+        }
+        // and both equal the input
+        var expected = Enumerable.Range(0, slots.Length * buckets).Where(i => aggs[i].Count > 0).Select(i => aggs[i]).ToList();
+        Assert.Equal(expected.Select(e => (e.Min, e.Max, e.Sum, e.Count)), b.Select(x => (x.R.Min, x.R.Max, x.R.Sum, x.R.Count)));
+    }
+
+    [Fact]
+    public void Raw_blocks_stay_version_1_and_unknown_versions_are_rejected()
+    {
+        var enc = new BlockEncoder();
+        var len = enc.EncodeRaw([0], [SensorKind.Load], Enumerable.Range(0, 60).Select(i => (float)i).ToArray(), 60, 60);
+        var ms = new MemoryStream();
+        enc.AppendBlock(ms, Level.Raw, 0, TimeSpan.TicksPerSecond, 60, 1, len);
+        var file = ms.ToArray();
+        Assert.Equal(1, file[4]);
+        Assert.True(BlockHeader.TryRead(file, out _));
+        foreach (var (version, type) in new (byte, byte)[] { (2, 0), (3, 1), (0, 1), (255, 2) })
+        {
+            var x = (byte[])file.Clone();
+            x[4] = version;
+            x[5] = type;
+            Assert.False(BlockHeader.TryRead(x, out _), $"v{version} type {type}");
+        }
     }
 
     [Fact]
