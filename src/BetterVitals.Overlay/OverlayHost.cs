@@ -281,7 +281,10 @@ public sealed unsafe partial class OverlayHost : IDisposable
     internal string[] ShownValues() => Invoke(() => _windows.Where(b => b.Scene is not null).SelectMany(b => b.Scene!.Items).Select(i => new string(i.Main.Text)).ToArray());
 
     /// <summary>The swap chain's back buffer of a window (what it shows), for tests.</summary>
-    internal OverlayBitmap? ReadBack(string windowId = OverlayLayout.MainWindowId) => Invoke(() =>
+    internal OverlayBitmap? ReadBack(string windowId = OverlayLayout.MainWindowId) => Invoke(() => ReadBackOnThread(windowId));
+
+    /// <summary><see cref="ReadBack"/> on the overlay thread (tests that drive refreshes in the same step).</summary>
+    internal OverlayBitmap? ReadBackOnThread(string windowId)
     {
         var b = _windows.Find(x => x.Id == windowId);
         if (b?.Scene is null || b.Surface is not { Ready: true } s) return null;
@@ -289,7 +292,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
         var bmp = s.ReadBack();
         RenderAll();
         return bmp;
-    });
+    }
 
     /// <summary>One refresh tick right now (tests / measurements).</summary>
     internal bool RefreshNow() => Invoke(RefreshTick);

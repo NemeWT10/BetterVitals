@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using BetterVitals.Core.Overlay;
 using BetterVitals.Core.Sensors;
 using BetterVitals.Overlay;
+using BetterVitals.Overlay.Host;
 using BetterVitals.Overlay.Rendering;
 
 // Overlay cost probe. Usage:
@@ -42,13 +43,36 @@ var gpuT = hub.Add("gpu/rtx/0", HardwareKind.Gpu, SensorKind.Temperature, "GPU C
 var hot = hub.Add("gpu/rtx/0", HardwareKind.Gpu, SensorKind.Temperature, "GPU Hot Spot");
 var load = hub.Add("cpu/ryzen/0", HardwareKind.Cpu, SensorKind.Load, "CPU Total");
 var vram = hub.Add("gpu/rtx/0", HardwareKind.Gpu, SensorKind.SmallData, "GPU Memory Used");
-var layout = new OverlayLayout
+// --style vertical (default) | horizontal | compact | rich (shadowed text, two columns, multi-value bars / grid / rows)
+var style = ArgStr("--style") ?? "vertical";
+var cores = Enumerable.Range(0, 8).Select(i => hub.Add("cpu/ryzen/0", HardwareKind.Cpu, SensorKind.Load, $"CPU Core #{i + 1}")).ToArray();
+var clocks = Enumerable.Range(0, 8).Select(i => hub.Add("cpu/ryzen/0", HardwareKind.Cpu, SensorKind.Clock, $"Core #{i + 1}")).ToArray();
+var fans = Enumerable.Range(0, 3).Select(i => hub.Add("mb/x870e/0", HardwareKind.Motherboard, SensorKind.Fan, $"Fan #{i + 1}")).ToArray();
+var layout = new OverlayLayout { Enabled = true };
+if (style == "rich")
 {
-    Enabled = true,
-    Items = [.. new[] { fps, cpuT, gpuT, hot, load, vram }.Select(s => new OverlayItem { SensorIds = [s.Id] })],
-};
-layout.Normalize(); // a row per item
-layout.Cells[0].ShowGraph = true;
+    OverlayItem Cell(int row, int col, params SensorDescriptor[] s) => new() { SensorIds = [.. s.Select(d => d.Id)], Row = row, Column = col };
+    layout.Style = new OverlayStyle { TextShadow = true };
+    layout.Cells =
+    [
+        Cell(0, 0, fps), Cell(0, 1, cpuT), Cell(1, 0, gpuT), Cell(1, 1, hot),
+        Cell(2, 0, cores), Cell(3, 0, clocks), Cell(4, 0, load), Cell(4, 1, vram), Cell(5, 0, fans),
+    ];
+    layout.Cells[0].ShowGraph = true;
+    layout.Cells[5].MultiDisplay = MultiValueDisplay.Grid;
+    layout.Cells[8].MultiDisplay = MultiValueDisplay.Rows;
+    layout.Normalize();
+}
+else
+{
+    layout.Style = new OverlayStyle
+    {
+        Arrangement = style switch { "horizontal" => OverlayArrangement.Horizontal, "compact" => OverlayArrangement.Compact, _ => OverlayArrangement.Vertical },
+    };
+    layout.Items = [.. new[] { fps, cpuT, gpuT, hot, load, vram }.Select(s => new OverlayItem { SensorIds = [s.Id] })];
+    layout.Normalize(); // a row per item (vertical), one row of cells otherwise
+    layout.Cells[0].ShowGraph = true;
+}
 if (windows == 2)
 {
     // the second window takes the last three rows
@@ -67,6 +91,12 @@ void Step()
     hub.Set(hot, 85 + tick % 11);
     hub.Set(load, 30 + tick % 13);
     hub.Set(vram, 9000 + tick * 37 % 900);
+    for (var i = 0; i < 8; i++)
+    {
+        hub.Set(cores[i], (tick * (i + 3) * 7 + i * 11) % 100);
+        hub.Set(clocks[i], 4500 + (tick * 13 + i * 37) % 900);
+    }
+    for (var i = 0; i < 3; i++) hub.Set(fans[i], 900 + (tick * 17 + i * 101) % 600);
 }
 Step();
 
@@ -104,6 +134,7 @@ var cpuStart = ThreadCpu100ns();
 var r0 = host.Diagnostics().Renders;
 var procCpu0 = ProcessCpuMs();
 var sw0 = Threads.Read();
+var cy0 = Threads.AllCycles();
 var wall = Stopwatch.StartNew();
 Thread.Sleep(Math.Max(5, seconds) * 1000);
 var sw1 = Threads.Read();
@@ -112,7 +143,7 @@ wall.Stop();
 var procCpuMs = ProcessCpuMs() - procCpu0;
 var steadyRenders = host.Diagnostics().Renders - r0;
 var threads1 = sw1.Count;
-var (overlayWakes, otherWakes, workerLines) = Threads.Wakeups(sw0, sw1, overlayTid, wall.Elapsed.TotalSeconds);
+var (overlayWakes, otherWakes, workerLines) = Threads.Wakeups(sw0, sw1, overlayTid, wall.Elapsed.TotalSeconds, cyclesPerMs, cy0);
 Settle();
 proc.Refresh();
 var ws1 = proc.WorkingSet64;
@@ -125,6 +156,8 @@ timer.Change(Timeout.Infinite, Timeout.Infinite);
 const int n = 300;
 var tickFn = typeof(OverlayHost).GetMethod("RefreshTick", BindingFlags.NonPublic | BindingFlags.Instance)!.CreateDelegate<Func<bool>>(host);
 host.Invoke(() => { tickFn(); return 0L; }); // warm
+var f0 = Threads.Read();
+var fc0 = Threads.AllCycles();
 var (frameThreadMs, frameProcMs, frameAlloc) = host.Invoke(() =>
 {
     var a0 = GC.GetAllocatedBytesForCurrentThread();
@@ -141,45 +174,56 @@ var (frameThreadMs, frameProcMs, frameAlloc) = host.Invoke(() =>
     return ((c1 - c0) / (double)cyclesPerMs / n, (p1 - p0) / (double)cyclesPerMs / n, (a1 - a0) / (double)n);
 });
 
+var f1 = Threads.Read();
+var (_, _, frameLines) = Threads.Wakeups(f0, f1, overlayTid, n, cyclesPerMs, fc0);
 string? stormLine = null;
 if (storm) stormLine = Storm.Measure(host, overlayTid, cyclesPerMs);
 
 if (readback is not null)
 {
-    // fixed values, so two builds draw the same picture
-    hub.Set(fps, 144);
-    hub.Set(cpuT, 63.4f);
-    hub.Set(gpuT, 71);
-    hub.Set(hot, 88.5f);
-    hub.Set(load, 37);
-    hub.Set(vram, 9321);
-    host.Invoke(() => { tickFn(); return 0L; });
-    var bmp = host.ReadBack();
+    // fresh scenes (no sparkline history, column widths from scratch) and a fixed run of values: two builds draw the same picture
+    // (one step on the overlay thread: no refresh timer tick can add a sparkline sample in between)
+    var applyCore = typeof(OverlayHost).GetMethod("ApplyCore", BindingFlags.NonPublic | BindingFlags.Instance)!;
+    var (bmp, second) = host.Invoke(() =>
+    {
+        tick = 999;
+        Step(); // the values the new scenes start from
+        applyCore.Invoke(host, [LayoutCopy.Clone(layout), OverlayTheme.Default, new OverlayContext { Hub = hub, Animations = false }]);
+        for (var k = 0; k < 12; k++)
+        {
+            tick = 1000 + k;
+            Step();
+            hub.Set(cpuT, 63.4f + k % 5);
+            tickFn();
+        }
+        return (host.ReadBackOnThread(OverlayLayout.MainWindowId), windows == 2 ? host.ReadBackOnThread(OverlayLayout.SecondWindowId) : null);
+    });
     if (bmp is null) Console.Error.WriteLine("readback failed");
     else Offscreen.WritePng(bmp, readback);
-    if (windows == 2 && host.ReadBack(OverlayLayout.SecondWindowId) is { } second)
-        Offscreen.WritePng(second, Path.ChangeExtension(readback, null) + "-second.png");
+    if (second is not null) Offscreen.WritePng(second, Path.ChangeExtension(readback, null) + "-second.png");
 }
 
-var cores = Environment.ProcessorCount;
+var cpus = Environment.ProcessorCount;
 var steadyCpuMs = (cpuEnd - cpuStart) / 1e4;
 var secs = wall.Elapsed.TotalSeconds;
 var lines = new List<string>
 {
-    $"device: {(warp ? "WARP" : "hardware")}, cores: {cores}, windows: {windows} ({string.Join(" + ", layout.Windows().Select(w => w.Cells.Count))} items), steady run: {secs:F1} s at 1 s refresh",
+    $"device: {(warp ? "WARP" : "hardware")}, cores: {cpus}, windows: {windows} ({string.Join(" + ", layout.Windows().Select(w => w.Cells.Count))} items), steady run: {secs:F1} s at 1 s refresh, style {style}",
     $"private working set (Task Manager 'Memory'): {Mb(pws0)} → {Mb(pws1)} MB (+{Mb(pws1 - pws0)} MB)",
     $"working set (incl. shared DLL pages): {Mb(ws0)} → {Mb(ws1)} MB (+{Mb(ws1 - ws0)} MB)",
     $"private bytes: {Mb(pb0)} → {Mb(pb1)} MB (+{Mb(pb1 - pb0)} MB)",
     $"threads: {threads0} → {threads1} (+{threads1 - threads0}; the overlay thread + graphics workers + the sensor timer)",
     $"frames rendered in the steady run: {steadyRenders}",
-    $"overlay thread CPU, steady: {steadyCpuMs:F1} ms over {secs:F1} s = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100:F3} % of one core = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cores:F4} % of the machine",
-    $"whole process CPU, steady (all threads incl. WARP workers and the fake-sensor timer): {procCpuMs:F1} ms = {procCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cores:F4} % of the machine",
+    $"overlay thread CPU, steady: {steadyCpuMs:F1} ms over {secs:F1} s = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100:F3} % of one core = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cpus:F4} % of the machine",
+    $"whole process CPU, steady (all threads incl. WARP workers and the fake-sensor timer): {procCpuMs:F1} ms = {procCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cpus:F4} % of the machine",
     $"wake-ups, steady: overlay thread {overlayWakes / secs:F2}/s, all other threads {otherWakes / secs:F2}/s",
     $"one dirty refresh (format + draw + present, on the overlay thread): {frameThreadMs:F3} ms overlay thread CPU, {frameProcMs:F3} ms whole process CPU, {frameAlloc:F0} B allocated",
 };
 if (stormLine is not null) lines.Add(stormLine);
-lines.Add("threads that woke in the steady run (wake-ups/s, CPU ms):");
+lines.Add("threads that woke in the steady run (wake-ups/s, CPU ms/s):");
 lines.AddRange(workerLines);
+lines.Add($"threads that woke during {n} back-to-back dirty refreshes (wake-ups and CPU ms per frame):");
+lines.AddRange(frameLines);
 var report = string.Join(Environment.NewLine, lines);
 Console.WriteLine(report);
 if (outFile is not null)
@@ -379,7 +423,13 @@ internal static unsafe class Threads
         return result;
     }
 
-    public static (long Overlay, long Others, List<string> Lines) Wakeups(Dictionary<long, (long Cpu, long Switches)> a, Dictionary<long, (long Cpu, long Switches)> b, long overlayTid, double secs)
+    /// <summary>
+    /// Wake-ups per thread between two snapshots (per <paramref name="per"/>: seconds or frames) and, when
+    /// <paramref name="cyclesPerMs"/> is given, each thread's exact CPU from its cycle counter (sampled now: a thread's
+    /// cycles in the window are read as its total minus the first snapshot's).
+    /// </summary>
+    public static (long Overlay, long Others, List<string> Lines) Wakeups(Dictionary<long, (long Cpu, long Switches)> a, Dictionary<long, (long Cpu, long Switches)> b,
+        long overlayTid, double per, long cyclesPerMs = 0, Dictionary<long, ulong>? cycles0 = null)
     {
         long overlay = 0, others = 0;
         var lines = new List<string>();
@@ -389,9 +439,60 @@ internal static unsafe class Threads
             var s = now.Switches - old.Switches;
             if (tid == overlayTid) overlay += s;
             else others += s;
-            if (s > 0) lines.Add(string.Create(CultureInfo.InvariantCulture, $"  #{tid,-6} {s / secs,7:F2}/s {(now.Cpu - old.Cpu) / 1e4,7:F1} ms{(tid == overlayTid ? "  (overlay thread)" : "")}"));
+            if (s <= 0) continue;
+            var cpu = cycles0 is not null && cyclesPerMs > 0
+                ? string.Create(CultureInfo.InvariantCulture, $"{(CyclesOf(tid) - cycles0.GetValueOrDefault(tid)) / (double)cyclesPerMs / per,8:F3} ms")
+                : string.Create(CultureInfo.InvariantCulture, $"{(now.Cpu - old.Cpu) / 1e4,7:F1} ms");
+            lines.Add(string.Create(CultureInfo.InvariantCulture, $"  #{tid,-6} {s / per,7:F2} {cpu}  {(tid == overlayTid ? "overlay thread" : NameOf(tid))}"));
         }
         return (overlay, others, lines);
+    }
+
+    /// <summary>Cycle counters of every thread of this process now.</summary>
+    public static Dictionary<long, ulong> AllCycles() => Read().Keys.ToDictionary(t => t, CyclesOf);
+
+    public static ulong CyclesOf(long tid)
+    {
+        var h = Native.OpenThread(0x0800, false, (uint)tid);
+        if (h == 0) return 0;
+        try
+        {
+            ulong c;
+            return Native.QueryThreadCycleTime(h, &c) ? c : 0;
+        }
+        finally
+        {
+            Native.CloseHandle(h);
+        }
+    }
+
+    /// <summary>Thread description or the module its start address lies in.</summary>
+    public static string NameOf(long tid)
+    {
+        var h = Native.OpenThread(0x0040 | 0x0800, false, (uint)tid);
+        if (h == 0) return "?";
+        try
+        {
+            var name = "";
+            if (Native.GetThreadDescription(h, out var desc) >= 0 && desc != 0)
+            {
+                name = Marshal.PtrToStringUni(desc) ?? "";
+                Native.LocalFree(desc);
+            }
+            nint start = 0;
+            if (Native.NtQueryInformationThread(h, 9, &start, sizeof(nint), 0) >= 0 && start != 0 && Native.GetModuleHandleEx(4 | 2, start, out var module) && module != 0)
+            {
+                var chars = stackalloc char[260];
+                var n = Native.GetModuleFileName(module, chars, 260);
+                var file = Path.GetFileName(new string(chars, 0, (int)n));
+                name = name.Length == 0 ? file : $"{name} [{file}]";
+            }
+            return name.Length == 0 ? "?" : name;
+        }
+        finally
+        {
+            Native.CloseHandle(h);
+        }
     }
 }
 
@@ -429,6 +530,29 @@ internal static unsafe partial class Native
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW", StringMarshalling = StringMarshalling.Utf16)]
     public static partial nint GetModuleHandle(string? name);
+
+    [LibraryImport("kernel32.dll")]
+    public static partial nint OpenThread(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint id);
+
+    [LibraryImport("kernel32.dll")]
+    public static partial int GetThreadDescription(nint thread, out nint description);
+
+    [LibraryImport("kernel32.dll")]
+    public static partial nint LocalFree(nint mem);
+
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool CloseHandle(nint handle);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleExW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetModuleHandleEx(uint flags, nint address, out nint module);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetModuleFileNameW")]
+    public static partial uint GetModuleFileName(nint module, char* name, uint size);
+
+    [LibraryImport("ntdll.dll")]
+    public static partial int NtQueryInformationThread(nint thread, int infoClass, void* buffer, int length, nint returned);
 
     [LibraryImport("ntdll.dll")]
     public static partial int NtQuerySystemInformation(int infoClass, void* buffer, int length, out int needed);
