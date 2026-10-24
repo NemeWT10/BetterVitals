@@ -131,6 +131,9 @@ internal sealed unsafe class Scene : IDisposable
 
     public int Width { get; private set; }
 
+    /// <summary>Changes whenever the geometry is arranged again (size, columns, dividers): a cached backdrop is stale.</summary>
+    public int LayoutVersion { get; private set; }
+
     public int Height { get; private set; }
 
     public Rgba Background { get; }
@@ -526,6 +529,7 @@ internal sealed unsafe class Scene : IDisposable
                 ArrangeVertical();
                 break;
         }
+        LayoutVersion++;
     }
 
     private float BarW => MathF.Max(2, MathF.Round(3 * S));

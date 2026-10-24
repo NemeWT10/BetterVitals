@@ -140,6 +140,9 @@ internal sealed unsafe class SwapSurface(GpuDevice device, nint hwnd) : IDisposa
     private void* _target;
     private void* _dcTarget;
     private void* _visual;
+    private void* _backdrop;
+    private Scene? _backdropScene;
+    private int _backdropVersion, _backdropWidth, _backdropHeight;
 
     public nint Hwnd { get; } = hwnd;
 
@@ -206,18 +209,74 @@ internal sealed unsafe class SwapSurface(GpuDevice device, nint hwnd) : IDisposa
         return 0;
     }
 
-    /// <summary>Draws the scene and presents. Returns an HRESULT; device-lost codes mean "recreate the device".</summary>
+    /// <summary>
+    /// Draws the scene and presents. Returns an HRESULT; device-lost codes mean "recreate the device".
+    /// Fully opaque (not fading), the backdrop comes from its cached bitmap (<see cref="Backdrop"/>): the same pixels as
+    /// drawing it, for a fraction of the cost on WARP.
+    /// </summary>
     public int Render(Scene scene, float alpha, bool edit, float editEmphasis = 1, bool present = true)
     {
         if (!Ready || device.Resources is not { } res) return -1;
         var dc = device.Dc;
+        var hr = 0;
+        var backdrop = alpha >= 1 ? Backdrop(scene, res, out hr) : null;
+        if (hr < 0) return hr;
+        if (backdrop != null)
+        {
+            // a plain copy over every pixel of the back buffer: what Clear + the backdrop's drawing would leave there
+            hr = Bitmap1.CopyFromBitmap(_target, backdrop);
+            if (hr < 0) return hr;
+        }
         RT.SetTarget(dc, _target);
         RT.BeginDraw(dc);
-        SceneRenderer.Draw(res, scene, alpha, edit, editEmphasis);
-        var hr = RT.EndDraw(dc);
+        if (backdrop != null) SceneRenderer.DrawForeground(res, scene, alpha, edit, editEmphasis);
+        else SceneRenderer.Draw(res, scene, alpha, edit, editEmphasis);
+        hr = RT.EndDraw(dc);
         RT.SetTarget(dc, null);
         if (hr < 0 || !present) return hr;
         return Dxgi.Present(_swap, 0, 0);
+    }
+
+    /// <summary>
+    /// The scene's backdrop (<see cref="SceneRenderer.DrawBackdrop"/> over a cleared bitmap of the surface's size, fully
+    /// opaque), drawn again only when the scene, its arrangement or the surface size changed. Null when it cannot be had
+    /// (<paramref name="hr"/> &lt; 0 for a device error).
+    /// </summary>
+    private void* Backdrop(Scene scene, DeviceResources res, out int hr)
+    {
+        hr = 0;
+        if (_backdrop != null && ReferenceEquals(_backdropScene, scene) && _backdropVersion == scene.LayoutVersion
+            && _backdropWidth == Width && _backdropHeight == Height)
+            return _backdrop;
+        var dc = device.Dc;
+        if (_backdrop == null || _backdropWidth != Width || _backdropHeight != Height)
+        {
+            Com.Release(ref _backdrop);
+            _backdropScene = null;
+            var props = new D2DBitmapProps1 { Format = 87, AlphaMode = 1, DpiX = 96, DpiY = 96, Options = 1 }; // TARGET
+            hr = RT.CreateBitmap1(dc, (uint)Width, (uint)Height, props, out _backdrop);
+            if (hr < 0)
+            {
+                _backdrop = null;
+                return null;
+            }
+            _backdropWidth = Width;
+            _backdropHeight = Height;
+        }
+        RT.SetTarget(dc, _backdrop);
+        RT.BeginDraw(dc);
+        RT.Clear(dc, new D2DColor(0, 0, 0, 0));
+        SceneRenderer.DrawBackdrop(res, scene, 1);
+        hr = RT.EndDraw(dc);
+        RT.SetTarget(dc, null);
+        if (hr < 0)
+        {
+            _backdropScene = null;
+            return null;
+        }
+        _backdropScene = scene;
+        _backdropVersion = scene.LayoutVersion;
+        return _backdrop;
     }
 
     /// <summary>
@@ -251,6 +310,8 @@ internal sealed unsafe class SwapSurface(GpuDevice device, nint hwnd) : IDisposa
     public void Release()
     {
         var had = _dcTarget != null;
+        Com.Release(ref _backdrop);
+        _backdropScene = null;
         Com.Release(ref _target);
         Com.Release(ref _visual);
         Com.Release(ref _dcTarget);

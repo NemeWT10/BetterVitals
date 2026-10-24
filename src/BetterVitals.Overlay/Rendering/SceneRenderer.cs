@@ -89,6 +89,18 @@ internal static unsafe class SceneRenderer
     /// <summary>Draws the panel over whatever is in the target (no clear).</summary>
     public static void DrawContent(DeviceResources res, Scene scene, float alpha, bool edit, float editEmphasis = 1)
     {
+        DrawBackdrop(res, scene, alpha);
+        DrawForeground(res, scene, alpha, edit, editEmphasis);
+    }
+
+    /// <summary>
+    /// The part of the panel that only changes with the layout (<see cref="Scene.LayoutVersion"/>) and the fade: background,
+    /// sheen, border, dividers — everything drawn before the first text. Drawn over a cleared target and kept as a bitmap,
+    /// it is copied in instead of drawn every frame (the background fills are most of a WARP frame's cost); followed by
+    /// <see cref="DrawForeground"/> the pixels are exactly those of <see cref="Draw"/>.
+    /// </summary>
+    public static void DrawBackdrop(DeviceResources res, Scene scene, float alpha)
+    {
         var rt = res.Rt;
         RT.SetTextAntialiasMode(rt, 2);
         RT.SetAntialiasMode(rt, 0);
@@ -110,6 +122,15 @@ internal static unsafe class SceneRenderer
 
         foreach (var d in scene.Dividers)
             RT.DrawLine(rt, new D2DPoint(d.X, d.Top), new D2DPoint(d.X, d.Bottom), res.Solid(scene.BorderColor, alpha * 0.9f), MathF.Max(1, MathF.Round(scene.S)));
+    }
+
+    /// <summary>Labels, values, units, bars, sparklines and the edit-mode chrome, over the backdrop.</summary>
+    public static void DrawForeground(DeviceResources res, Scene scene, float alpha, bool edit, float editEmphasis = 1)
+    {
+        var rt = res.Rt;
+        RT.SetTextAntialiasMode(rt, 2);
+        RT.SetAntialiasMode(rt, 0);
+        float w = scene.Width, h = scene.Height;
 
         if (scene.Arrangement == OverlayArrangement.Vertical)
         {
