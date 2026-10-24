@@ -19,6 +19,19 @@ public partial class FlyoutWindow : Window
     /// <summary>Snapshot / probe mode: never activated, so it must not close on deactivation.</summary>
     internal bool Offscreen { get; set; }
 
+    /// <summary>
+    /// Rendered to a bitmap (snapshots, README pictures): the glass is drawn directly, not from its cache, which holds it at
+    /// the screen's scale and would be resampled at another capture scale.
+    /// </summary>
+    internal bool ForCapture
+    {
+        get => GlassHost.CacheMode is null;
+        init
+        {
+            if (value) GlassHost.CacheMode = null;
+        }
+    }
+
     private bool _closing;
 
     public FlyoutWindow(FlyoutViewModel model)
@@ -74,13 +87,13 @@ public partial class FlyoutWindow : Window
     /// <summary>Opens above the tray icon (or the cursor), activates and plays the entrance.</summary>
     internal void ShowAt(Native.RECT anchor)
     {
-        Card.Opacity = 0;
+        Root.Opacity = 0;
         var edge = FloatingPlacement.ShowNear(this, anchor, shadowMargin: 16);
         var hwnd = new WindowInteropHelper(this).Handle;
         Native.ForceForeground(hwnd);
         Activate();
-        if (Motion.I.Enabled) Motion.Appear(Card, rise: edge == FloatingPlacement.Edge.Top ? -14 : 14, fromScale: 0.96, ms: 300);
-        else Card.Opacity = 1;
+        if (Motion.I.Enabled) Motion.Appear(Root, rise: edge == FloatingPlacement.Edge.Top ? -14 : 14, fromScale: 0.96, ms: 300);
+        else Root.Opacity = 1;
     }
 
     private void Run(Action action)

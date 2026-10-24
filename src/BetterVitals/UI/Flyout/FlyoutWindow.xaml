@@ -98,12 +98,27 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Margin="16">
-        <Border x:Name="Card" CornerRadius="16" Background="{DynamicResource Brush.Panel}" BorderBrush="{DynamicResource Brush.PanelBorder}"
-                BorderThickness="1" Padding="14" Width="372">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="30" ShadowDepth="8" Direction="270" Opacity="0.42" Color="{DynamicResource Color.Shadow}"/>
-            </Border.Effect>
+    <!-- Root is what the entrance animates (its centre is the card's centre) -->
+    <Grid x:Name="Root">
+        <!-- The glass and its shadow are a layer of their own, cached as a bitmap (rendered at the screen's scale, redrawn by
+             WPF only when the glass changes): the live values and the breathing dot above never re-run the 30 px blur (with
+             the shadow on the card itself, every frame did). What the host caches covers the window from its corner and is
+             clipped there (the window clips there anyway), so the cache sits on whole device pixels and draws exactly what
+             the card drew (UiProbe compares both). -->
+        <Border x:Name="GlassHost">
+            <Border.CacheMode>
+                <BitmapCache/>
+            </Border.CacheMode>
+            <Border Background="Transparent" ClipToBounds="True">
+                <Border x:Name="Glass" Margin="16" Width="372" CornerRadius="16" Background="{DynamicResource Brush.Panel}"
+                        BorderBrush="{DynamicResource Brush.PanelBorder}" BorderThickness="1">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="30" ShadowDepth="8" Direction="270" Opacity="0.42" Color="{DynamicResource Color.Shadow}"/>
+                    </Border.Effect>
+                </Border>
+            </Border>
+        </Border>
+        <Border x:Name="Card" Margin="16" Width="372" BorderThickness="1" Padding="14">
             <StackPanel>
                 <!-- header -->
                 <DockPanel Margin="2,0,0,0">

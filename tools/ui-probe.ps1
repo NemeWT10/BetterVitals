@@ -17,7 +17,8 @@ param(
     [int] $Window = 20,
     [string] $Exe,
     [switch] $NoBuild,
-    [switch] $NoWide
+    [switch] $NoWide,
+    [switch] $FlyoutOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -47,6 +48,7 @@ New-Item -ItemType Directory -Force $data | Out-Null
 
 $appArgs = @('--ui-probe', "$Window", '--data-dir', $data)
 if ($NoWide) { $appArgs += @('--ui-probe-wide', '0') }
+if ($FlyoutOnly) { $appArgs += '--ui-probe-flyout' }
 $timeout = 120 + 30 * $Window
 Write-Host "== $Label ($Window s windows, timeout $timeout s)"
 $sw = [Diagnostics.Stopwatch]::StartNew()

@@ -165,7 +165,7 @@ internal static class Showcase
         var history = AppServices.History;
         AppServices.History = null;
         var vm = new FlyoutViewModel(_rig.Engine);
-        var flyout = new FlyoutWindow(vm) { Offscreen = true };
+        var flyout = new FlyoutWindow(vm) { Offscreen = true, ForCapture = true };
         try
         {
             FloatingPlacement.ShowOffscreen(flyout);

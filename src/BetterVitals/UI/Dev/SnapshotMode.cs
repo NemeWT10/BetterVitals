@@ -112,7 +112,7 @@ internal static partial class SnapshotMode
     {
         var vm = new FlyoutViewModel(AppServices.Hub);
         if (AppServices.Hub is PreviewHub hub) vm.Prefill(s => hub.Recent(s.Index, 48));
-        var w = new FlyoutWindow(vm) { Offscreen = true };
+        var w = new FlyoutWindow(vm) { Offscreen = true, ForCapture = true };
         try
         {
             FloatingPlacement.ShowOffscreen(w);
