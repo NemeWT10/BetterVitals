@@ -175,6 +175,17 @@ internal static class UiProbe
                 windows.Add(w);
             }
             await Task.Delay(500);
+            // both show the same values: live updates stop, every tile takes the same frame, sparklines start empty
+            var frame = AppServices.Hub.Latest;
+            foreach (var w in windows)
+            {
+                w.Model.Detach();
+                foreach (var t in w.Model.Tiles)
+                {
+                    t.Series.Clear();
+                    t.Update(frame[t.Sensor.Index], Core.Settings.TemperatureUnit.Celsius, push: false);
+                }
+            }
             await Idle();
             var scale = VisualTreeHelper.GetDpi(windows[0]).DpiScaleX;
             var a = Snapshot(windows[0], scale);
@@ -271,6 +282,17 @@ internal static class UiProbe
             var mc = mcType.GetMethod("From", all)!.Invoke(null, [Dispatcher.CurrentDispatcher]);
             var rendering = mcType.GetField("_rendering", all)?.GetValue(mc) as Delegate;
             lines.Add($"Rendering handlers: {rendering?.GetInvocationList().Length ?? 0} {string.Join(", ", rendering?.GetInvocationList().Select(d => d.Method.DeclaringType?.Name + "." + d.Method.Name) ?? [])}");
+            // root clocks (every BeginAnimation makes one): TimeManager._timeManagerClock._rootChildren (weak references)
+            var tm = mcType.GetProperty("TimeManager", all)?.GetValue(mc);
+            var root = tm?.GetType().GetField("_timeManagerClock", all)?.GetValue(tm);
+            var children = root?.GetType().GetField("_rootChildren", all)?.GetValue(root) as System.Collections.IEnumerable;
+            foreach (var o in children ?? Array.Empty<object>())
+            {
+                if (o is not WeakReference { Target: System.Windows.Media.Animation.Clock c }) continue;
+                var tl = c.Timeline;
+                var desc = tl is System.Windows.Media.Animation.DoubleAnimation da ? $"{da.From}->{da.To}" : tl?.GetType().Name;
+                lines.Add(string.Create(Inv, $"clock {desc} {c.CurrentState} dur {tl?.Duration} repeat {tl?.RepeatBehavior} fps {(tl is null ? null : System.Windows.Media.Animation.Timeline.GetDesiredFrameRate(tl))}"));
+            }
         }
         catch (Exception ex)
         {
