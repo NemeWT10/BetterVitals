@@ -27,6 +27,9 @@ public sealed record StartupOptions
 
     public bool TrayProbe { get; init; }
 
+    /// <summary><c>--ui-probe [seconds]</c>: the cost of the flyout and every page, offscreen (test mode, hidden desktop).</summary>
+    public bool UiProbe { get; init; }
+
     /// <summary>
     /// <c>--real-sensors</c> (with test mode): the real sources (LibreHardwareMonitor, FPS, native) instead of the fake PC,
     /// still without tray icon and with the test data folder — for perf measurements of the real thing in the background.
@@ -64,6 +67,9 @@ public sealed record StartupOptions
                     break;
                 case "--tray-probe":
                     o = o with { TestMode = true, TrayProbe = true };
+                    break;
+                case "--ui-probe":
+                    o = o with { TestMode = true, UiProbe = true };
                     break;
                 case "--real-sensors":
                     o = o with { RealSensors = true };

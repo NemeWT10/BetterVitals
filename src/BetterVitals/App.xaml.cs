@@ -86,6 +86,7 @@ public partial class App : Application
 
         if (_options.SnapshotDir is { } dir) SnapshotMode.Start(dir, _options.SnapshotLanguage, _options.SnapshotTheme);
         else if (_options.TrayProbe) TrayProbe.Start();
+        else if (_options.UiProbe) UiProbe.Start();
         else if (_options.OpenPage is { } page) _shell.OpenPanel(page);
         else if (NeedsFirstRun) ShowFirstRun();
         else TrayRest.Settle(); // straight to the tray: give the start-up memory back
