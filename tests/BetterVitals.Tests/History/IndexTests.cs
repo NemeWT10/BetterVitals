@@ -144,6 +144,25 @@ public class IndexTests
     }
 
     [Fact]
+    public void Only_the_most_recently_used_files_are_kept()
+    {
+        using var dir = new TestDir("index-lru");
+        Directory.CreateDirectory(dir.Path);
+        var index = new BlockIndex();
+        var paths = Enumerable.Range(0, BlockIndex.MaxFiles + 5).Select(i => Path.Combine(dir.Path, $"f{i}.bvr")).ToList();
+        foreach (var p in paths) File.WriteAllBytes(p, Blocks(2, p.Length));
+        foreach (var p in paths)
+        {
+            using var rd = FileReader.Open(index, p);
+            Assert.Equal(2, index.Get(p, rd, (_, _) => { }).Blocks.Count);
+        }
+        Assert.Equal(BlockIndex.MaxFiles, index.CachedFiles);
+        var before = index.BytesRead;
+        using (var rd = FileReader.Open(index, paths[^1])) index.Get(paths[^1], rd, (_, _) => { });
+        Assert.Equal(before, index.BytesRead); // the newest is still cached
+    }
+
+    [Fact]
     public async Task Queries_read_only_the_blocks_they_need()
     {
         using var rig = new Rig("index-query", new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc));

@@ -144,12 +144,18 @@ internal sealed class BlockIndex
         public bool Clean;
 
         public int Bad;
+
+        public long Used;
     }
+
+    /// <summary>Files whose block lists are kept at most (least recently used go first; a long raw retention has many).</summary>
+    public const int MaxFiles = 48;
 
     private readonly Dictionary<string, Entry> _files = new(StringComparer.OrdinalIgnoreCase);
     private byte[]? _buffer;
     private Inflater? _inflater;
     private long _lastUse = Environment.TickCount64;
+    private long _clock;
 
     /// <summary>Blocks held in the cache (diagnostics / tests).</summary>
     public int CachedBlocks => _files.Values.Sum(e => e.Blocks.Count);
@@ -167,6 +173,7 @@ internal sealed class BlockIndex
         if (length > int.MaxValue / 2) throw new IOException("file too large");
         if (_files.TryGetValue(path, out var e) && e.Identity == reader.Identity && reader.Identity != default)
         {
+            e.Used = ++_clock;
             if (e.Length == length) return e;
             if (e.Clean && length > e.Length)
             {
@@ -176,10 +183,11 @@ internal sealed class BlockIndex
                 return e;
             }
         }
-        e = new Entry(path) { Identity = reader.Identity };
+        e = new Entry(path) { Identity = reader.Identity, Used = ++_clock };
         var b = Scan(reader, 0, length, e.Blocks, out var stop);
         Finish(e, length, stop, b, warnOnce);
         _files[path] = e;
+        while (_files.Count > MaxFiles) _files.Remove(_files.Values.MinBy(x => x.Used)!.Path);
         return e;
     }
 
