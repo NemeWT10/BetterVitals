@@ -443,15 +443,31 @@ public sealed class SensorEngine : ISensorHub, IDisposable
         {
             UnchangedDiscoveries++;
             Log.Info($"engine: re-discovery, inventory unchanged ({present.Count(p => p)} of {n} sensors present)");
-            return;
         }
-        Log.Info($"engine: {hardware.Count} hardware, {present.Count(p => p)} of {n} sensors present");
-        foreach (var h in Volatile.Read(ref _inventoryHandlers))
+        else
         {
-            try { h(); }
-            catch (Exception ex) { Log.Error("engine: InventoryChanged handler failed", ex); }
+            Log.Info($"engine: {hardware.Count} hardware, {present.Count(p => p)} of {n} sensors present");
+            foreach (var h in Volatile.Read(ref _inventoryHandlers))
+            {
+                try { h(); }
+                catch (Exception ex) { Log.Error("engine: InventoryChanged handler failed", ex); }
+            }
+        }
+        try
+        {
+            DiscoveryCompleted?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("engine: DiscoveryCompleted handler failed", ex);
         }
     }
+
+    /// <summary>
+    /// Engine thread: after every discovery pass, also one that found the same inventory (the host gives the memory a
+    /// re-enumeration touched back to Windows while nothing is on screen).
+    /// </summary>
+    public event Action? DiscoveryCompleted;
 
     private static bool SameHardware(HardwareDescriptor[] old, List<HardwareDescriptor> now)
     {

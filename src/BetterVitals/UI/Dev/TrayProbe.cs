@@ -248,6 +248,7 @@ internal static class TrayProbe
     {
         var lhm0 = host.Lhm?.GetNodeStats().ToDictionary(n => n.HardwareId);
         var seq0 = host.Hub.Latest.Sequence;
+        var tp0 = ThreadPool.CompletedWorkItemCount;
         var a = ProcessStats.Take();
         var samples = new List<long>();
         var end = DateTime.UtcNow + window;
@@ -258,6 +259,7 @@ internal static class TrayProbe
             samples.Add(ProcessStats.Memory().PrivateWorkingSet);
         }
         var b = ProcessStats.Take();
+        var tp1 = ThreadPool.CompletedWorkItemCount;
         var seq1 = host.Hub.Latest.Sequence;
         var lhm1 = host.Lhm?.GetNodeStats();
 
@@ -276,7 +278,7 @@ internal static class TrayProbe
         r.Add(string.Create(Inv, $"GC                heap {Mb(b.GcHeap)} MB · committed {Mb(b.GcCommitted)} MB · collections gen0 +{b.Gen0 - a.Gen0} gen1 +{b.Gen1 - a.Gen1} gen2 +{b.Gen2 - a.Gen2} · allocated {(b.Allocated - a.Allocated) / secs / 1024:0.0} KB/s"));
         var cycleMs = (b.Cycles - a.Cycles) * 1000.0 / ProcessStats.TscHz;
         r.Add(string.Create(Inv, $"CPU               {cycleMs:0} ms (cycles; {cpuMs:0} ms tick-sampled) = {cycleMs / 10 / secs:0.000} % of one core = {cycleMs / 10 / secs / ProcessStats.MachineProcessors:0.0000} % of the machine ({ProcessStats.MachineProcessors} logical)"));
-        r.Add(string.Create(Inv, $"wake-ups          {wakeups / secs:0.0} /s (context switches, all threads)"));
+        r.Add(string.Create(Inv, $"wake-ups          {wakeups / secs:0.0} /s (context switches, all threads) · thread pool {(tp1 - tp0) / secs:0.00} work items/s, {ThreadPool.ThreadCount} threads · {Timer.ActiveCount} timers"));
         r.Add(string.Create(Inv, $"engine            {ticks} ticks = {ticks / secs:0.00} /s · engine thread {(engine is null ? 0 : Cpu(engine)):0} ms CPU = {(ticks > 0 && engine is not null ? Cpu(engine) / ticks : 0):0.00} ms per tick · {(engine is null ? 0 : Switches(engine)) / secs:0.0} wake-ups/s"));
         r.Add(string.Create(Inv, $"disk              {(b.WriteOps - a.WriteOps) / secs * 60:0.0} write ops/min · {(b.WriteBytes - a.WriteBytes) / secs * 60 / 1024:0.0} KB/min · reads {(b.ReadOps - a.ReadOps) / secs * 60:0} /min · other I/O {(b.OtherOps - a.OtherOps) / secs * 60:0} /min"));
         r.Add(string.Create(Inv, $"process           {b.Threads.Count} threads · {b.Handles} handles"));

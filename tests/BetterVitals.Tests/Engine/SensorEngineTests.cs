@@ -268,7 +268,9 @@ public sealed class SensorEngineTests
         var slot = engine.Find(gpu)!.Index;
         var hardware = engine.Hardware;
         var notified = 0;
+        var completed = 0;
         engine.InventoryChanged += () => notified++;
+        engine.DiscoveryCompleted += () => completed++; // the host trims the working set after each pass
         using var d = engine.Demand("overlay", [gpu], TimeSpan.FromSeconds(1));
         Run(engine, clock, TimeSpan.FromSeconds(2));
 
@@ -276,6 +278,7 @@ public sealed class SensorEngineTests
         var before = engine.Sensors[slot];
         for (var i = 0; i < 3; i++) engine.DiscoverNow();
         Assert.Equal(0, notified);
+        Assert.Equal(3, completed);
         Assert.Equal(3, engine.UnchangedDiscoveries);
         Assert.Same(hardware, engine.Hardware);
         Assert.NotSame(before, engine.Sensors[slot]); // the source's fresh descriptor (its new tag) is used from now on
