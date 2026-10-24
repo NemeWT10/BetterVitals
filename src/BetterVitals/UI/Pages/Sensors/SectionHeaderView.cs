@@ -19,7 +19,7 @@ public sealed class SectionHeaderView : Border
         Height = 50;
         Padding = new Thickness(RowColumns.SidePadding - 6, 10, 0, 2);
         Background = System.Windows.Media.Brushes.Transparent;
-        Resources.MergedDictionaries.Add(Ui.Theme);
+        // no Resources of its own: the styles come from Ui.Style (a merged copy per row cost a dictionary each)
         var grid = RowColumns.Grid(SensorRowLayout.Live);
 
         var left = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, Background = System.Windows.Media.Brushes.Transparent };
