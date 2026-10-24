@@ -571,12 +571,15 @@ internal sealed class Inflater
     public ReadOnlySpan<byte> Data => _out.AsSpan(0, _have);
 
     /// <summary>Starts a block; inflates at least <paramref name="need"/> bytes (or all when shorter).</summary>
-    public void Begin(byte[] file, in BlockRef block, int need)
+    public void Begin(byte[] file, in BlockRef block, int need) => Begin(file, block.PayloadOffset, block.Header.PayloadLength, block.Header.RawLength, need);
+
+    /// <summary>Starts a payload of <paramref name="length"/> compressed bytes at <paramref name="offset"/> of <paramref name="buffer"/>.</summary>
+    public void Begin(byte[] buffer, int offset, int length, int rawLength, int need)
     {
         _z?.Dispose();
-        _target = block.Header.RawLength;
+        _target = rawLength;
         if (_out.Length < _target) _out = new byte[Math.Max(_target, _out.Length * 2)];
-        _z = new DeflateStream(new MemoryStream(file, block.PayloadOffset, block.Header.PayloadLength, writable: false), CompressionMode.Decompress);
+        _z = new DeflateStream(new MemoryStream(buffer, offset, length, writable: false), CompressionMode.Decompress);
         _have = 0;
         Fill(need);
     }

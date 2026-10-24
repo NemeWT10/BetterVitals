@@ -90,43 +90,28 @@ internal static class HistoryFiles
 }
 
 /// <summary>
-/// Read-side helper for one query / export: loads whole files (at most 3 kept, CRC-checked block index),
-/// decodes the requested columns and feeds records to a visitor. Corrupted files / blocks are skipped and reported once.
-/// Not thread-safe; dispose to return buffers.
+/// Read-side helper for one query / export: block lists come from the store's <see cref="BlockIndex"/> (built once per
+/// file and kept while reads continue), and only the blocks a read needs are fetched, CRC-checked again and decoded.
+/// Corrupted files / blocks are skipped and reported once. Not thread-safe; use under the store gate and dispose.
 /// </summary>
-internal sealed class ReadSession(string dir, Action<string, string> warnOnce) : IDisposable
+internal sealed class ReadSession(string dir, Action<string, string> warnOnce, BlockIndex index) : IDisposable
 {
-    private const int MaxCached = 3;
-
-    private sealed class Loaded
-    {
-        public required HistFile File;
-        public required byte[] Buffer;
-        public required int Length;
-        public readonly List<BlockRef> Blocks = [];
-    }
-
     private List<HistFile>? _files;
-    private readonly List<Loaded> _cache = [];
-    private readonly Inflater _inflater = new();
+    private Inflater? _inflater;
     private readonly ColumnTable _table = new();
+
+    public ReadSession(string dir, Action<string, string> warnOnce) : this(dir, warnOnce, new BlockIndex())
+    {
+    }
 
     public string Dir { get; } = dir;
 
     public IReadOnlyList<HistFile> AllFiles => _files ??= HistoryFiles.List(Dir);
 
-    /// <summary>Forget the listing and any file that changed size (export runs across flushes).</summary>
-    public void Refresh()
-    {
-        _files = null;
-        var current = AllFiles;
-        for (var i = _cache.Count - 1; i >= 0; i--)
-        {
-            var c = _cache[i];
-            var now = current.FirstOrDefault(f => f.Path == c.File.Path);
-            if (now is null || now.Length != c.File.Length) _cache.RemoveAt(i);
-        }
-    }
+    private Inflater Inflater => _inflater ??= index.TakeInflater();
+
+    /// <summary>Forget the listing (export runs across flushes); files that grew are rescanned from their old end.</summary>
+    public void Refresh() => _files = null;
 
     public IEnumerable<HistFile> Files(Level level)
     {
@@ -155,23 +140,12 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
 
     public void ReadFile<TV>(HistFile f, long from, long to, ReadOnlySpan<int> slots, ref TV visitor) where TV : IRecVisitor
     {
-        var loaded = Load(f);
-        if (loaded is null) return;
-        foreach (var b in loaded.Blocks)
+        using var rd = Open(f, out var entry);
+        if (rd is null) return;
+        foreach (var b in entry!.Blocks)
         {
             if (b.Header.Type != f.Level || b.Header.End <= from || b.Header.Start >= to) continue;
-            try
-            {
-                DecodeBlock(loaded.Buffer, b, from, to, slots, ref visitor);
-            }
-            catch (Exception ex) when (ex is InvalidDataException or IndexOutOfRangeException or ArgumentException or IOException)
-            {
-                warnOnce(f.Path + "#" + b.PayloadOffset, $"history: skipped corrupted block in {Path.GetFileName(f.Path)} @{b.PayloadOffset}: {ex.Message}");
-            }
-            finally
-            {
-                _inflater.End();
-            }
+            Decode(rd, f, b, from, to, slots, ref visitor);
         }
     }
 
@@ -194,46 +168,40 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
     /// </summary>
     public long EdgeTime(HistFile f, ReadOnlySpan<int> slots, bool first)
     {
-        var loaded = Load(f);
         var v = new EdgeVisitor { First = long.MaxValue, Last = long.MinValue };
-        if (loaded is null) return first ? v.First : v.Last;
-        var blocks = loaded.Blocks;
+        using var rd = Open(f, out var entry);
+        if (rd is null) return first ? v.First : v.Last;
+        var blocks = entry!.Blocks;
         for (var k = 0; k < blocks.Count; k++)
         {
             var b = blocks[first ? k : blocks.Count - 1 - k];
             if (b.Header.Type != f.Level) continue;
             if (first ? b.Header.Start >= v.First : b.Header.End <= v.Last) continue;
-            try
-            {
-                DecodeBlock(loaded.Buffer, b, long.MinValue, long.MaxValue, slots, ref v);
-            }
-            catch (Exception ex) when (ex is InvalidDataException or IndexOutOfRangeException or ArgumentException or IOException)
-            {
-                warnOnce(f.Path + "#" + b.PayloadOffset, $"history: skipped corrupted block in {Path.GetFileName(f.Path)} @{b.PayloadOffset}: {ex.Message}");
-            }
-            finally
-            {
-                _inflater.End();
-            }
+            Decode(rd, f, b, long.MinValue, long.MaxValue, slots, ref v);
         }
         return first ? v.First : v.Last;
     }
 
-    /// <summary>Fully inflates every valid block of <paramref name="level"/> with start ≥ <paramref name="minStart"/>.</summary>
-    public void VisitBlocks(Level level, long minStart, BlockAction action)
+    /// <summary>
+    /// Fully inflates every valid block of <paramref name="level"/> with start ≥ <paramref name="minStart"/> and
+    /// end &gt; <paramref name="minEnd"/> (files that cannot hold such blocks are not opened).
+    /// </summary>
+    public void VisitBlocks(Level level, long minStart, long minEnd, BlockAction action)
     {
         foreach (var f in AllFiles)
         {
-            if (f.Level != level || f.End <= minStart) continue;
-            var loaded = Load(f);
-            if (loaded is null) continue;
-            foreach (var b in loaded.Blocks)
+            // a block lies in the file of its start and spans at most a day (an hour rollup group)
+            if (f.Level != level || f.End <= minStart || (minEnd != long.MinValue && f.End <= minEnd - TimeGrid.Day)) continue;
+            using var rd = Open(f, out var entry);
+            if (rd is null) continue;
+            foreach (var b in entry!.Blocks)
             {
-                if (b.Header.Type != level || b.Header.Start < minStart) continue;
+                if (b.Header.Type != level || b.Header.Start < minStart || b.Header.End <= minEnd) continue;
                 try
                 {
-                    _inflater.Begin(loaded.Buffer, b, b.Header.RawLength);
-                    var data = _inflater.Data;
+                    var at = Fetch(rd, f, b);
+                    Inflater.Begin(rd.Buffer, at + BlockHeader.Size, b.Header.PayloadLength, b.Header.RawLength, b.Header.RawLength);
+                    var data = Inflater.Data;
                     _table.Parse(data);
                     if (_table.Count != b.Header.Columns || _table.Count > 0 && _table.End(_table.Count - 1) > data.Length)
                         throw new InvalidDataException("bad column table");
@@ -245,7 +213,7 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
                 }
                 finally
                 {
-                    _inflater.End();
+                    _inflater?.End();
                 }
             }
         }
@@ -258,9 +226,9 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
         var files = Files(level).ToList();
         for (var i = files.Count - 1; i >= 0; i--)
         {
-            var loaded = Load(files[i]);
-            if (loaded is null) continue;
-            foreach (var b in loaded.Blocks)
+            using var rd = Open(files[i], out var entry);
+            if (rd is null) continue;
+            foreach (var b in entry!.Blocks)
                 if (b.Header.Type == level && b.Header.End > best) best = b.Header.End;
             if (best != long.MinValue) break;
         }
@@ -272,76 +240,94 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
     {
         foreach (var f in Files(level))
         {
-            var loaded = Load(f);
-            if (loaded is null) continue;
+            using var rd = Open(f, out var entry);
+            if (rd is null) continue;
             var best = long.MaxValue;
-            foreach (var b in loaded.Blocks)
+            foreach (var b in entry!.Blocks)
                 if (b.Header.Type == level && b.Header.Start < best) best = b.Header.Start;
             if (best != long.MaxValue) return best;
         }
         return long.MaxValue;
     }
 
-    private void DecodeBlock<TV>(byte[] file, in BlockRef b, long from, long to, ReadOnlySpan<int> slots, ref TV visitor) where TV : IRecVisitor
+    /// <summary>Decodes the requested columns of one block; a corrupted block is reported and skipped.</summary>
+    private void Decode<TV>(FileReader rd, HistFile f, in BlockRef b, long from, long to, ReadOnlySpan<int> slots, ref TV visitor) where TV : IRecVisitor
     {
-        var h = b.Header;
-        _inflater.Begin(file, b, ColumnTable.MaxSize(h.Columns));
-        var dataStart = _table.Parse(_inflater.Data);
-        if (_table.Count != h.Columns) throw new InvalidDataException("column count mismatch");
-        var need = 0;
-        var any = false;
-        for (var i = 0; i < slots.Length; i++)
+        try
         {
-            if (slots[i] < 0) continue;
-            var c = _table.IndexOf(slots[i]);
-            if (c < 0) continue;
-            any = true;
-            need = Math.Max(need, _table.End(c));
+            var h = b.Header;
+            var needed = false;
+            for (var i = 0; i < slots.Length && !needed; i++) needed = slots[i] >= 0;
+            if (!needed) return;
+            var at = Fetch(rd, f, b);
+            var inf = Inflater;
+            inf.Begin(rd.Buffer, at + BlockHeader.Size, h.PayloadLength, h.RawLength, ColumnTable.MaxSize(h.Columns));
+            _table.Parse(inf.Data);
+            if (_table.Count != h.Columns) throw new InvalidDataException("column count mismatch");
+            var need = 0;
+            var any = false;
+            for (var i = 0; i < slots.Length; i++)
+            {
+                if (slots[i] < 0) continue;
+                var c = _table.IndexOf(slots[i]);
+                if (c < 0) continue;
+                any = true;
+                need = Math.Max(need, _table.End(c));
+            }
+            if (!any) return;
+            inf.Fill(need);
+            var data = inf.Data;
+            if (data.Length < need) throw new InvalidDataException("short payload");
+            for (var i = 0; i < slots.Length; i++)
+            {
+                if (slots[i] < 0) continue;
+                var c = _table.IndexOf(slots[i]);
+                if (c < 0) continue;
+                var col = data.Slice(_table.Offsets[c], _table.Lengths[c]);
+                if (h.Type == Level.Raw) ColumnDecoder.Raw(col, _table.Modes[c], h, from, to, i, ref visitor);
+                else ColumnDecoder.Rollup(col, h, from, to, i, ref visitor);
+            }
         }
-        if (!any) return;
-        _inflater.Fill(need);
-        var data = _inflater.Data;
-        if (data.Length < need) throw new InvalidDataException("short payload");
-        _ = dataStart;
-        for (var i = 0; i < slots.Length; i++)
+        catch (Exception ex) when (ex is InvalidDataException or IndexOutOfRangeException or ArgumentException or IOException)
         {
-            if (slots[i] < 0) continue;
-            var c = _table.IndexOf(slots[i]);
-            if (c < 0) continue;
-            var col = data.Slice(_table.Offsets[c], _table.Lengths[c]);
-            if (h.Type == Level.Raw) ColumnDecoder.Raw(col, _table.Modes[c], h, from, to, i, ref visitor);
-            else ColumnDecoder.Rollup(col, h, from, to, i, ref visitor);
+            warnOnce(f.Path + "#" + b.PayloadOffset, $"history: skipped corrupted block in {Path.GetFileName(f.Path)} @{b.PayloadOffset}: {ex.Message}");
+        }
+        finally
+        {
+            _inflater?.End();
         }
     }
 
-    private Loaded? Load(HistFile f)
+    /// <summary>Reads header + payload of a block into the reader's window and checks the CRC again; returns its offset there.</summary>
+    private int Fetch(FileReader rd, HistFile f, in BlockRef b)
     {
-        foreach (var c in _cache)
-            if (c.File.Path == f.Path) return c;
+        var size = BlockHeader.Size + b.Header.PayloadLength;
+        if (!rd.TryLocate(b.PayloadOffset - BlockHeader.Size, size, out var at)) throw Changed(f, "block beyond the end of the file");
+        var block = rd.Buffer.AsSpan(at, size);
+        if (Crc32.Append(Crc32.Compute(block[..32]), block[BlockHeader.Size..]) != BlockHeader.StoredCrc(block)) throw Changed(f, "block changed on disk");
+        return at;
+    }
 
+    private InvalidDataException Changed(HistFile f, string what)
+    {
+        index.Invalidate(f.Path);
+        return new InvalidDataException(what);
+    }
+
+    /// <summary>Opens a file and gets its block list (null + warning when it cannot be read).</summary>
+    private FileReader? Open(HistFile f, out BlockIndex.Entry? entry)
+    {
+        entry = null;
+        FileReader? rd = null;
         try
         {
-            using var fs = new FileStream(f.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
-            var len = fs.Length;
-            if (len > int.MaxValue / 2) throw new IOException("file too large");
-            // a plain array, dropped with the session: a shared pool would keep megabytes alive in the tray process
-            var buffer = GC.AllocateUninitializedArray<byte>((int)Math.Max(len, 1));
-            var read = 0;
-            while (read < len)
-            {
-                var n = fs.Read(buffer, read, (int)len - read);
-                if (n <= 0) break;
-                read += n;
-            }
-            var loaded = new Loaded { File = f with { Length = read }, Buffer = buffer, Length = read };
-            var bad = BlockScanner.Scan(buffer.AsSpan(0, read), loaded.Blocks);
-            if (bad > 0) warnOnce(f.Path + "#scan" + read, $"history: {bad} corrupted region(s) skipped in {Path.GetFileName(f.Path)}");
-            if (_cache.Count >= MaxCached) _cache.RemoveAt(0);
-            _cache.Add(loaded);
-            return loaded;
+            rd = FileReader.Open(index, f.Path);
+            entry = index.Get(f.Path, rd, warnOnce);
+            return rd;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            rd?.Dispose();
             warnOnce(f.Path, $"history: cannot read {Path.GetFileName(f.Path)}: {ex.Message}");
             return null;
         }
@@ -349,7 +335,9 @@ internal sealed class ReadSession(string dir, Action<string, string> warnOnce) :
 
     public void Dispose()
     {
+        if (_inflater is null) return;
         _inflater.End();
-        _cache.Clear();
+        index.ReturnInflater(_inflater);
+        _inflater = null;
     }
 }

@@ -34,6 +34,7 @@ internal sealed partial class HistoryStore
     private readonly LiveRing _ring;
     private readonly HistoryOptions _options;
     private readonly BlockEncoder _encoder = new();
+    private readonly BlockIndex _index = new();
     private readonly List<PendingBucket> _minutes = [];
     private readonly List<PendingBucket> _hours = [];
     private readonly HashSet<string> _warned = new(StringComparer.Ordinal);
@@ -79,7 +80,13 @@ internal sealed partial class HistoryStore
         }
     }
 
-    public ReadSession OpenSession() => new(Dir, WarnOnce);
+    /// <summary>Block lists of the files read lately are dropped after this long without reads (checked at each flush).</summary>
+    internal const int IndexIdleMs = 30_000;
+
+    public ReadSession OpenSession() => new(Dir, WarnOnce, _index);
+
+    /// <summary>Tests / diagnostics: the store-wide block index.</summary>
+    internal BlockIndex Index => _index;
 
     private readonly Lock _catalogGate = new();
     private bool _catalogLoaded;
@@ -126,7 +133,7 @@ internal sealed partial class HistoryStore
 
         // raw blocks after the last minute block → pending minutes
         var minuteEnd = s.MaxEnd(Level.Minute);
-        s.VisitBlocks(Level.Raw, minuteEnd, (in BlockHeader h, ColumnTable t, ReadOnlySpan<byte> data) =>
+        s.VisitBlocks(Level.Raw, minuteEnd, long.MinValue, (in BlockHeader h, ColumnTable t, ReadOnlySpan<byte> data) =>
         {
             var n = t.Count;
             var aggs = new Rec[n];
@@ -142,7 +149,7 @@ internal sealed partial class HistoryStore
         // minute buckets after the last hour block → pending hours
         var hourEnd = s.MaxEnd(Level.Hour);
         var byHour = new SortedDictionary<long, SortedDictionary<ushort, (SensorKind Kind, Rec Agg)>>();
-        s.VisitBlocks(Level.Minute, long.MinValue, (in BlockHeader h, ColumnTable t, ReadOnlySpan<byte> data) =>
+        s.VisitBlocks(Level.Minute, long.MinValue, hourEnd, (in BlockHeader h, ColumnTable t, ReadOnlySpan<byte> data) =>
         {
             if (h.End <= hourEnd) return;
             for (var c = 0; c < t.Count; c++)
@@ -236,6 +243,7 @@ internal sealed partial class HistoryStore
         finally
         {
             _recorder.Release(blocks, written);
+            _index.TrimIfIdle(IndexIdleMs);
         }
         _bytesWritten += bytes;
         return bytes;
@@ -399,6 +407,7 @@ internal sealed partial class HistoryStore
             WarnOnce("clear", $"history: clear failed: {ex.Message}");
         }
         Catalog.MarkAllUnpersisted();
+        _index.Clear();
     }
 
     /// <summary>Bytes of all history files (catalog included) and the oldest data time.</summary>
