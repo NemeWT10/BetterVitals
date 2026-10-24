@@ -108,6 +108,12 @@ internal static class TrayProbe
             var windows = overlay ? await SplitOverlay() : 0;
             r.Add($"perf probe {AppEnv.Version} · {Environment.ProcessorCount} processors visible, {ProcessStats.MachineProcessors} in the machine · TSC {ProcessStats.TscHz / 1e9:0.000} GHz · elevated={BetterVitals.Platform.Elevation.IsElevated} · overlay={overlay}{(overlay ? $" ({windows} window{(windows == 1 ? "" : "s")})" : "")} · window {window.TotalSeconds:0} s");
             r.Add($"runtime: tiered compilation={AppContext.GetData("System.Runtime.TieredCompilation") ?? "default"}, tiered PGO={AppContext.GetData("System.Runtime.TieredPGO") ?? "default"}, conserve memory={AppContext.GetData("System.GC.ConserveMemory") ?? "default"}, gen0 max budget={(GC.GetConfigurationVariables().TryGetValue("GCGen0MaxBudget", out var g0) ? g0 : "?")}, concurrent GC={(GC.GetConfigurationVariables().TryGetValue("ConcurrentGC", out var cg) ? cg : "?")}, env DOTNET_TieredCompilation={Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "-"} DOTNET_TieredPGO={Environment.GetEnvironmentVariable("DOTNET_TieredPGO") ?? "-"}");
+            var kbps = AllocLoad();
+            if (kbps > 0)
+            {
+                StartAllocLoad(kbps);
+                r.Add($"synthetic allocation load: {kbps} KB/s of short-lived arrays on a probe thread (what elevated LHM with PawnIO allocates)");
+            }
             r.Add("");
             Mark("start");
             TrayRest.Settle();
@@ -194,6 +200,29 @@ internal static class TrayProbe
         }
         Write("perf-probe.txt", r);
         AppShell.I.Quit();
+    }
+
+    /// <summary><c>--perf-alloc &lt;KB/s&gt;</c>: garbage at a fixed rate, to see what the GC's gen0 budget does to the working set.</summary>
+    private static int AllocLoad()
+    {
+        var args = Environment.GetCommandLineArgs();
+        var at = Array.FindIndex(args, a => a.Equals("--perf-alloc", StringComparison.OrdinalIgnoreCase));
+        return at >= 0 && at + 1 < args.Length && int.TryParse(args[at + 1], NumberStyles.Integer, Inv, out var n) ? Math.Clamp(n, 0, 100_000) : 0;
+    }
+
+    private static void StartAllocLoad(int kbps)
+    {
+        var t = new Thread(() =>
+        {
+            var keep = new byte[64][];
+            var perStep = kbps * 1024 / 4 / 512; // 512-byte arrays every 250 ms
+            for (var i = 0L; ; i++)
+            {
+                for (var k = 0; k < perStep; k++) keep[(i * perStep + k) & 63] = new byte[512 - 24];
+                Thread.Sleep(250);
+            }
+        }) { IsBackground = true, Name = "perf alloc load" };
+        t.Start();
     }
 
     private static int DeviceChanges()

@@ -18,6 +18,7 @@
   tools\perf.ps1 -FakeSensors                     # the fake PC instead of LHM / ETW / native
   tools\perf.ps1 -Scenario overlay2 -TrayOnly     # two overlay windows, the tray window only
   tools\perf.ps1 -Scenario tray -DeviceChanges 10 # ten device changes at the end (re-discovery cost / growth)
+  tools\perf.ps1 -Scenario tray -TrayOnly -Alloc 270 # + 270 KB/s of garbage (elevated LHM's rate): gen0 budget effect
 #>
 param(
     [ValidateSet('all', 'tray', 'overlay', 'overlay2')] [string] $Scenario = 'all',
@@ -27,7 +28,8 @@ param(
     [switch] $NoBuild,
     [switch] $FakeSensors,
     [switch] $TrayOnly,
-    [int] $DeviceChanges = 1
+    [int] $DeviceChanges = 1,
+    [int] $Alloc = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -73,8 +75,9 @@ foreach ($s in $scenarios) {
     if (-not $FakeSensors) { $appArgs += '--real-sensors' }
     if ($TrayOnly) { $appArgs += '--perf-tray-only' }
     if ($DeviceChanges -gt 1) { $appArgs += @('--perf-device-changes', "$DeviceChanges") }
+    if ($Alloc -gt 0) { $appArgs += @('--perf-alloc', "$Alloc") }
     if ($s -eq 'overlay2') { $appArgs += @('--perf-overlay-windows', '2') }
-    $timeout = 200 + 3 * $Window
+    $timeout = 200 + 3 * $Window + 8 * $DeviceChanges
     Write-Host "== $Label / $s ($Window s windows, timeout $timeout s)"
     $sw = [Diagnostics.Stopwatch]::StartNew()
     & $runner --timeout $timeout -- $exeCopy @appArgs | Out-Null
