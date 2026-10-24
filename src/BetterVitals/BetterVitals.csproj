@@ -25,6 +25,11 @@
   <ItemGroup>
     <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
     <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" />
+    <!-- Gen0 budget cap. Without the background GC the runtime sizes gen0 from the largest CPU cache: ~48 MB on a
+         96 MB-L3 Ryzen X3D (measured), so every allocated byte lands on a fresh page until 48 MB are used and Task
+         Manager's "Memory" creeps up by that much (elevated LHM with PawnIO allocates ~100-300 KB/s). 4 MB = what a
+         typical 8 MB-L3 CPU gets anyway; a gen0 GC of this small heap costs well under a millisecond. -->
+    <RuntimeHostConfigurationOption Include="System.GC.Gen0MaxBudget" Value="4194304" />
   </ItemGroup>
 
   <ItemGroup>
