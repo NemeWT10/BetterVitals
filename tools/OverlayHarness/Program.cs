@@ -5,19 +5,35 @@ using System.Runtime.InteropServices;
 using BetterVitals.Core.Overlay;
 using BetterVitals.Core.Sensors;
 using BetterVitals.Overlay;
+using BetterVitals.Overlay.Rendering;
 
-// Overlay cost probe. Usage: OverlayHarness [--gpu] [--seconds N] [--windows 1|2] [--out file]
+// Overlay cost probe. Usage:
+//   OverlayHarness [--gpu] [--seconds N] [--windows 1|2] [--out file] [--readback file.png] [--storm]
 //   Runs the real overlay host (window + D3D11 + DirectComposition + Direct2D) with fake sensors at the default
-//   1 s refresh, values changing every tick, and reports the process working set / private bytes before and after,
-//   plus the overlay thread's CPU time. The windows are created but never shown. --windows 2 moves the last three of the
-//   six items into the second window (two windows on the one shared device).
+//   1 s refresh, values changing every tick, and reports the process working set / private bytes and threads before and
+//   after, the overlay thread's CPU time and wake-ups, the whole process's CPU and the overlay thread's allocations per
+//   frame. The windows are created but never shown. --windows 2 moves the last three of the six items into the second
+//   window (two windows on the one shared device). --readback writes what the main window's swap chain holds (fixed
+//   values) to a PNG: compare two builds for pixel identity.
+//   --storm (hidden desktop only): a helper process moves a child window of its own ~500 times a second while the
+//   overlay watches it as "the foreground window" — the location-change storm a game's cursor or a text caret causes —
+//   and reports the overlay thread's wake-ups during it.
 //   --show exists only for a person to look at the overlay on their own desktop; automated runs never use it.
+
+if (args.Contains("--storm-child")) return StormChild.Run();
 
 var warp = !args.Contains("--gpu");
 var show = args.Contains("--show");
+var storm = args.Contains("--storm");
 var seconds = ArgInt("--seconds", 20);
 var windows = Math.Clamp(ArgInt("--windows", 1), 1, OverlayLayout.MaxWindows);
 var outFile = ArgStr("--out");
+var readback = ArgStr("--readback");
+if (storm && !Desk.IsPrivate())
+{
+    Console.Error.WriteLine("--storm creates windows: run it on a hidden desktop (HiddenDesktopRunner)");
+    return 3;
+}
 
 var hub = new HarnessHub();
 var fps = hub.Add("game/foreground/0", HardwareKind.Game, SensorKind.Fps, "FPS");
@@ -63,76 +79,108 @@ proc.Refresh();
 var ws0 = proc.WorkingSet64;
 var pb0 = proc.PrivateMemorySize64;
 var pws0 = PrivateWorkingSet();
+var threads0 = Threads.Read().Count;
 
-var options = typeof(OverlayHost).Assembly.GetType("BetterVitals.Overlay.OverlayHostOptions")!;
-var opt = Activator.CreateInstance(options)!;
-options.GetProperty("NeverShow")!.SetValue(opt, !show);
-options.GetProperty("PreferWarp")!.SetValue(opt, warp);
-var host = (OverlayHost)typeof(OverlayHost).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, [options])!.Invoke([opt]);
+var host = new OverlayHost(new OverlayHostOptions { NeverShow = !show, PreferWarp = warp });
 host.Start();
+var overlayTid = host.Invoke(() => (long)Native.GetCurrentThreadId());
 host.Apply(layout, OverlayTheme.Default, new OverlayContext { Hub = hub, Animations = false });
 
-var invoke = typeof(OverlayHost).GetMethod("Invoke", BindingFlags.NonPublic | BindingFlags.Instance)!.MakeGenericMethod(typeof(long));
-long OnOverlay(Func<long> f) => (long)invoke.Invoke(host, [f, 10000])!;
 // Thread CPU in cycles (exact, unlike tick-granular thread times), converted with a calibration spin on that thread.
-var cyclesPerMs = OnOverlay(() =>
+var cyclesPerMs = host.Invoke(() =>
 {
     var c0 = Cycles();
     var t = Stopwatch.StartNew();
     while (t.ElapsedMilliseconds < 200) { }
     return (long)((Cycles() - c0) / t.Elapsed.TotalMilliseconds);
 });
-long ThreadCpu100ns() => (long)(OnOverlay(() => (long)Cycles()) / (double)cyclesPerMs * 1e4);
-var diag = typeof(OverlayHost).GetMethod("Diagnostics", BindingFlags.NonPublic | BindingFlags.Instance)!;
-int Renders() => (int)diag.Invoke(host, null)!.GetType().GetProperty("Renders")!.GetValue(diag.Invoke(host, null))!;
+long ThreadCpu100ns() => (long)(host.Invoke(() => (long)Cycles()) / (double)cyclesPerMs * 1e4);
+double ProcessCpuMs() => ProcessCycles() / (double)cyclesPerMs;
 
 // Steady state at 1 s: values change every second like a real engine tick.
 using var timer = new Timer(_ => Step(), null, 1000, 1000);
 Thread.Sleep(3000);
 var cpuStart = ThreadCpu100ns();
-var r0 = Renders();
-proc.Refresh();
-var procCpu0 = proc.TotalProcessorTime;
+var r0 = host.Diagnostics().Renders;
+var procCpu0 = ProcessCpuMs();
+var sw0 = Threads.Read();
 var wall = Stopwatch.StartNew();
 Thread.Sleep(Math.Max(5, seconds) * 1000);
+var sw1 = Threads.Read();
 var cpuEnd = ThreadCpu100ns();
 wall.Stop();
-proc.Refresh();
-var procCpuMs = (proc.TotalProcessorTime - procCpu0).TotalMilliseconds;
-var steadyRenders = Renders() - r0;
+var procCpuMs = ProcessCpuMs() - procCpu0;
+var steadyRenders = host.Diagnostics().Renders - r0;
+var threads1 = sw1.Count;
+var (overlayWakes, otherWakes, workerLines) = Threads.Wakeups(sw0, sw1, overlayTid, wall.Elapsed.TotalSeconds);
 Settle();
 proc.Refresh();
 var ws1 = proc.WorkingSet64;
 var pb1 = proc.PrivateMemorySize64;
 var pws1 = PrivateWorkingSet();
 
-// Cost of one refresh (every one dirty: format + draw + present), measured on the overlay thread.
-var refresh = typeof(OverlayHost).GetMethod("RefreshNow", BindingFlags.NonPublic | BindingFlags.Instance)!;
+// Cost of one refresh (every one dirty: format + draw + present), all on the overlay thread: its CPU, the whole
+// process's CPU (WARP worker threads included) and the overlay thread's managed allocations.
 timer.Change(Timeout.Infinite, Timeout.Infinite);
 const int n = 300;
-var c0 = ThreadCpu100ns();
-var sw = Stopwatch.StartNew();
-for (var i = 0; i < n; i++)
+var tickFn = typeof(OverlayHost).GetMethod("RefreshTick", BindingFlags.NonPublic | BindingFlags.Instance)!.CreateDelegate<Func<bool>>(host);
+host.Invoke(() => { tickFn(); return 0L; }); // warm
+var (frameThreadMs, frameProcMs, frameAlloc) = host.Invoke(() =>
 {
-    Step();
-    refresh.Invoke(host, null);
+    var a0 = GC.GetAllocatedBytesForCurrentThread();
+    var c0 = Cycles();
+    var p0 = ProcessCycles();
+    for (var i = 0; i < n; i++)
+    {
+        Step();
+        tickFn();
+    }
+    var c1 = Cycles();
+    var p1 = ProcessCycles();
+    var a1 = GC.GetAllocatedBytesForCurrentThread();
+    return ((c1 - c0) / (double)cyclesPerMs / n, (p1 - p0) / (double)cyclesPerMs / n, (a1 - a0) / (double)n);
+});
+
+string? stormLine = null;
+if (storm) stormLine = Storm.Measure(host, overlayTid, cyclesPerMs);
+
+if (readback is not null)
+{
+    // fixed values, so two builds draw the same picture
+    hub.Set(fps, 144);
+    hub.Set(cpuT, 63.4f);
+    hub.Set(gpuT, 71);
+    hub.Set(hot, 88.5f);
+    hub.Set(load, 37);
+    hub.Set(vram, 9321);
+    host.Invoke(() => { tickFn(); return 0L; });
+    var bmp = host.ReadBack();
+    if (bmp is null) Console.Error.WriteLine("readback failed");
+    else Offscreen.WritePng(bmp, readback);
+    if (windows == 2 && host.ReadBack(OverlayLayout.SecondWindowId) is { } second)
+        Offscreen.WritePng(second, Path.ChangeExtension(readback, null) + "-second.png");
 }
-sw.Stop();
-var c1 = ThreadCpu100ns();
 
 var cores = Environment.ProcessorCount;
 var steadyCpuMs = (cpuEnd - cpuStart) / 1e4;
-var report = string.Join(Environment.NewLine,
-[
-    $"device: {(warp ? "WARP" : "hardware")}, cores: {cores}, windows: {windows} ({string.Join(" + ", layout.Windows().Select(w => w.Cells.Count))} items), steady run: {wall.Elapsed.TotalSeconds:F1} s at 1 s refresh",
+var secs = wall.Elapsed.TotalSeconds;
+var lines = new List<string>
+{
+    $"device: {(warp ? "WARP" : "hardware")}, cores: {cores}, windows: {windows} ({string.Join(" + ", layout.Windows().Select(w => w.Cells.Count))} items), steady run: {secs:F1} s at 1 s refresh",
     $"private working set (Task Manager 'Memory'): {Mb(pws0)} → {Mb(pws1)} MB (+{Mb(pws1 - pws0)} MB)",
     $"working set (incl. shared DLL pages): {Mb(ws0)} → {Mb(ws1)} MB (+{Mb(ws1 - ws0)} MB)",
     $"private bytes: {Mb(pb0)} → {Mb(pb1)} MB (+{Mb(pb1 - pb0)} MB)",
+    $"threads: {threads0} → {threads1} (+{threads1 - threads0}; the overlay thread + graphics workers + the sensor timer)",
     $"frames rendered in the steady run: {steadyRenders}",
-    $"overlay thread CPU, steady: {steadyCpuMs:F1} ms over {wall.Elapsed.TotalSeconds:F1} s = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100:F3} % of one core = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cores:F4} % of the machine",
-    $"whole process CPU, steady (all threads incl. WARP workers and the fake-sensor timer): {procCpuMs:F0} ms = {procCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cores:F4} % of the machine",
-    $"one dirty refresh (format + draw + present): {(c1 - c0) / 1e4 / n:F3} ms CPU, {sw.Elapsed.TotalMilliseconds / n:F3} ms wall (incl. cross-thread invoke)",
-]);
+    $"overlay thread CPU, steady: {steadyCpuMs:F1} ms over {secs:F1} s = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100:F3} % of one core = {steadyCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cores:F4} % of the machine",
+    $"whole process CPU, steady (all threads incl. WARP workers and the fake-sensor timer): {procCpuMs:F1} ms = {procCpuMs / wall.Elapsed.TotalMilliseconds * 100 / cores:F4} % of the machine",
+    $"wake-ups, steady: overlay thread {overlayWakes / secs:F2}/s, all other threads {otherWakes / secs:F2}/s",
+    $"one dirty refresh (format + draw + present, on the overlay thread): {frameThreadMs:F3} ms overlay thread CPU, {frameProcMs:F3} ms whole process CPU, {frameAlloc:F0} B allocated",
+};
+if (stormLine is not null) lines.Add(stormLine);
+lines.Add("threads that woke in the steady run (wake-ups/s, CPU ms):");
+lines.AddRange(workerLines);
+var report = string.Join(Environment.NewLine, lines);
 Console.WriteLine(report);
 if (outFile is not null)
 {
@@ -162,6 +210,16 @@ static ulong Cycles()
     return c;
 }
 
+static ulong ProcessCycles()
+{
+    ulong c;
+    unsafe
+    {
+        Native.QueryProcessCycleTime(Native.GetCurrentProcess(), &c);
+    }
+    return c;
+}
+
 static void Settle()
 {
     for (var i = 0; i < 3; i++)
@@ -186,6 +244,157 @@ string? ArgStr(string name)
     return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
 }
 
+/// <summary>The location-change storm: a helper process on this (hidden) desktop moves a child window of its own.</summary>
+internal static class Storm
+{
+    public static string Measure(OverlayHost host, long overlayTid, long cyclesPerMs)
+    {
+        var psi = new ProcessStartInfo(Environment.ProcessPath!, "--storm-child 14") { RedirectStandardOutput = true, UseShellExecute = false };
+        using var child = Process.Start(psi)!;
+        try
+        {
+            var ready = child.StandardOutput.ReadLine();
+            if (ready is null || !ready.StartsWith("READY ", StringComparison.Ordinal)) return $"storm: helper failed ({ready ?? "no output"})";
+            var hwnd = (nint)long.Parse(ready[6..], CultureInfo.InvariantCulture);
+            var e0 = host.TrackForegroundForTest(hwnd);
+            Thread.Sleep(1000);
+            var e1 = host.TrackForegroundForTest(0);
+            var t0 = Threads.Read();
+            var c0 = host.Invoke(() => (long)Cycles());
+            var sw = Stopwatch.StartNew();
+            Thread.Sleep(10_000);
+            var t1 = Threads.Read();
+            var c1 = host.Invoke(() => (long)Cycles());
+            var e2 = host.TrackForegroundForTest(0);
+            var secs = sw.Elapsed.TotalSeconds;
+            var (wakes, _, _) = Threads.Wakeups(t0, t1, overlayTid, secs);
+            var cpuMs = (c1 - c0) / (double)cyclesPerMs;
+            var done = child.StandardOutput.ReadLine();
+            return string.Create(CultureInfo.InvariantCulture,
+                $"location-change storm ({done ?? "?"}): overlay thread {wakes / secs:F1} wake-ups/s, {cpuMs / secs / 10:F3} % of one core, {(e2 - e1) / secs:F0} events/s delivered to the hook (first second {e1 - e0})");
+        }
+        finally
+        {
+            if (!child.HasExited) child.Kill();
+        }
+    }
+
+    private static ulong Cycles()
+    {
+        ulong c;
+        unsafe
+        {
+            Native.QueryThreadCycleTime(Native.GetCurrentThread(), &c);
+        }
+        return c;
+    }
+}
+
+/// <summary>The storm helper process: a popup with a child window that moves ~500 times a second.</summary>
+internal static unsafe class StormChild
+{
+    public static int Run()
+    {
+        if (!Desk.IsPrivate()) return 3; // never on the user's desktop
+        var seconds = 14;
+        var inst = Native.GetModuleHandle(null);
+        nint top, kid;
+        fixed (char* cls = "STATIC")
+        fixed (char* title = "storm")
+        {
+            top = Native.CreateWindowEx(0x80 /* TOOLWINDOW */, cls, title, 0x90000000 /* POPUP | VISIBLE */, 0, 0, 200, 100, 0, 0, inst, 0);
+            kid = Native.CreateWindowEx(0, cls, title, 0x50000000 /* CHILD | VISIBLE */, 0, 0, 20, 20, top, 0, inst, 0);
+        }
+        if (top == 0 || kid == 0) return 4;
+        Console.WriteLine($"READY {(long)top}");
+        Console.Out.Flush();
+        var sw = Stopwatch.StartNew();
+        long moves = 0;
+        var msg = stackalloc byte[64];
+        while (sw.Elapsed.TotalSeconds < seconds)
+        {
+            Native.SetWindowPos(kid, 0, (int)(moves % 150), 10, 0, 0, 0x0001 | 0x0004 | 0x0010); // NOSIZE | NOZORDER | NOACTIVATE
+            moves++;
+            while (Native.PeekMessage(msg, 0, 0, 0, 1)) Native.DispatchMessage(msg);
+            var next = moves * 2.0; // 2 ms
+            var wait = next - sw.Elapsed.TotalMilliseconds;
+            if (wait >= 1) Thread.Sleep((int)wait);
+        }
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{moves / sw.Elapsed.TotalSeconds:F0} moves/s"));
+        Native.DestroyWindow(top);
+        return 0;
+    }
+}
+
+/// <summary>The thread's desktop is not the user's "Default" desktop.</summary>
+internal static unsafe class Desk
+{
+    public static bool IsPrivate()
+    {
+        var desk = Native.GetThreadDesktop(Native.GetCurrentThreadId());
+        var name = stackalloc char[256];
+        uint needed;
+        if (desk == 0 || !Native.GetUserObjectInformation(desk, 2 /* UOI_NAME */, name, 512, &needed)) return false;
+        return !string.Equals(new string(name), "Default", StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+/// <summary>Per-thread CPU and context switches (= wake-ups) of this process from NtQuerySystemInformation.</summary>
+internal static unsafe class Threads
+{
+    public static Dictionary<long, (long Cpu, long Switches)> Read()
+    {
+        var result = new Dictionary<long, (long, long)>();
+        var pid = Environment.ProcessId;
+        var size = 4 << 20;
+        for (var attempt = 0; attempt < 6; attempt++, size *= 2)
+        {
+            var buffer = NativeMemory.Alloc((nuint)size);
+            try
+            {
+                var status = Native.NtQuerySystemInformation(5, buffer, size, out _);
+                if (status == unchecked((int)0xC0000004)) continue;
+                if (status < 0) return result;
+                var p = (byte*)buffer;
+                while (true)
+                {
+                    var next = *(uint*)p;
+                    if ((long)*(nint*)(p + 80) == pid)
+                    {
+                        var count = *(uint*)(p + 4);
+                        var t = p + 256;
+                        for (var i = 0; i < count; i++, t += 80)
+                            result[(long)*(nint*)(t + 48)] = (*(long*)t + *(long*)(t + 8), *(uint*)(t + 64));
+                        return result;
+                    }
+                    if (next == 0) return result;
+                    p += next;
+                }
+            }
+            finally
+            {
+                NativeMemory.Free(buffer);
+            }
+        }
+        return result;
+    }
+
+    public static (long Overlay, long Others, List<string> Lines) Wakeups(Dictionary<long, (long Cpu, long Switches)> a, Dictionary<long, (long Cpu, long Switches)> b, long overlayTid, double secs)
+    {
+        long overlay = 0, others = 0;
+        var lines = new List<string>();
+        foreach (var (tid, now) in b.OrderByDescending(kv => kv.Value.Switches - a.GetValueOrDefault(kv.Key).Switches))
+        {
+            var old = a.GetValueOrDefault(tid);
+            var s = now.Switches - old.Switches;
+            if (tid == overlayTid) overlay += s;
+            else others += s;
+            if (s > 0) lines.Add(string.Create(CultureInfo.InvariantCulture, $"  #{tid,-6} {s / secs,7:F2}/s {(now.Cpu - old.Cpu) / 1e4,7:F1} ms{(tid == overlayTid ? "  (overlay thread)" : "")}"));
+        }
+        return (overlay, others, lines);
+    }
+}
+
 internal static unsafe partial class Native
 {
     [StructLayout(LayoutKind.Sequential)]
@@ -206,14 +415,55 @@ internal static unsafe partial class Native
     public static partial bool QueryThreadCycleTime(nint thread, ulong* cycles);
 
     [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool QueryProcessCycleTime(nint process, ulong* cycles);
+
+    [LibraryImport("kernel32.dll")]
     public static partial nint GetCurrentThread();
+
+    [LibraryImport("kernel32.dll")]
+    public static partial nint GetCurrentProcess();
+
+    [LibraryImport("kernel32.dll")]
+    public static partial uint GetCurrentThreadId();
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial nint GetModuleHandle(string? name);
+
+    [LibraryImport("ntdll.dll")]
+    public static partial int NtQuerySystemInformation(int infoClass, void* buffer, int length, out int needed);
+
+    [LibraryImport("user32.dll", EntryPoint = "CreateWindowExW", SetLastError = true)]
+    public static partial nint CreateWindowEx(uint exStyle, char* className, char* windowName, uint style, int x, int y, int w, int h, nint parent, nint menu, nint instance, nint param);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DestroyWindow(nint hwnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
+
+    [LibraryImport("user32.dll", EntryPoint = "PeekMessageW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool PeekMessage(void* msg, nint hwnd, uint min, uint max, uint remove);
+
+    [LibraryImport("user32.dll", EntryPoint = "DispatchMessageW")]
+    public static partial nint DispatchMessage(void* msg);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint GetThreadDesktop(uint threadId);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetUserObjectInformationW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetUserObjectInformation(nint obj, int index, void* info, uint length, uint* needed);
 }
 
 /// <summary>Fake sensor hub (values written straight into the frame).</summary>
 internal sealed class HarnessHub : ISensorHub
 {
     private static readonly PropertyInfo CountProp = typeof(SensorFrame).GetProperty(nameof(SensorFrame.Count))!;
-    private static readonly PropertyInfo SeqProp = typeof(SensorFrame).GetProperty(nameof(SensorFrame.Sequence))!;
+    private static readonly Action<SensorFrame, int> SetSequence = typeof(SensorFrame).GetProperty(nameof(SensorFrame.Sequence))!.GetSetMethod(true)!.CreateDelegate<Action<SensorFrame, int>>();
     private static readonly PropertyInfo IndexProp = typeof(SensorDescriptor).GetProperty(nameof(SensorDescriptor.Index))!;
     private readonly List<SensorDescriptor> _sensors = [];
     private readonly SensorFrame _frame = new(64);
@@ -227,10 +477,11 @@ internal sealed class HarnessHub : ISensorHub
         return d;
     }
 
+    /// <summary>Allocation-free (no reflection boxing): the per-frame allocation count measures the overlay alone.</summary>
     public void Set(SensorDescriptor d, float v)
     {
         _frame.Values[d.Index] = v;
-        SeqProp.SetValue(_frame, _frame.Sequence + 1);
+        SetSequence(_frame, _frame.Sequence + 1);
     }
 
     public IReadOnlyList<HardwareDescriptor> Hardware => [];

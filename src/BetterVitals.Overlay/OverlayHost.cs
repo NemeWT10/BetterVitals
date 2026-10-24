@@ -294,6 +294,16 @@ public sealed unsafe partial class OverlayHost : IDisposable
     /// <summary>One refresh tick right now (tests / measurements).</summary>
     internal bool RefreshNow() => Invoke(RefreshTick);
 
+    /// <summary>
+    /// Tests / measurements: watch <paramref name="hwnd"/> as the foreground window (its process's location changes),
+    /// as after a foreground switch. Returns the location events delivered so far.
+    /// </summary>
+    internal int TrackForegroundForTest(nint hwnd) => Invoke(() =>
+    {
+        if (hwnd != 0) _watcher?.TrackForTest(hwnd);
+        return _watcher?.LocationEvents ?? 0;
+    });
+
     /// <summary>Simulates a lost device (tests): drops the device and recovers like after a TDR.</summary>
     internal bool SimulateDeviceLost() => Invoke(() =>
     {

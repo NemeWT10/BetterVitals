@@ -58,6 +58,9 @@ internal sealed unsafe class ForegroundWatcher : IDisposable
     private uint _locPid;
     private nint _fgHwnd;
 
+    /// <summary>Location-change events delivered to the hook (diagnostics / tests).</summary>
+    public int LocationEvents { get; private set; }
+
     /// <param name="onEvent">Called on the overlay thread for every relevant event (the owner debounces).</param>
     public ForegroundWatcher(Action onEvent) => _onEvent = onEvent;
 
@@ -79,6 +82,7 @@ internal sealed unsafe class ForegroundWatcher : IDisposable
         {
             if (evt == Win32.EVENT_OBJECT_LOCATIONCHANGE)
             {
+                w.LocationEvents++;
                 if (idObject != Win32.OBJID_WINDOW || hwnd != w._fgHwnd) return;
             }
             else if (evt == Win32.EVENT_SYSTEM_FOREGROUND)
@@ -92,6 +96,9 @@ internal sealed unsafe class ForegroundWatcher : IDisposable
             // never throw across the native boundary
         }
     }
+
+    /// <summary>Tests / measurements: track this window as if it had come to the front.</summary>
+    internal void TrackForTest(nint hwnd) => TrackForegroundProcess(hwnd);
 
     private void TrackForegroundProcess(nint hwnd)
     {
