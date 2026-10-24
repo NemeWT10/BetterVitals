@@ -64,12 +64,16 @@ internal sealed unsafe class GpuDevice : IDisposable
         // frame), never competes with the game for the GPU and is immune to TDRs / driver updates. Hardware is the fallback.
         var first = PreferWarp ? GfxApi.D3D_DRIVER_TYPE_WARP : GfxApi.D3D_DRIVER_TYPE_HARDWARE;
         var second = PreferWarp ? GfxApi.D3D_DRIVER_TYPE_HARDWARE : GfxApi.D3D_DRIVER_TYPE_WARP;
+        // WARP on the overlay thread alone: by default it starts a rasterizer worker per core (measured: +12 threads,
+        // ~40 wake-ups/s, and 4× the CPU of a frame in hand-offs for a surface of a few hundred pixels). Same pixels.
+        static uint Flags(int t) => GfxApi.D3D11_CREATE_DEVICE_BGRA_SUPPORT
+                                    | (t == GfxApi.D3D_DRIVER_TYPE_WARP ? GfxApi.D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS : 0);
         var type = first;
-        var hr = GfxApi.D3D11CreateDevice(null, first, 0, GfxApi.D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 7, GfxApi.D3D11_SDK_VERSION, &dev, &fl, null);
+        var hr = GfxApi.D3D11CreateDevice(null, first, 0, Flags(first), levels, 7, GfxApi.D3D11_SDK_VERSION, &dev, &fl, null);
         if (hr < 0)
         {
             type = second;
-            Com.Check(GfxApi.D3D11CreateDevice(null, second, 0, GfxApi.D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 7, GfxApi.D3D11_SDK_VERSION, &dev, &fl, null), "D3D11CreateDevice");
+            Com.Check(GfxApi.D3D11CreateDevice(null, second, 0, Flags(second), levels, 7, GfxApi.D3D11_SDK_VERSION, &dev, &fl, null), "D3D11CreateDevice");
         }
         IsWarp = type == GfxApi.D3D_DRIVER_TYPE_WARP;
         _d3d = dev;

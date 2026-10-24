@@ -177,6 +177,9 @@ internal static unsafe partial class GfxApi
     public const int D3D_DRIVER_TYPE_HARDWARE = 1;
     public const int D3D_DRIVER_TYPE_WARP = 5;
     public const uint D3D11_CREATE_DEVICE_BGRA_SUPPORT = 0x20;
+
+    /// <summary>WARP creates no worker threads: all rasterization runs on the calling thread.</summary>
+    public const uint D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS = 0x8;
     public const uint D3D11_SDK_VERSION = 7;
 
     [LibraryImport("d3d11.dll")]
