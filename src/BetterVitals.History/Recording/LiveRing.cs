@@ -6,28 +6,36 @@ namespace BetterVitals.History.Recording;
 /// <summary>
 /// In-memory ring of the last <see cref="Rows"/> rows (at most one per second, i.e. ≥ 15 min) of the watched and
 /// recorded sensors, kept also when recording is off. 900 rows × 4 B per sensor (~3.6 KB each).
+/// A sensor that is being recorded and not watched keeps only its newest <see cref="ShortRows"/> rows (360 B): queries
+/// read recorded sensors from the store, and the ring is read for them only after recording stops, from their last
+/// recorded sample on — which those newest rows cover.
 /// <see cref="OnFrame"/> runs on the engine thread (short lock, no allocation).
 /// </summary>
 internal sealed class LiveRing
 {
     public const int Rows = 900;
 
+    /// <summary>Rows kept for a recorded, unwatched sensor (divides <see cref="Rows"/>; ≥ the longest record interval + slack).</summary>
+    public const int ShortRows = 90;
+
     private sealed class Column(string id)
     {
         public readonly string Id = id;
-        public readonly float[] Data = CreateData();
+        public float[] Data = NaNs(ShortRows);
         public int HubIndex = -1;
         public SensorKind Kind;
         public long StaleLimit = 7 * TimeGrid.Second;
         public int LastSeq;
         public long LastFresh;
 
-        private static float[] CreateData()
-        {
-            var d = new float[Rows];
-            d.AsSpan().Fill(float.NaN);
-            return d;
-        }
+        public bool Full => Data.Length == Rows;
+    }
+
+    private static float[] NaNs(int n)
+    {
+        var d = new float[n];
+        d.AsSpan().Fill(float.NaN);
+        return d;
     }
 
     private readonly Lock _gate = new();
@@ -43,22 +51,38 @@ internal sealed class LiveRing
     {
         get
         {
-            lock (_gate) return _times.Length * 8L + _columns.Length * (Rows * 4L + 64);
+            lock (_gate)
+            {
+                var b = _times.Length * 8L;
+                foreach (var c in _columns) b += c.Data.Length * 4L + 64;
+                return b;
+            }
         }
     }
 
-    /// <summary>Replaces the column set; data of sensors that stay is kept. Descriptor null = not known (yet).</summary>
-    public void SetColumns(IReadOnlyList<(string Id, SensorDescriptor? Sensor)> sensors)
+    /// <summary>
+    /// Replaces the column set; data of sensors that stay is kept. Descriptor null = not known (yet). <c>Full</c> false =
+    /// the sensor is recorded and not watched: only its newest <see cref="ShortRows"/> rows are kept.
+    /// </summary>
+    public void SetColumns(IReadOnlyList<(string Id, SensorDescriptor? Sensor, bool Full)> sensors)
     {
         lock (_gate)
         {
             var map = new Dictionary<string, Column>(sensors.Count, StringComparer.Ordinal);
             var list = new Column[sensors.Count];
             var n = 0;
-            foreach (var (id, d) in sensors)
+            foreach (var (id, d, full) in sensors)
             {
                 if (map.ContainsKey(id)) continue;
-                if (!_byId.TryGetValue(id, out var col)) col = new Column(id);
+                if (!_byId.TryGetValue(id, out var col))
+                {
+                    col = new Column(id);
+                    if (full) col.Data = NaNs(Rows);
+                }
+                else if (col.Full != full)
+                {
+                    Resize(col, full ? Rows : ShortRows);
+                }
                 if (d is not null)
                 {
                     col.HubIndex = d.Index;
@@ -71,6 +95,28 @@ internal sealed class LiveRing
             _columns = n == list.Length ? list : list[..n];
             _byId = map;
         }
+    }
+
+    /// <summary>Moves the newest rows (as many as both sizes hold) into an array of <paramref name="size"/> rows.</summary>
+    private void Resize(Column c, int size)
+    {
+        var data = NaNs(size);
+        var keep = Math.Min(_count, Math.Min(size, c.Data.Length));
+        for (var age = 0; age < keep; age++)
+        {
+            var p = (_head - 1 - age + Rows) % Rows;
+            data[p % size] = c.Data[p % c.Data.Length];
+        }
+        c.Data = data;
+    }
+
+    /// <summary>Value of the row at ring position <paramref name="p"/> (NaN where a short column no longer holds it).</summary>
+    private float Value(Column c, int p)
+    {
+        var d = c.Data;
+        if (d.Length == Rows) return d[p];
+        var age = (_head - 1 - p + Rows) % Rows;
+        return age < d.Length ? d[p % d.Length] : float.NaN;
     }
 
     public void OnFrame(SensorFrame f)
@@ -89,7 +135,7 @@ internal sealed class LiveRing
             }
             _lastSecond = sec;
             _times[_head] = sec;
-            foreach (var c in cols) c.Data[_head] = Read(c, f, ts);
+            foreach (var c in cols) c.Data[_head % c.Data.Length] = Read(c, f, ts);
             _head = _head + 1 == Rows ? 0 : _head + 1;
             if (_count < Rows) _count++;
         }
@@ -116,7 +162,7 @@ internal sealed class LiveRing
             for (var i = 0; i < _count; i++)
             {
                 var p = (start + i) % Rows;
-                if (_times[p] > after && !float.IsNaN(c.Data[p])) return _times[p];
+                if (_times[p] > after && !float.IsNaN(Value(c, p))) return _times[p];
             }
             return long.MaxValue;
         }
@@ -131,7 +177,7 @@ internal sealed class LiveRing
             for (var i = 1; i <= _count; i++)
             {
                 var p = (_head - i + Rows) % Rows;
-                if (!float.IsNaN(c.Data[p])) return _times[p];
+                if (!float.IsNaN(Value(c, p))) return _times[p];
             }
             return long.MinValue;
         }
@@ -151,7 +197,7 @@ internal sealed class LiveRing
                 var p = (start + i) % Rows;
                 var t = _times[p];
                 if (t < from || t >= to || t <= after) continue;
-                if (Quant.TryQuantize(c.Data[p], quantum, out var q)) visitor.Visit(ordinal, Rec.Sample(t, q));
+                if (Quant.TryQuantize(Value(c, p), quantum, out var q)) visitor.Visit(ordinal, Rec.Sample(t, q));
             }
         }
     }

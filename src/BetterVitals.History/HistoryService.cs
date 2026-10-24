@@ -238,14 +238,16 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
         if (old is not null && old != plan) Retire(old);
         _recorder.SetPlan(plan);
 
-        var ringIds = new List<(string, SensorDescriptor?)>();
+        var ringIds = new List<(string, SensorDescriptor?, bool)>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var w in _watches)
             foreach (var id in w)
-                if (seen.Add(id)) ringIds.Add((id, _hub.Find(id)));
+                if (seen.Add(id)) ringIds.Add((id, _hub.Find(id), true));
         var watched = ringIds.Select(x => x.Item1).ToArray();
+        // recorded sensors are read from the store; their ring rows matter only once recording stops (newest rows)
+        var recorded = plan is null ? null : new HashSet<string>(plan.Ids, StringComparer.Ordinal);
         foreach (var id in _recordIds)
-            if (seen.Add(id)) ringIds.Add((id, _hub.Find(id)));
+            if (seen.Add(id)) ringIds.Add((id, _hub.Find(id), recorded is null || !recorded.Contains(id)));
         _ring.SetColumns(ringIds);
 
         UpdateDemands(watched);
