@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using BetterVitals.Core.Formatting;
 using BetterVitals.Core.Sensors;
 using BetterVitals.Core.Settings;
@@ -31,6 +32,7 @@ internal sealed class KeyTile : Border
     private readonly TextBlock _value;
     private readonly TextBlock _unit;
     private int _lastSequence = -1;
+    private string? _valueBrush;
 
     public KeyTile(KeyValue key)
     {
@@ -105,7 +107,13 @@ internal sealed class KeyTile : Border
             or SensorKind.Fps or SensorKind.Control or SensorKind.Level ? 0 : (int?)null;
         _value.Text = ValueFormat.ToText(s.Kind, v, Loc.I.Culture, out var u, decimals, unit, s.Unit);
         if (!float.IsNaN(v) || _unit.Text.Length == 0) _unit.Text = u;
-        _value.SetResourceReference(TextBlock.ForegroundProperty, SensorPresentation.HeatBrushKey(SensorPresentation.Heat(s, v)));
+        // a new resource reference only when the heat level changes (each one re-resolves the brush and re-renders)
+        var brush = SensorPresentation.HeatBrushKey(SensorPresentation.Heat(s, v));
+        if (brush != _valueBrush)
+        {
+            _valueBrush = brush;
+            _value.SetResourceReference(TextBlock.ForegroundProperty, brush);
+        }
         if (frame.Sequence != _lastSequence)
         {
             _lastSequence = frame.Sequence;
@@ -180,6 +188,7 @@ internal sealed class HardwareCard : Border
     private readonly List<KeyTile> _tiles = [];
     private StackPanel? _details;
     private List<SensorRowModel>? _rows;
+    private readonly List<SensorRowView> _rowViews = [];
     private readonly List<(TextBlock Label, KindGroup Group, int Count)> _groupLabels = [];
 
     public HardwareCard(HardwareGroup group, IReadOnlyList<KeyValue> keys, SensorActions actions, bool expanded, Action<HardwareCard> toggled)
@@ -190,7 +199,7 @@ internal sealed class HardwareCard : Border
         SetResourceReference(StyleProperty, "Card");
         Margin = new Thickness(0);
         Padding = new Thickness(16, 14, 16, 16);
-        Resources.MergedDictionaries.Add(Ui.Theme);
+        // no Resources of its own: the styles come from Ui.Style (a merged copy per row cost a dictionary each)
 
         _body = new StackPanel();
 
@@ -296,7 +305,7 @@ internal sealed class HardwareCard : Border
         details.Children.Add(divider);
         details.Children.Add(new SensorColumnsHeader(SensorRowLayout.Stats));
 
-        _rows = Group.Sensors.Select(s => new SensorRowModel(s, Group.Name, _actions)).ToList();
+        _rows = Group.Sensors.Select(s => new SensorRowModel(s, Group.Name, _actions) { Shown = r => RowShown?.Invoke(r) }).ToList();
         if (_actions.Settings is { } settings)
             foreach (var r in _rows) r.Sync(settings);
         foreach (var g in SensorGroups.Order)
@@ -310,7 +319,12 @@ internal sealed class HardwareCard : Border
             head.Children.Add(label);
             _groupLabels.Add((label, g, rows.Count));
             details.Children.Add(head);
-            foreach (var r in rows) details.Children.Add(new SensorRowView(SensorRowLayout.Stats) { DataContext = r });
+            foreach (var r in rows)
+            {
+                var view = new SensorRowView(SensorRowLayout.Stats) { DataContext = r };
+                _rowViews.Add(view);
+                details.Children.Add(view);
+            }
         }
         RelabelGroups();
         return details;
@@ -338,16 +352,51 @@ internal sealed class HardwareCard : Border
         foreach (var r in _rows) r.Sync(settings);
     }
 
-    public void Refresh(SensorFrame frame, SessionStats stats, TemperatureUnit unit, IReadOnlyList<(string Source, SourceStatus Status)> statuses)
+    /// <summary>A row view appeared (expanded): the owner fills it from the latest frame at once.</summary>
+    internal Action<SensorRowModel>? RowShown { get; set; }
+
+    /// <param name="viewport">
+    /// The page's visible area (in <paramref name="scroller"/>'s coordinates) widened by a margin: only expanded rows inside
+    /// it are refreshed (rows have no sparkline, so a row off screen loses nothing; it is refreshed again as it scrolls in).
+    /// Null: every shown row (no window, tests).
+    /// </param>
+    public void Refresh(SensorFrame frame, SessionStats stats, TemperatureUnit unit, IReadOnlyList<(string Source, SourceStatus Status)> statuses,
+        Rect? viewport = null, Visual? scroller = null)
     {
         foreach (var t in _tiles) t.Refresh(frame, unit);
-        if (IsExpanded && _rows is not null)
-            foreach (var r in _rows)
-                if (r.IsShown) r.Refresh(frame, stats, unit);
+        RefreshRows(frame, stats, unit, viewport, scroller);
 
         State = StateOf(Group, frame);
         IsLimited = Group.Members.Any(m => statuses.Any(s => s.Source == m.Source && s.Status.State == SourceState.Limited));
         UpdateBadges();
+    }
+
+    /// <summary>Refreshes the expanded rows (inside <paramref name="viewport"/> when given).</summary>
+    public void RefreshRows(SensorFrame frame, SessionStats stats, TemperatureUnit unit, Rect? viewport, Visual? scroller)
+    {
+        if (!IsExpanded || _rows is null) return;
+        if (viewport is not { } vp || scroller is null || _details is null || !_details.IsVisible)
+        {
+            foreach (var r in _rows)
+                if (r.IsShown) r.Refresh(frame, stats, unit);
+            return;
+        }
+        double top;
+        try
+        {
+            top = _details.TransformToAncestor(scroller).Transform(default).Y;
+        }
+        catch (InvalidOperationException)
+        {
+            return; // not in that tree (closing)
+        }
+        if (top > vp.Bottom || top + _details.ActualHeight < vp.Top) return;
+        foreach (var view in _rowViews)
+        {
+            if (view.Model is not { IsShown: true } m) continue;
+            var y = top + VisualTreeHelper.GetOffset(view).Y;
+            if (y + view.ActualHeight >= vp.Top && y <= vp.Bottom) m.Refresh(frame, stats, unit);
+        }
     }
 
     /// <summary>"uśpiona" (the card), "uśpiony" (the drive), "w uśpieniu" (anything else).</summary>

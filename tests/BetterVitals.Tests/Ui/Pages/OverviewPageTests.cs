@@ -164,4 +164,56 @@ public sealed class OverviewPageTests
         page.OnNavigatedFrom();
         Assert.DoesNotContain(Loc.MissingKeys, k => k.StartsWith("overview.", StringComparison.Ordinal) || k.StartsWith("sensors.", StringComparison.Ordinal));
     });
+
+    [Fact]
+    public void Expanded_cards_refresh_the_rows_on_screen_and_fill_rows_as_they_scroll_in() => Sta.Run(() =>
+    {
+        using var env = new PageEnv();
+        using var pc = new FakePc();
+        pc.Run(TimeSpan.FromSeconds(30));
+        var page = new OverviewPage(pc.Engine, env.Actions);
+        using var host = new HiddenHost(page, 884, 640);
+        page.OnNavigatedTo(null);
+        foreach (var card in page.Cards.ToList()) page.Toggle(card);
+        host.Settle(120);
+        page.Apply();
+        var scroll = (System.Windows.Controls.ScrollViewer)page.Content;
+        var unit = BetterVitals.Core.Settings.SettingsStore.I?.Current.General.TemperatureUnit ?? BetterVitals.Core.Settings.TemperatureUnit.Celsius;
+
+        // what a full refresh would show for a row now
+        string[] Expected(SensorRowModel m)
+        {
+            var fresh = new SensorRowModel(m.Sensor, m.HardwareName, env.Actions);
+            fresh.Refresh(pc.Engine.Latest, pc.Engine.Stats, unit);
+            return [fresh.Now, fresh.Unit, fresh.Min, fresh.Max, fresh.Avg];
+        }
+        static string[] Shown(SensorRowModel m) => [m.Now, m.Unit, m.Min, m.Max, m.Avg];
+        List<(SensorRowModel Model, double Top, double Bottom)> Rows()
+        {
+            host.Settle();
+            return HiddenHost.Descendants<SensorRowView>(page)
+                .Select(v => (v.Model!, v.TransformToAncestor(scroll).TransformBounds(new System.Windows.Rect(v.RenderSize))))
+                .Select(x => (x.Item1, x.Item2.Top, x.Item2.Bottom)).ToList();
+        }
+
+        pc.Run(TimeSpan.FromSeconds(5));
+        page.Apply();
+        var rows = Rows();
+        var height = scroll.ActualHeight;
+        var onScreen = rows.Where(r => r.Bottom > 0 && r.Top < height).ToList();
+        var farBelow = rows.Where(r => r.Top > height * 2).ToList();
+        Assert.NotEmpty(onScreen);
+        Assert.True(farBelow.Count > 20, $"only {farBelow.Count} rows far below the screen");
+        Assert.All(onScreen, r => Assert.Equal(Expected(r.Model), Shown(r.Model)));
+        // rows far off screen were not refreshed (their values are from when they appeared)
+        Assert.Contains(farBelow, r => !Expected(r.Model).SequenceEqual(Shown(r.Model)));
+
+        // scrolling to the end fills what comes into view before it is drawn
+        scroll.ScrollToEnd();
+        rows = Rows();
+        var nowOnScreen = rows.Where(r => r.Bottom > 0 && r.Top < height).ToList();
+        Assert.NotEmpty(nowOnScreen);
+        Assert.All(nowOnScreen, r => Assert.Equal(Expected(r.Model), Shown(r.Model)));
+        page.OnNavigatedFrom();
+    });
 }

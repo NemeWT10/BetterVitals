@@ -35,6 +35,7 @@ public sealed class OverviewPage : UserControl, IPage, IDisposable
     private readonly SensorActions _actions;
     private readonly LiveTicker _ticker;
     private readonly CardGrid _grid = new();
+    private readonly ScrollViewer _scroll;
     private readonly Border _banner;
     private readonly TextBlock _bannerText;
     private readonly Border _empty;
@@ -75,7 +76,9 @@ public sealed class OverviewPage : UserControl, IPage, IDisposable
         _empty = BuildEmpty();
         root.Children.Add(_empty);
 
-        Content = PageLayout.Scroll(root, 1080);
+        _scroll = PageLayout.Scroll(root, 1080);
+        _scroll.ScrollChanged += OnScrollChanged;
+        Content = _scroll;
         Build();
     }
 
@@ -141,7 +144,7 @@ public sealed class OverviewPage : UserControl, IPage, IDisposable
         var items = FriendlyCatalog.Resolve(_hub.Hardware, _hub.Sensors);
         foreach (var g in groups)
         {
-            var card = new HardwareCard(g, KeyValuePicker.Pick(g, items), _actions, _expanded.Contains(g.Id), Toggle);
+            var card = new HardwareCard(g, KeyValuePicker.Pick(g, items), _actions, _expanded.Contains(g.Id), Toggle) { RowShown = OnRowShown };
             _cards.Add(card);
             _grid.Children.Add(card);
         }
@@ -176,7 +179,36 @@ public sealed class OverviewPage : UserControl, IPage, IDisposable
         // statuses change rarely (driver, anti-cheat pause): every 5th refresh is plenty
         var statuses = _hub.SourceStatuses;
         if (_applies++ % 5 == 0) UpdateBanner(statuses);
-        foreach (var c in _cards) c.Refresh(frame, stats, unit, statuses);
+        var viewport = Viewport();
+        foreach (var c in _cards) c.Refresh(frame, stats, unit, statuses, viewport, _scroll);
+    }
+
+    /// <summary>
+    /// The visible part of the page plus half a screen above and below (rows there are refreshed each tick), or null
+    /// when the page is not on screen (tests render it without a window: every row then).
+    /// </summary>
+    private Rect? Viewport()
+    {
+        if (!_scroll.IsVisible || _scroll.ActualHeight <= 0) return null;
+        var margin = _scroll.ActualHeight / 2;
+        return new Rect(0, -margin, Math.Max(1, _scroll.ActualWidth), _scroll.ActualHeight + 2 * margin);
+    }
+
+    private static TemperatureUnit Unit => SettingsStore.I?.Current.General.TemperatureUnit ?? TemperatureUnit.Celsius;
+
+    /// <summary>A row appeared (a card expanded): its values now, not after the next tick.</summary>
+    private void OnRowShown(SensorRowModel row) => row.Refresh(_hub.Latest, _hub.Stats, Unit);
+
+    /// <summary>Scrolling brings rows in that were not refreshed while away: fill them before this frame renders.</summary>
+    private void OnScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (!_shown || (e.VerticalChange == 0 && e.ViewportHeightChange == 0 && e.ExtentHeightChange == 0)) return;
+        var viewport = Viewport();
+        if (viewport is null) return;
+        var frame = _hub.Latest;
+        var stats = _hub.Stats;
+        var unit = Unit;
+        foreach (var c in _cards) c.RefreshRows(frame, stats, unit, viewport, _scroll);
     }
 
     private void OnSettingsChanged(string section)
