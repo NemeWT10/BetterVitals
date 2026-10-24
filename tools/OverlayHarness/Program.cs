@@ -115,6 +115,16 @@ var host = new OverlayHost(new OverlayHostOptions { NeverShow = !show, PreferWar
 host.Start();
 var overlayTid = host.Invoke(() => (long)Native.GetCurrentThreadId());
 host.Apply(layout, OverlayTheme.Default, new OverlayContext { Hub = hub, Animations = false });
+// --state on (default) | hidden ("only in games", no game in front) | off (switched off after it was on)
+var state = ArgStr("--state") ?? "on";
+if (state != "on")
+{
+    Thread.Sleep(1500); // it was on and drawn
+    var changed = LayoutCopy.Clone(layout);
+    if (state == "hidden") changed.Visibility = OverlayVisibility.GamesOnly;
+    else changed.Enabled = false;
+    host.Apply(changed, OverlayTheme.Default, new OverlayContext { Hub = hub, Animations = false });
+}
 
 // Thread CPU in cycles (exact, unlike tick-granular thread times), converted with a calibration spin on that thread.
 var cyclesPerMs = host.Invoke(() =>
@@ -153,6 +163,25 @@ var pws1 = PrivateWorkingSet();
 // Cost of one refresh (every one dirty: format + draw + present), all on the overlay thread: its CPU, the whole
 // process's CPU (WARP worker threads included) and the overlay thread's managed allocations.
 timer.Change(Timeout.Infinite, Timeout.Infinite);
+var diagEnd = host.Diagnostics();
+// (by name: the harness also builds against older sources for before / after numbers)
+var hooks = diagEnd.GetType().GetProperty("ForegroundHooks")?.GetValue(diagEnd) ?? "always (older build)";
+var stateLine = $"state {state}: shown={diagEnd.Shown}, surface ready={diagEnd.SurfaceReady}, foreground hooks={hooks}, refresh timer={diagEnd.RefreshRunning}";
+if (state != "on")
+{
+    var quick = string.Join(Environment.NewLine,
+    [
+        $"device: {(warp ? "WARP" : "hardware")}, windows: {windows}, style {style}, {stateLine}, idle run {wall.Elapsed.TotalSeconds:F1} s",
+        $"private working set: {Mb(pws0)} → {Mb(pws1)} MB (+{Mb(pws1 - pws0)} MB) · private bytes +{Mb(pb1 - pb0)} MB · threads {threads0} → {threads1}",
+        $"overlay thread: {overlayWakes / wall.Elapsed.TotalSeconds:F2} wake-ups/s, {(cpuEnd - cpuStart) / 1e4:F1} ms CPU · whole process {procCpuMs:F1} ms CPU",
+        "threads that woke (wake-ups/s, CPU ms/s):",
+        .. workerLines,
+    ]);
+    Console.WriteLine(quick);
+    if (outFile is not null) File.WriteAllText(outFile, quick + Environment.NewLine);
+    host.Dispose();
+    return 0;
+}
 const int n = 300;
 var tickFn = typeof(OverlayHost).GetMethod("RefreshTick", BindingFlags.NonPublic | BindingFlags.Instance)!.CreateDelegate<Func<bool>>(host);
 host.Invoke(() => { tickFn(); return 0L; }); // warm
