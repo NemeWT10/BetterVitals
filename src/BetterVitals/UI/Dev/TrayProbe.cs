@@ -107,7 +107,7 @@ internal static class TrayProbe
             var overlay = Core.Settings.SettingsStore.I.Current.Overlay.Enabled;
             var windows = overlay ? await SplitOverlay() : 0;
             r.Add($"perf probe {AppEnv.Version} · {Environment.ProcessorCount} processors visible, {ProcessStats.MachineProcessors} in the machine · TSC {ProcessStats.TscHz / 1e9:0.000} GHz · elevated={BetterVitals.Platform.Elevation.IsElevated} · overlay={overlay}{(overlay ? $" ({windows} window{(windows == 1 ? "" : "s")})" : "")} · window {window.TotalSeconds:0} s");
-            r.Add($"runtime: tiered compilation={AppContext.GetData("System.Runtime.TieredCompilation") ?? "default"}, tiered PGO={AppContext.GetData("System.Runtime.TieredPGO") ?? "default"}, conserve memory={AppContext.GetData("System.GC.ConserveMemory") ?? "default"}, env DOTNET_TieredCompilation={Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "-"} DOTNET_TieredPGO={Environment.GetEnvironmentVariable("DOTNET_TieredPGO") ?? "-"}");
+            r.Add($"runtime: tiered compilation={AppContext.GetData("System.Runtime.TieredCompilation") ?? "default"}, tiered PGO={AppContext.GetData("System.Runtime.TieredPGO") ?? "default"}, conserve memory={AppContext.GetData("System.GC.ConserveMemory") ?? "default"}, gen0 max budget={(GC.GetConfigurationVariables().TryGetValue("GCGen0MaxBudget", out var g0) ? g0 : "?")}, concurrent GC={(GC.GetConfigurationVariables().TryGetValue("ConcurrentGC", out var cg) ? cg : "?")}, env DOTNET_TieredCompilation={Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "-"} DOTNET_TieredPGO={Environment.GetEnvironmentVariable("DOTNET_TieredPGO") ?? "-"}");
             r.Add("");
             Mark("start");
             TrayRest.Settle();
@@ -166,14 +166,25 @@ internal static class TrayProbe
             r.Add("");
             await Measure(r, host, "tray after panel", window);
 
-            // a device change (what WM_DEVICECHANGE does): LHM hot-plug groups + NVIDIA re-enumeration, then re-discovery
+            // device changes (what WM_DEVICECHANGE does): LHM hot-plug groups + NVIDIA re-enumeration, then re-discovery;
+            // --perf-device-changes N repeats it (a storm while a game starts: pads, audio endpoints) to show growth
+            var changes = DeviceChanges();
             var updates0 = host.Lhm?.GetNodeStats().Where(n => n.Kind == Core.Sensors.HardwareKind.Gpu).Sum(n => n.Updates) ?? 0;
-            host.OnDriverInstalled();
-            await Task.Delay(10000);
-            Mark("device change +10 s");
+            var disc0 = (host.Engine.Discoveries, host.Engine.UnchangedDiscoveries);
+            var s0 = ProcessStats.Take();
+            for (var i = 0; i < changes; i++)
+            {
+                host.OnDriverInstalled();
+                await Task.Delay(i == 0 ? 10000 : 6000);
+                if (i == 0) Mark("device change +10 s");
+            }
+            var s1 = ProcessStats.Take();
+            var engineCpu = EngineCpuMs(s0, s1);
+            r.Add(string.Create(Inv, $"device changes    {changes} → {host.Engine.Discoveries - disc0.Discoveries} re-discoveries ({host.Engine.UnchangedDiscoveries - disc0.UnchangedDiscoveries} unchanged, not announced) · engine thread {engineCpu / Math.Max(1, changes):0.0} ms CPU per change · allocated {(s1.Allocated - s0.Allocated) / 1024.0 / Math.Max(1, changes):0} KB per change"));
+            r.Add(string.Create(Inv, $"device changes    growth: private bytes {(s1.PrivateBytes - s0.PrivateBytes) / 1048576.0:+0.0;-0.0} MB · GC heap {(s1.GcHeap - s0.GcHeap) / 1048576.0:+0.0;-0.0} MB · handles {s1.Handles - s0.Handles:+0;-0} · threads {s1.Threads.Count - s0.Threads.Count:+0;-0} · GCs gen0 +{s1.Gen0 - s0.Gen0} gen1 +{s1.Gen1 - s0.Gen1} gen2 +{s1.Gen2 - s0.Gen2}"));
             await Task.Delay(30000);
             var updates1 = host.Lhm?.GetNodeStats().Where(n => n.Kind == Core.Sensors.HardwareKind.Gpu).Sum(n => n.Updates) ?? 0;
-            Mark($"device change +40 s ({TrayRest.Trims} trims, GPU updates +{updates1 - updates0})");
+            Mark($"device change +30 s ({TrayRest.Trims} trims, GPU updates +{updates1 - updates0})");
             Mark("end");
         }
         catch (Exception ex)
@@ -183,6 +194,21 @@ internal static class TrayProbe
         }
         Write("perf-probe.txt", r);
         AppShell.I.Quit();
+    }
+
+    private static int DeviceChanges()
+    {
+        var args = Environment.GetCommandLineArgs();
+        var at = Array.FindIndex(args, a => a.Equals("--perf-device-changes", StringComparison.OrdinalIgnoreCase));
+        return at >= 0 && at + 1 < args.Length && int.TryParse(args[at + 1], NumberStyles.Integer, Inv, out var n) ? Math.Clamp(n, 1, 100) : 1;
+    }
+
+    private static double EngineCpuMs(ProcessStats a, ProcessStats b)
+    {
+        var t = b.Threads.Values.FirstOrDefault(x => x.Name.StartsWith("BetterVitals sampling", StringComparison.Ordinal));
+        if (t is null) return 0;
+        var before = a.Threads.TryGetValue(t.Id, out var o) ? Math.Min(o.Cycles, t.Cycles) : 0;
+        return (t.Cycles - before) * 1000.0 / ProcessStats.TscHz;
     }
 
     /// <summary>

@@ -17,6 +17,7 @@
   tools\perf.ps1 -NoBuild -Scenario tray -Window 120 -Label tc-off
   tools\perf.ps1 -FakeSensors                     # the fake PC instead of LHM / ETW / native
   tools\perf.ps1 -Scenario overlay2 -TrayOnly     # two overlay windows, the tray window only
+  tools\perf.ps1 -Scenario tray -DeviceChanges 10 # ten device changes at the end (re-discovery cost / growth)
 #>
 param(
     [ValidateSet('all', 'tray', 'overlay', 'overlay2')] [string] $Scenario = 'all',
@@ -25,7 +26,8 @@ param(
     [string] $Exe,
     [switch] $NoBuild,
     [switch] $FakeSensors,
-    [switch] $TrayOnly
+    [switch] $TrayOnly,
+    [int] $DeviceChanges = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -70,6 +72,7 @@ foreach ($s in $scenarios) {
     $appArgs = @('--tray-probe', '--perf', "$Window", '--data-dir', $data)
     if (-not $FakeSensors) { $appArgs += '--real-sensors' }
     if ($TrayOnly) { $appArgs += '--perf-tray-only' }
+    if ($DeviceChanges -gt 1) { $appArgs += @('--perf-device-changes', "$DeviceChanges") }
     if ($s -eq 'overlay2') { $appArgs += @('--perf-overlay-windows', '2') }
     $timeout = 200 + 3 * $Window
     Write-Host "== $Label / $s ($Window s windows, timeout $timeout s)"
