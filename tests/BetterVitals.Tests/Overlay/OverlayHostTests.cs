@@ -147,13 +147,30 @@ public class OverlayHostTests
             Assert.False(d.HasDemand);
             Assert.False(d.RefreshRunning);
             Assert.Equal(0, hub.ActiveDemands);
+            Assert.False(d.ForegroundHooks); // off: nothing wakes the overlay thread
 
             host.SetVisible(false);
             layout.Enabled = true;
             host.Apply(layout, OverlayTheme.Default, Ctx(hub));
             Assert.False(host.Diagnostics().Shown);
+            Assert.False(host.Diagnostics().ForegroundHooks);
             host.SetVisible(true);
             Assert.True(host.Diagnostics().Shown);
+            Assert.True(host.Diagnostics().ForegroundHooks);
+        }
+    }
+
+    [Fact]
+    public void Games_only_keeps_watching_the_foreground_while_hidden()
+    {
+        var (host, hub, layout) = Start();
+        using (host)
+        {
+            Assert.True(host.Diagnostics().ForegroundHooks);
+            layout.Visibility = OverlayVisibility.GamesOnly;
+            host.Apply(layout, OverlayTheme.Default, Ctx(hub));
+            // whatever is in front of the test machine: the hooks stay, so a game coming to the front is noticed
+            Assert.True(host.Diagnostics().ForegroundHooks);
         }
     }
 
@@ -215,10 +232,13 @@ public class OverlayHostTests
         using (host)
         {
             Assert.False(host.Diagnostics().Shown);
+            Assert.False(host.Diagnostics().ForegroundHooks);
             host.EnterEditMode(_ => { }, () => { });
             Assert.True(host.Diagnostics().Shown);
+            Assert.True(host.Diagnostics().ForegroundHooks);
             host.ExitEditMode(false);
             Assert.False(host.Diagnostics().Shown);
+            Assert.False(host.Diagnostics().ForegroundHooks);
         }
     }
 

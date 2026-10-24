@@ -23,7 +23,7 @@ namespace BetterVitals.Overlay;
 /// </summary>
 public sealed unsafe partial class OverlayHost : IDisposable
 {
-    private const nuint TimerRefresh = 1, TimerFade = 2, TimerDisplay = 3, TimerForeground = 4, TimerRetry = 5, TimerIdle = 6;
+    private const nuint TimerRefresh = 1, TimerFade = 2, TimerDisplay = 3, TimerForeground = 4, TimerRetry = 5, TimerIdle = 6, TimerLocation = 7;
     private const uint WmInvoke = Win32.WM_APP + 1, WmInventory = Win32.WM_APP + 2;
     private const string ClassName = "BetterVitals.Overlay";
     private const float FadeMs = 160;
@@ -263,7 +263,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
         return new OverlayDiagnostics(_hwnd, _shown, d.WindowVisible, d.WindowRect, d.ExStyle, d.DisplayAffinity,
             d.SceneWidth, d.SceneHeight, main.Scale, main.Surface?.Ready ?? false, _device?.DeviceCreations ?? 0, _device?.IsWarp ?? false,
             _editing, main.Monitor?.Key, main.Area, _demand is not null, _refreshRunning, _ticks, _renders,
-            [.. _windows.Select(WindowDiagnosticsOf)], _active?.Id);
+            [.. _windows.Select(WindowDiagnosticsOf)], _active?.Id, _watcher?.Running ?? false, _watcher?.LocationPaused ?? false);
     });
 
     private WindowDiagnostics WindowDiagnosticsOf(HostWindow b)
@@ -356,9 +356,8 @@ public sealed unsafe partial class OverlayHost : IDisposable
             if (_hwnd == 0) throw new InvalidOperationException($"CreateWindowEx failed ({Marshal.GetLastPInvokeError()})");
             _windows.Add(new HostWindow(OverlayLayout.MainWindowId, _hwnd));
             _monitors = EnumerateMonitors();
-            _watcher = new ForegroundWatcher(OnForegroundEvent);
-            _watcher.Start();
-            _fg = ForegroundWatcher.Evaluate();
+            // hooked only while the overlay is on (SyncWatcher): an overlay that is off never wakes this thread
+            _watcher = new ForegroundWatcher(OnForegroundEvent, ms => Win32.SetTimer(_hwnd, TimerLocation, ms, 0));
         }
         catch (Exception ex)
         {
@@ -454,7 +453,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
 
     private void KillAllTimers()
     {
-        for (nuint t = 1; t <= 6; t++) Win32.KillTimer(_hwnd, t);
+        for (nuint t = 1; t <= TimerLocation; t++) Win32.KillTimer(_hwnd, t);
         _refreshRunning = false;
     }
 
@@ -650,6 +649,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
     /// <summary>Brings windows, scenes, surfaces, demand and timers in line with the current state.</summary>
     private void Reconcile()
     {
+        SyncWatcher();
         if (!WantVisible())
         {
             StopRefresh();
@@ -696,6 +696,29 @@ public sealed unsafe partial class OverlayHost : IDisposable
             if (_fading && _fadeTo < 1) BeginFade(1);
             RenderAll();
             UpdateWindows();
+        }
+    }
+
+    /// <summary>
+    /// Foreground hooks only while the overlay may show (on, not hidden by the app, has cells; or edit mode): "only in
+    /// games" needs them to notice a game, and the placement needs them for the full-screen app's monitor. Off, the
+    /// thread has nothing to wake it.
+    /// </summary>
+    private void SyncWatcher()
+    {
+        if (_watcher is null) return;
+        var need = _layout is not null && _ctx is not null && !_disposed && (_editing || (_layout.Enabled && _userVisible && !_layout.IsEmpty));
+        if (need == _watcher.Running) return;
+        if (need)
+        {
+            _watcher.Start();
+            _fg = ForegroundWatcher.Evaluate();
+        }
+        else
+        {
+            _watcher.Stop();
+            Win32.KillTimer(_hwnd, TimerForeground);
+            Win32.KillTimer(_hwnd, TimerLocation);
         }
     }
 
@@ -1066,6 +1089,10 @@ public sealed unsafe partial class OverlayHost : IDisposable
                 Win32.KillTimer(_hwnd, TimerIdle);
                 if (!_shown) ReleaseGraphics(dispose: true);
                 break;
+            case TimerLocation:
+                Win32.KillTimer(_hwnd, TimerLocation);
+                _watcher?.ResumeLocation();
+                break;
         }
     }
 
@@ -1411,7 +1438,7 @@ internal sealed record OverlayDiagnostics(
     nint Hwnd, bool Shown, bool WindowVisible, PixelRect WindowRect, uint ExStyle, uint DisplayAffinity,
     int SceneWidth, int SceneHeight, double Scale, bool SurfaceReady, int DeviceCreations, bool Warp,
     bool Editing, string? MonitorKey, PixelRect Area, bool HasDemand, bool RefreshRunning, int Ticks, int Renders,
-    IReadOnlyList<WindowDiagnostics> Windows, string? ActiveWindow);
+    IReadOnlyList<WindowDiagnostics> Windows, string? ActiveWindow, bool ForegroundHooks, bool LocationHookPaused);
 
 /// <summary>One overlay window for tests.</summary>
 internal sealed record WindowDiagnostics(
