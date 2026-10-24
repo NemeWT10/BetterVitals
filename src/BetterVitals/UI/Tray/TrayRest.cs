@@ -8,7 +8,7 @@ namespace BetterVitals.UI.Tray;
 
 /// <summary>
 /// What the app does while it waits in the tray (ported from BetterNotepad). On the way in: settings are written, the
-/// explanation bubble window is destroyed (every other window is already closed and released). Then memory goes back to
+/// explanation bubble window is destroyed and the live texts' cache emptied (every other window is already closed and released). Then memory goes back to
 /// Windows: a compacting full GC and a working-set trim once the dispatcher is idle, again after the work started by
 /// closing has settled (~4 s: the render thread freeing its buffers) and after idle thread-pool threads have retired
 /// (~25 s, trim only). After that nothing runs — no timer, no polling — until a window shows up again.
@@ -41,6 +41,7 @@ internal static class TrayRest
             Log.Error("tray: settings flush failed", ex);
         }
         ExplainService.I.Release();
+        Controls.LiveText.ClearCache();
         Settle();
     }
 

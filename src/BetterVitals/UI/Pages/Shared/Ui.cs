@@ -38,6 +38,18 @@ internal static class Ui
         return t;
     }
 
+    /// <summary>
+    /// A live numeric value (tabular figures) that changes every second: looks like <see cref="Number"/>, but each
+    /// distinct text is laid out only once (<see cref="LiveText"/>).
+    /// </summary>
+    public static LiveText LiveNumber(double size = 13, string brush = "Brush.Text", FontWeight? weight = null)
+    {
+        var t = new LiveText { FontSize = size, FontWeight = weight ?? FontWeights.Normal, VerticalAlignment = VerticalAlignment.Center };
+        t.SetResourceReference(LiveText.ForegroundProperty, brush);
+        t.SetValue(System.Windows.Documents.Typography.NumeralAlignmentProperty, FontNumeralAlignment.Tabular);
+        return t;
+    }
+
     public static Icon Glyph(string iconKey, double size = 16, string? brush = null)
     {
         var i = new Icon { Size = size };

@@ -29,7 +29,7 @@ public enum CardState
 internal sealed class KeyTile : Border
 {
     private readonly TextBlock _label;
-    private readonly TextBlock _value;
+    private readonly LiveText _value;
     private readonly TextBlock _unit;
     private int _lastSequence = -1;
     private string? _valueBrush;
@@ -60,8 +60,8 @@ internal sealed class KeyTile : Border
         stack.Children.Add(titles);
 
         var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
-        _value = Ui.Number(24, "Brush.Text", FontWeights.SemiBold);
-        _value.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Display");
+        _value = Ui.LiveNumber(24, "Brush.Text", FontWeights.SemiBold);
+        _value.SetResourceReference(LiveText.FontFamilyProperty, "Font.Display");
         line.Children.Add(_value);
         _unit = Ui.Text(12, "Brush.TextDim");
         _unit.Margin = new Thickness(4, 0, 0, 4);
@@ -112,7 +112,7 @@ internal sealed class KeyTile : Border
         if (brush != _valueBrush)
         {
             _valueBrush = brush;
-            _value.SetResourceReference(TextBlock.ForegroundProperty, brush);
+            _value.SetResourceReference(LiveText.ForegroundProperty, brush);
         }
         if (frame.Sequence != _lastSequence)
         {

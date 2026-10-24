@@ -151,8 +151,8 @@ public class SensorRowView : Border
 
         // now + unit
         var nowCell = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
-        var now = Ui.Number(13.5, "Brush.Text", FontWeights.SemiBold);
-        now.SetBinding(TextBlock.TextProperty, new Binding(nameof(SensorRowModel.Now)));
+        var now = Ui.LiveNumber(13.5, "Brush.Text", FontWeights.SemiBold);
+        now.SetBinding(LiveText.TextProperty, new Binding(nameof(SensorRowModel.Now)));
         now.SetBinding(Res.ForegroundProperty, new Binding(nameof(SensorRowModel.NowBrushKey)));
         nowCell.Children.Add(now);
         var unit = Ui.Text(11.5, "Brush.TextDim");
@@ -167,20 +167,20 @@ public class SensorRowView : Border
         {
             foreach (var p in new[] { nameof(SensorRowModel.Min), nameof(SensorRowModel.Max), nameof(SensorRowModel.Avg) })
             {
-                var t = Ui.Number(12.5, "Brush.TextDim");
+                var t = Ui.LiveNumber(12.5, "Brush.TextDim");
                 t.HorizontalAlignment = HorizontalAlignment.Right;
                 t.Margin = new Thickness(0, 0, 10, 0);
-                t.SetBinding(TextBlock.TextProperty, new Binding(p));
+                t.SetBinding(LiveText.TextProperty, new Binding(p));
                 Grid.SetColumn(t, col++);
                 grid.Children.Add(t);
             }
         }
         else
         {
-            var t = Ui.Number(12.5, "Brush.TextDim");
+            var t = Ui.LiveNumber(12.5, "Brush.TextDim");
             t.HorizontalAlignment = HorizontalAlignment.Right;
             t.Margin = new Thickness(0, 0, 10, 0);
-            t.SetBinding(TextBlock.TextProperty, new Binding(nameof(SensorRowModel.MinMax)));
+            t.SetBinding(LiveText.TextProperty, new Binding(nameof(SensorRowModel.MinMax)));
             Grid.SetColumn(t, col++);
             grid.Children.Add(t);
         }
