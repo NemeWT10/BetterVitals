@@ -66,14 +66,13 @@ public partial class FlyoutWindow : Window
             if (e.Key == Key.Escape && !_closing) Close();
         };
         // the live dot breathes only while the flyout is on screen
-        Motion.WhileVisible(LiveDot,
-            () => LiveDot.BeginAnimation(OpacityProperty, Motion.Throttled(new DoubleAnimation(1, 0.35, TimeSpan.FromMilliseconds(900))
+        Motion.LoopWhileVisible(LiveDot, LiveDot, OpacityProperty,
+            () => Motion.Throttled(new DoubleAnimation(1, 0.35, TimeSpan.FromMilliseconds(900))
             {
                 AutoReverse = true,
                 RepeatBehavior = RepeatBehavior.Forever,
                 EasingFunction = Motion.EaseOut,
-            })),
-            () => LiveDot.BeginAnimation(OpacityProperty, null));
+            }));
     }
 
     private void OnLanguageChanged() => Language = Loc.I.XmlLang;

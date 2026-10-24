@@ -147,6 +147,42 @@ public sealed class Motion : ObservableObject
     }
 
     /// <summary>
+    /// An endless animation of one property whose clock really stops. <c>BeginAnimation(dp, null)</c> only takes the
+    /// animation off the property: its endless clock stays active in WPF's time manager and keeps it rendering frames
+    /// (hundreds of UI-thread wake-ups a second, also in the tray) until a garbage collection happens to collect it, and
+    /// each restart left one more. <see cref="Start"/> is a no-op while running; <see cref="Stop"/> removes the clock.
+    /// </summary>
+    public sealed class Loop(IAnimatable target, DependencyProperty property, Func<AnimationTimeline> animation)
+    {
+        private AnimationClock? _clock;
+
+        public bool IsRunning => _clock is not null;
+
+        public void Start()
+        {
+            if (_clock is not null) return;
+            _clock = animation().CreateClock();
+            target.ApplyAnimationClock(property, _clock);
+        }
+
+        public void Stop()
+        {
+            if (_clock is not { } clock) return;
+            _clock = null;
+            clock.Controller?.Remove();
+            target.ApplyAnimationClock(property, null);
+        }
+    }
+
+    /// <summary><see cref="WhileVisible"/> for a <see cref="Loop"/>.</summary>
+    public static Loop LoopWhileVisible(FrameworkElement el, IAnimatable target, DependencyProperty property, Func<AnimationTimeline> animation)
+    {
+        var loop = new Loop(target, property, animation);
+        WhileVisible(el, loop.Start, loop.Stop);
+        return loop;
+    }
+
+    /// <summary>
     /// Runs <paramref name="start"/> while the element is visible and its window is not minimized
     /// and calls <paramref name="stop"/> otherwise — WPF would otherwise render frames forever, also in the tray.
     /// </summary>
