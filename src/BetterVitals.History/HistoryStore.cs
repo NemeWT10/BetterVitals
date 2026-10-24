@@ -271,6 +271,8 @@ internal sealed partial class HistoryStore
         var step = level == Level.Minute ? TimeGrid.Minute : TimeGrid.Hour;
         var group = level == Level.Minute ? TimeGrid.Hour : TimeGrid.Day;
         long bytes = 0;
+        // rollup blocks are several times larger than raw ones and written once an hour: their buffers are not kept
+        BlockEncoder? encoder = null;
         while (true)
         {
             long groupStart = long.MaxValue;
@@ -303,9 +305,10 @@ internal sealed partial class HistoryStore
                     merged[c].Merge(b.Aggs[j]);
                 }
             }
-            var len = _encoder.EncodeRollup(slots, kinds, aggs, count);
+            encoder ??= new BlockEncoder();
+            var len = encoder.EncodeRollup(slots, kinds, aggs, count);
             using (var fs = OpenAppend(HistoryFiles.NameFor(level, first)))
-                bytes += _encoder.AppendBlock(fs, level, first, step, count, slots.Length, len);
+                bytes += encoder.AppendBlock(fs, level, first, step, count, slots.Length, len);
             foreach (var b in members) source.Remove(b);
             if (promote is not null) AddPending(promote, groupStart, slots, kinds, merged);
         }

@@ -14,6 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- history files of older builds (format compatibility) -->
+    <None Update="History\Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\BetterVitals.Core\BetterVitals.Core.csproj" />
     <ProjectReference Include="..\..\src\BetterVitals.Sensors\BetterVitals.Sensors.csproj" />
     <ProjectReference Include="..\..\src\BetterVitals.History\BetterVitals.History.csproj" />

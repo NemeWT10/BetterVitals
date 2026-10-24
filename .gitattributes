@@ -13,3 +13,5 @@
 *.otf binary
 *.exe binary
 *.bin binary
+# history files recorded by older builds: compared byte for byte
+tests/BetterVitals.Tests/History/Fixtures/** binary

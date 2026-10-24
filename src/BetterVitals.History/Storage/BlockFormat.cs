@@ -190,11 +190,20 @@ internal sealed class ColumnTable
     public int End(int index) => Offsets[index] + Lengths[index];
 }
 
-/// <summary>Encodes payloads (column table + columns) and compresses them into full blocks.</summary>
+//// <summary>
+/// Encodes payloads (column table + columns) and compresses them into full blocks. Buffers grow to what the data
+/// needs (not to the worst-case varint size), and the table and the column data are compressed straight from their
+/// own buffers, so no assembled copy of the payload is kept.
+/// </summary>
 internal sealed class BlockEncoder
 {
-    private byte[] _data = new byte[16 * 1024];
-    private byte[] _payload = new byte[16 * 1024];
+    // measured on raw minute blocks: level 7 is as small as level 6 (Optimal) or slightly smaller and mostly faster
+    private static readonly ZLibCompressionOptions RawCompression = new() { CompressionLevel = 7 };
+
+    private byte[] _data = new byte[4096];
+    private byte[] _table = new byte[256];
+    private int _dataLength;
+    private int _tableLength;
     private readonly MemoryStream _compressed = new();
     private int[] _lengths = new int[128];
     private byte[] _modes = new byte[128];
@@ -212,18 +221,18 @@ internal sealed class BlockEncoder
     /// Mode 0 (delta): reference = previous value (starts at 0, carries across gaps) — best for trends.
     /// Mode 1 (offset): reference = the column's first value in the block (the first itself vs 0) — best for jitter around
     /// a level (voltages, fans, clocks). The encoder picks the mode with the lower estimated cost per column.
-    /// <paramref name="values"/> is column-major with <paramref name="stride"/>.
+    /// <paramref name="values"/> is column-major with <paramref name="stride"/>. Returns the payload length.
     /// </summary>
     public int EncodeRaw(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, ReadOnlySpan<float> values, int stride, int rows)
     {
         var cols = slots.Length;
         EnsureColumns(cols);
-        Ensure(ref _data, cols * rows * Varint.MaxBytes + 16);
         var qs = rows <= 1024 ? stackalloc long[rows] : new long[rows];
         var scratch = rows <= 1024 ? stackalloc long[rows] : new long[rows];
         var pos = 0;
         for (var c = 0; c < cols; c++)
         {
+            EnsureRoom(ref _data, pos, rows * Varint.MaxBytes);
             var start = pos;
             var quantum = Quant.Of(kinds[c]);
             var col = values.Slice(c * stride, rows);
@@ -288,16 +297,16 @@ internal sealed class BlockEncoder
     /// <summary>
     /// Rollup block: per column four varint streams: count of every bucket (0 = empty), then for the non-empty buckets
     /// zigzag(min - previous min), max - min, sum - min × count. <paramref name="aggs"/> is column-major with
-    /// <paramref name="buckets"/> per column.
+    /// <paramref name="buckets"/> per column. Returns the payload length.
     /// </summary>
     public int EncodeRollup(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, ReadOnlySpan<Rec> aggs, int buckets)
     {
         var cols = slots.Length;
         EnsureColumns(cols);
-        Ensure(ref _data, cols * buckets * 4 * Varint.MaxBytes + 16);
         var pos = 0;
         for (var c = 0; c < cols; c++)
         {
+            EnsureRoom(ref _data, pos, buckets * 4 * Varint.MaxBytes);
             var start = pos;
             _modes[c] = 0;
             var col = aggs.Slice(c * buckets, buckets);
@@ -319,16 +328,28 @@ internal sealed class BlockEncoder
         return Assemble(slots, kinds, pos);
     }
 
-    /// <summary>The uncompressed payload of the last Encode call.</summary>
-    public ReadOnlySpan<byte> Payload(int length) => _payload.AsSpan(0, length);
+    /// <summary>Test / diagnostics: a copy of the uncompressed payload of the last Encode call.</summary>
+    public byte[] PayloadCopy()
+    {
+        var p = new byte[_tableLength + _dataLength];
+        _table.AsSpan(0, _tableLength).CopyTo(p);
+        _data.AsSpan(0, _dataLength).CopyTo(p.AsSpan(_tableLength));
+        return p;
+    }
 
     /// <summary>Compresses the last payload and appends header + data to <paramref name="output"/>; returns the block size.</summary>
     public int AppendBlock(Stream output, Level type, long start, long step, int samples, int columns, int rawLength)
     {
+        if (rawLength != _tableLength + _dataLength) throw new InvalidOperationException("payload length mismatch");
         _compressed.SetLength(0);
-        _compressed.Write(new byte[BlockHeader.Size]);
-        using (var z = new DeflateStream(_compressed, CompressionLevel.Optimal, leaveOpen: true))
-            z.Write(_payload, 0, rawLength);
+        _compressed.Write(stackalloc byte[BlockHeader.Size]);
+        using (var z = type == Level.Raw
+                   ? new DeflateStream(_compressed, RawCompression, leaveOpen: true)
+                   : new DeflateStream(_compressed, CompressionLevel.Optimal, leaveOpen: true))
+        {
+            z.Write(_table, 0, _tableLength);
+            z.Write(_data, 0, _dataLength);
+        }
         var total = (int)_compressed.Length;
         var h = new BlockHeader
         {
@@ -349,29 +370,35 @@ internal sealed class BlockEncoder
     private int Assemble(ReadOnlySpan<ushort> slots, ReadOnlySpan<SensorKind> kinds, int dataLength)
     {
         var cols = slots.Length;
-        Ensure(ref _payload, ColumnTable.MaxSize(cols) + dataLength);
+        if (_table.Length < ColumnTable.MaxSize(cols)) _table = new byte[ColumnTable.MaxSize(cols)];
         var pos = 0;
-        Varint.Write(_payload, ref pos, (ulong)cols);
+        Varint.Write(_table, ref pos, (ulong)cols);
         var prev = 0;
         for (var c = 0; c < cols; c++)
         {
             if (slots[c] < prev) throw new InvalidOperationException("columns must be sorted by slot");
-            Varint.Write(_payload, ref pos, (ulong)(slots[c] - prev));
+            Varint.Write(_table, ref pos, (ulong)(slots[c] - prev));
             prev = slots[c];
-            _payload[pos++] = (byte)((byte)kinds[c] | _modes[c] << 7);
-            Varint.Write(_payload, ref pos, (ulong)_lengths[c]);
+            _table[pos++] = (byte)((byte)kinds[c] | _modes[c] << 7);
+            Varint.Write(_table, ref pos, (ulong)_lengths[c]);
         }
-        _data.AsSpan(0, dataLength).CopyTo(_payload.AsSpan(pos));
+        _tableLength = pos;
+        _dataLength = dataLength;
         return pos + dataLength;
     }
 
-    private static void Ensure(ref byte[] buf, int size)
+    /// <summary>Makes room for <paramref name="need"/> more bytes after <paramref name="pos"/> (grows by half, keeps the data).</summary>
+    private static void EnsureRoom(ref byte[] buf, int pos, int need)
     {
-        if (buf.Length < size) buf = new byte[Math.Max(size, buf.Length * 2)];
+        if (buf.Length - pos >= need) return;
+        var size = Math.Max(pos + need, buf.Length + buf.Length / 2);
+        var grown = new byte[(size + 4095) & ~4095];
+        buf.AsSpan(0, pos).CopyTo(grown);
+        buf = grown;
     }
 }
 
-/// <summary>Decodes columns of an inflated payload into records.</summary>
+// <summary>Decodes columns of an inflated payload into records.</summary>
 internal static class ColumnDecoder
 {
     /// <summary>Raw column → one record per stored sample with time in [from, to).</summary>
