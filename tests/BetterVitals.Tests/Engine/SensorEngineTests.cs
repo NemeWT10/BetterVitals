@@ -260,6 +260,74 @@ public sealed class SensorEngineTests
     }
 
     [Fact]
+    public void A_rediscovery_that_finds_the_same_inventory_tells_nobody_but_keeps_reading()
+    {
+        var (engine, fake, clock) = Create(derived: true);
+        var gpuHw = engine.Hardware.Single(h => h.Name == "NVIDIA GeForce RTX 5080").Id;
+        var gpu = Id(engine, "NVIDIA GeForce RTX 5080", SensorKind.Temperature, "GPU Core");
+        var slot = engine.Find(gpu)!.Index;
+        var hardware = engine.Hardware;
+        var notified = 0;
+        engine.InventoryChanged += () => notified++;
+        using var d = engine.Demand("overlay", [gpu], TimeSpan.FromSeconds(1));
+        Run(engine, clock, TimeSpan.FromSeconds(2));
+
+        // a device-change storm that touched no sensor hardware: three passes, nobody is told
+        var before = engine.Sensors[slot];
+        for (var i = 0; i < 3; i++) engine.DiscoverNow();
+        Assert.Equal(0, notified);
+        Assert.Equal(3, engine.UnchangedDiscoveries);
+        Assert.Same(hardware, engine.Hardware);
+        Assert.NotSame(before, engine.Sensors[slot]); // the source's fresh descriptor (its new tag) is used from now on
+        Assert.Same(engine.Sensors[slot], engine.Find(gpu));
+        var reads = fake.Reads(slot);
+        Run(engine, clock, TimeSpan.FromSeconds(3));
+        Assert.InRange(fake.Reads(slot) - reads, 3, 4);
+        Assert.False(float.IsNaN(engine.Latest[slot]));
+
+        // real changes still notify: hardware gone, hardware back
+        fake.SetPresent(gpuHw, false);
+        engine.DiscoverNow();
+        Assert.Equal(1, notified);
+        Assert.Null(engine.FindHardware(gpuHw));
+        fake.SetPresent(gpuHw, true);
+        engine.DiscoverNow();
+        Assert.Equal(2, notified);
+        Assert.NotNull(engine.FindHardware(gpuHw));
+        Assert.Equal(slot, engine.Find(gpu)!.Index);
+    }
+
+    [Fact]
+    public void A_source_status_change_with_the_same_sensors_notifies()
+    {
+        var clock = new Clock();
+        var source = new StatusSource(new FakeSensorSource(FakeProfile.Minimal, 1, () => clock.Now));
+        var engine = new SensorEngine([source], () => clock.Now);
+        engine.DiscoverNow();
+        var notified = 0;
+        engine.InventoryChanged += () => notified++;
+        engine.DiscoverNow();
+        Assert.Equal(0, notified);
+        source.State = new SourceStatus(SourceState.Paused, "source.lhm.paused"); // e.g. the anti-cheat pause: same ids (ghosts)
+        engine.DiscoverNow();
+        Assert.Equal(1, notified);
+        Assert.Equal(SourceState.Paused, engine.SourceStatuses.Single().Status.State);
+    }
+
+    private sealed class StatusSource(FakeSensorSource inner) : ISensorSource
+    {
+        public SourceStatus State { get; set; } = new(SourceState.Ok);
+        public string Name => "status";
+        public SourceStatus Status => State;
+        public event Action? InventoryChanged { add { } remove { } }
+        public SourceInventory Discover() => inner.Discover();
+        public void Update(ReadOnlySpan<SensorDescriptor> requested, Span<float> values) => inner.Update(requested, values);
+        public void Suspend() { }
+        public void Resume() { }
+        public void Dispose() => inner.Dispose();
+    }
+
+    [Fact]
     public void Real_thread_ticks_and_sleeps()
     {
         var fake = new FakeSensorSource(FakeProfile.Minimal);

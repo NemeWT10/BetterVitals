@@ -125,15 +125,13 @@ public sealed class LhmSource : ISensorSource
     }
 
     /// <summary>
-    /// Call on WM_DEVICECHANGE. Debounced (2 s); then <see cref="InventoryChanged"/> fires and the next
-    /// <see cref="Discover"/> re-enumerates hot-pluggable groups (USB coolers / controllers / PSUs / power monitors).
-    /// Drives are tracked by LHM itself.
+    /// Call on WM_DEVICECHANGE, together with the engine's (debounced) re-discovery request: the next
+    /// <see cref="Discover"/> re-enumerates hot-pluggable groups (USB coolers / controllers / PSUs / power monitors) and
+    /// NVIDIA GPUs. Drives are tracked by LHM itself. Raises nothing: a second, separately debounced
+    /// <see cref="InventoryChanged"/> made every device change cost two full re-discoveries 2 s apart (seen in a user's
+    /// log during a game start).
     /// </summary>
-    public void NotifyDeviceChange()
-    {
-        _deviceChangePending = true;
-        _debouncer.Signal();
-    }
+    public void NotifyDeviceChange() => _deviceChangePending = true;
 
     /// <inheritdoc />
     public SourceInventory Discover()

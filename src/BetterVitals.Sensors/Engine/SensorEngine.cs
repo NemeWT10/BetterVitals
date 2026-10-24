@@ -65,6 +65,7 @@ public sealed class SensorEngine : ISensorHub, IDisposable
     private readonly long[] _lastErrorLog;
     private long _lastHandlerErrorLog;
     private int _discoveryFailures;
+    private SourceStatus[] _lastStatuses = [];
 
     private Action<SensorFrame>[] _frameHandlers = [];
     private Action[] _inventoryHandlers = [];
@@ -341,6 +342,10 @@ public sealed class SensorEngine : ISensorHub, IDisposable
 
     private void Rediscover()
     {
+        Discoveries++;
+        var oldSensors = _sensors;
+        var oldPresent = _present;
+        var oldHardware = _hardware;
         var seen = new bool[_registered.Count + 512];
         var hardware = new List<HardwareDescriptor>();
         var anyFailed = false;
@@ -397,12 +402,28 @@ public sealed class SensorEngine : ISensorHub, IDisposable
             if (_due[s].Length < owned[s]) _due[s] = new SensorDescriptor[owned[s]];
         if (_dueMark.Length < n) Array.Resize(ref _dueMark, Math.Max(n, _dueMark.Length * 2));
 
+        // a device change that touched no sensor hardware (a game pad, an audio endpoint, a USB stick…) finds the same
+        // inventory: the sources get their fresh descriptors (new source tags), but consumers are not told and the
+        // lookups are kept — no re-planning in the history, the overlay or the pages, no trim / refault in the tray
+        var statuses = new SourceStatus[_sources.Length];
+        for (var s = 0; s < _sources.Length; s++) statuses[s] = SafeStatus(_sources[s]);
+        var unchanged = Discoveries > 1
+            && oldSensors.Length == n
+            && present.AsSpan().SequenceEqual(oldPresent)
+            && statuses.AsSpan().SequenceEqual(_lastStatuses)
+            && SameHardware(oldHardware, hardware)
+            && SameSensors(oldSensors, _registered);
+        _lastStatuses = statuses;
+
         _sourceOf = _sourceOfList.ToArray();
         _present = present;
         Volatile.Write(ref _sensors, _registered.ToArray());
-        Volatile.Write(ref _hardware, hardware.ToArray());
-        Volatile.Write(ref _lookup, _indexById.ToFrozenDictionary(StringComparer.Ordinal));
-        Volatile.Write(ref _hardwareLookup, hardware.GroupBy(h => h.Id).ToFrozenDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal));
+        if (!unchanged)
+        {
+            Volatile.Write(ref _hardware, hardware.ToArray());
+            Volatile.Write(ref _lookup, _indexById.ToFrozenDictionary(StringComparer.Ordinal));
+            Volatile.Write(ref _hardwareLookup, hardware.GroupBy(h => h.Id).ToFrozenDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal));
+        }
         foreach (var f in _frames) f.EnsureCapacity(n);
         _demandDirty = true;
 
@@ -418,12 +439,42 @@ public sealed class SensorEngine : ISensorHub, IDisposable
             _discoveryFailures = 0;
         }
 
+        if (unchanged)
+        {
+            UnchangedDiscoveries++;
+            Log.Info($"engine: re-discovery, inventory unchanged ({present.Count(p => p)} of {n} sensors present)");
+            return;
+        }
         Log.Info($"engine: {hardware.Count} hardware, {present.Count(p => p)} of {n} sensors present");
         foreach (var h in Volatile.Read(ref _inventoryHandlers))
         {
             try { h(); }
             catch (Exception ex) { Log.Error("engine: InventoryChanged handler failed", ex); }
         }
+    }
+
+    private static bool SameHardware(HardwareDescriptor[] old, List<HardwareDescriptor> now)
+    {
+        if (old.Length != now.Count) return false;
+        for (var i = 0; i < old.Length; i++)
+            if (!old[i].Equals(now[i])) return false; // records: by value
+        return true;
+    }
+
+    /// <summary>Everything a consumer sees of a descriptor (not the source's private tag).</summary>
+    private static bool SameSensors(SensorDescriptor[] old, List<SensorDescriptor> now)
+    {
+        if (old.Length != now.Count) return false;
+        for (var i = 0; i < old.Length; i++)
+        {
+            var a = old[i];
+            var b = now[i];
+            if (ReferenceEquals(a, b)) continue;
+            if (a.Id != b.Id || a.HardwareId != b.HardwareId || a.Name != b.Name || a.Kind != b.Kind || a.HardwareKind != b.HardwareKind
+                || a.Unit != b.Unit || a.MinInterval != b.MinInterval || a.Order != b.Order || a.NoteKey != b.NoteKey)
+                return false;
+        }
+        return true;
     }
 
     /// <summary>What source <paramref name="s"/> had after the last successful discovery (its sensors that were present).</summary>
@@ -558,6 +609,12 @@ public sealed class SensorEngine : ISensorHub, IDisposable
             lock (_gate) return _demands.Select(d => (d.Consumer, d.Ids.Length, TimeSpan.FromTicks(d.IntervalTicks))).ToArray();
         }
     }
+
+    /// <summary>Discovery passes so far (diagnostics: device-change storms, perf probe).</summary>
+    public int Discoveries { get; private set; }
+
+    /// <summary>Discovery passes that found the same inventory and did not raise <see cref="InventoryChanged"/>.</summary>
+    public int UnchangedDiscoveries { get; private set; }
 
     /// <summary>Active schedule (interval → sensors read), for diagnostics and tests.</summary>
     internal IReadOnlyList<(TimeSpan Interval, int Count)> Schedule => _groups.Select(g => (TimeSpan.FromTicks(g.IntervalTicks), g.Indices.Length)).ToArray();

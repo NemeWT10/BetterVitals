@@ -102,6 +102,19 @@ public class LhmStatusAndPlanTests
         Assert.Equal(1, Volatile.Read(ref count));
     }
 
+    [Fact]
+    public void A_device_change_leaves_the_rediscovery_to_the_engine()
+    {
+        // WM_DEVICECHANGE → the host calls NotifyDeviceChange and the engine's debounced RequestRediscover; a second,
+        // separately debounced InventoryChanged from LHM made each device change two full re-discoveries 2 s apart
+        using var lhm = new LhmSource();
+        var raised = 0;
+        lhm.InventoryChanged += () => Interlocked.Increment(ref raised);
+        for (var i = 0; i < 5; i++) lhm.NotifyDeviceChange();
+        Thread.Sleep(2600);
+        Assert.Equal(0, Volatile.Read(ref raised));
+    }
+
     private static SensorDescriptor[] Slots(params int[] indices) => indices.Select(i => new SensorDescriptor
     {
         Id = $"x/{i}",
