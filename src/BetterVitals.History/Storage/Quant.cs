@@ -70,6 +70,40 @@ internal struct Rec
     }
 }
 
+/// <summary>
+/// A <see cref="Rec"/> without time and level, for the rollup buckets not written yet (one per recorded sensor and
+/// pending minute / hour): 32 B instead of 48 B.
+/// </summary>
+internal struct Agg
+{
+    public long Min;
+    public long Max;
+    public long Sum;
+    public long Count;
+
+    public static Agg From(in Rec r) => new() { Min = r.Min, Max = r.Max, Sum = r.Sum, Count = r.Count };
+
+    public readonly Rec ToRec(long time, Level level) => new() { Time = time, Min = Min, Max = Max, Sum = Sum, Count = Count, Level = level };
+
+    /// <summary>Same as <see cref="Rec.Merge"/>.</summary>
+    public void Merge(in Agg o)
+    {
+        if (o.Count == 0) return;
+        if (Count == 0)
+        {
+            Min = o.Min;
+            Max = o.Max;
+        }
+        else
+        {
+            if (o.Min < Min) Min = o.Min;
+            if (o.Max > Max) Max = o.Max;
+        }
+        Sum += o.Sum;
+        Count += o.Count;
+    }
+}
+
 /// <summary>Receives records while a store read walks the data. <paramref name="ordinal"/> indexes the requested sensors.</summary>
 internal interface IRecVisitor
 {

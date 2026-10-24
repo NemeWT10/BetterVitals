@@ -10,7 +10,7 @@ internal sealed class PendingBucket
     public required long Start { get; init; }
     public required ushort[] Slots { get; init; }
     public required SensorKind[] Kinds { get; init; }
-    public required Rec[] Aggs { get; init; }
+    public required Agg[] Aggs { get; init; }
 
     public int ColumnOf(int slot) => Array.BinarySearch(Slots, (ushort)slot) is var i and >= 0 ? i : -1;
 }
@@ -136,12 +136,12 @@ internal sealed partial class HistoryStore
         s.VisitBlocks(Level.Raw, minuteEnd, long.MinValue, (in BlockHeader h, ColumnTable t, ReadOnlySpan<byte> data) =>
         {
             var n = t.Count;
-            var aggs = new Rec[n];
+            var aggs = new Agg[n];
             for (var c = 0; c < n; c++)
             {
                 var v = new AggVisitor();
                 ColumnDecoder.Raw(data.Slice(t.Offsets[c], t.Lengths[c]), t.Modes[c], h, long.MinValue, long.MaxValue, 0, ref v);
-                aggs[c] = v.Acc;
+                aggs[c] = Agg.From(v.Acc);
             }
             AddPending(_minutes, TimeGrid.Floor(h.Start, TimeGrid.Minute), t.Slots.AsSpan(0, n).ToArray(), t.Kinds.AsSpan(0, n).ToArray(), aggs);
         });
@@ -167,10 +167,10 @@ internal sealed partial class HistoryStore
             }
         });
         foreach (var (hour, cols) in byHour)
-            AddPending(_hours, hour, cols.Keys.ToArray(), cols.Values.Select(x => x.Kind).ToArray(), cols.Values.Select(x => x.Agg).ToArray());
+            AddPending(_hours, hour, cols.Keys.ToArray(), cols.Values.Select(x => x.Kind).ToArray(), cols.Values.Select(x => Agg.From(x.Agg)).ToArray());
     }
 
-    private static void AddPending(List<PendingBucket> list, long start, ushort[] slots, SensorKind[] kinds, Rec[] aggs)
+    private static void AddPending(List<PendingBucket> list, long start, ushort[] slots, SensorKind[] kinds, Agg[] aggs)
     {
         var b = new PendingBucket { Start = start, Slots = slots, Kinds = kinds, Aggs = aggs };
         var i = list.Count;
@@ -257,14 +257,14 @@ internal sealed partial class HistoryStore
     private void AddMinuteFromRaw(BlockBuffer b)
     {
         var p = b.Plan;
-        var aggs = new Rec[p.Columns];
+        var aggs = new Agg[p.Columns];
         for (var c = 0; c < p.Columns; c++)
         {
             var quantum = Quant.Of(p.Kinds[c]);
             var a = new Rec();
             for (var r = 0; r < b.Count; r++)
                 if (Quant.TryQuantize(b.Values[c * p.Rows + r], quantum, out var q)) a.Merge(Rec.Sample(0, q));
-            aggs[c] = a;
+            aggs[c] = Agg.From(a);
         }
         AddPending(_minutes, TimeGrid.Floor(b.Start, TimeGrid.Minute), p.Slots, p.Kinds, aggs);
     }
@@ -302,14 +302,14 @@ internal sealed partial class HistoryStore
             var kinds = cols.Values.ToArray();
             var count = (int)((last - first) / step) + 1;
             var aggs = new Rec[slots.Length * count];
-            var merged = new Rec[slots.Length];
+            var merged = new Agg[slots.Length];
             foreach (var b in members)
             {
                 var idx = (int)((b.Start - first) / step);
                 for (var j = 0; j < b.Slots.Length; j++)
                 {
                     var c = Array.BinarySearch(slots, b.Slots[j]);
-                    aggs[c * count + idx].Merge(b.Aggs[j]);
+                    aggs[c * count + idx].Merge(b.Aggs[j].ToRec(0, level));
                     merged[c].Merge(b.Aggs[j]);
                 }
             }

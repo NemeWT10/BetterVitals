@@ -135,10 +135,7 @@ internal sealed partial class HistoryStore
                     if (Slots[i] < 0) continue;
                     var c = p.ColumnOf(Slots[i]);
                     if (c < 0 || p.Aggs[c].Count == 0) continue;
-                    var r = p.Aggs[c];
-                    r.Time = p.Start;
-                    r.Level = level;
-                    v.Visit(i, r);
+                    v.Visit(i, p.Aggs[c].ToRec(p.Start, level));
                 }
             }
         }
