@@ -5,7 +5,8 @@ namespace BetterVitals.UI.Controls;
 
 /// <summary>
 /// A tiny live chart: the last <see cref="Capacity"/> values as a smooth line over a soft fade, in <see cref="Stroke"/>.
-/// Values are pushed (no timer, no binding churn); one push = one redraw. NaN leaves a gap. Draws nothing until it has two points.
+/// Values are pushed (no timer, no binding churn); one push = one redraw (deferred while scrolled out of view). NaN leaves a
+/// gap. Draws nothing until it has two points.
 /// </summary>
 public sealed class Sparkline : FrameworkElement
 {
@@ -37,29 +38,89 @@ public sealed class Sparkline : FrameworkElement
     public SparkSeries? Series { get => (SparkSeries?)GetValue(SeriesProperty); set => SetValue(SeriesProperty, value); }
 
     private Brush? _fill;
+    private System.Windows.Controls.ScrollViewer? _scroller;
+    private bool _stale;
 
     public Sparkline()
     {
         IsHitTestVisible = false;
         Loaded += (_, _) =>
         {
+            _scroller = FindScroller();
+            if (_scroller is not null) _scroller.ScrollChanged += OnScrollChanged;
             if (Series is not { } s) return;
-            s.Changed -= InvalidateVisual;
-            s.Changed += InvalidateVisual;
+            s.Changed -= OnPushed;
+            s.Changed += OnPushed;
+            if (_stale) OnPushed();
         };
-        Unloaded += (_, _) => { if (Series is { } s) s.Changed -= InvalidateVisual; };
+        Unloaded += (_, _) =>
+        {
+            if (_scroller is not null) _scroller.ScrollChanged -= OnScrollChanged;
+            _scroller = null;
+            if (Series is { } s) s.Changed -= OnPushed;
+        };
     }
 
     private static void OnSeriesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var self = (Sparkline)d;
         if (!self.IsLoaded) return;
-        if (e.OldValue is SparkSeries o) o.Changed -= self.InvalidateVisual;
-        if (e.NewValue is SparkSeries n) n.Changed += self.InvalidateVisual;
+        if (e.OldValue is SparkSeries o) o.Changed -= self.OnPushed;
+        if (e.NewValue is SparkSeries n) n.Changed += self.OnPushed;
     }
+
+    /// <summary>
+    /// A new value: redrawn now when the line is on screen; scrolled out of its scroll viewer (the Overview's lower cards)
+    /// it is only marked, and redrawn as it scrolls back in, before that frame is drawn (WPF would redraw it unseen,
+    /// ~5 KB of garbage per redraw).
+    /// </summary>
+    private void OnPushed()
+    {
+        if (IsOutOfView())
+        {
+            _stale = true;
+            return;
+        }
+        _stale = false;
+        InvalidateVisual();
+    }
+
+    private void OnScrollChanged(object sender, System.Windows.Controls.ScrollChangedEventArgs e)
+    {
+        if (_stale && !IsOutOfView())
+        {
+            _stale = false;
+            InvalidateVisual();
+        }
+    }
+
+    private bool IsOutOfView()
+    {
+        if (_scroller is not { } sv || !IsVisible || sv.ActualHeight <= 0) return false;
+        try
+        {
+            var r = TransformToAncestor(sv).TransformBounds(new Rect(RenderSize));
+            return r.Bottom < 0 || r.Top > sv.ActualHeight || r.Right < 0 || r.Left > sv.ActualWidth;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private System.Windows.Controls.ScrollViewer? FindScroller()
+    {
+        for (DependencyObject? d = VisualTreeHelper.GetParent(this); d is not null; d = VisualTreeHelper.GetParent(d))
+            if (d is System.Windows.Controls.ScrollViewer sv) return sv;
+        return null;
+    }
+
+    /// <summary>Redraws so far (tests).</summary>
+    internal int Renders { get; private set; }
 
     protected override void OnRender(DrawingContext dc)
     {
+        Renders++;
         var s = Series;
         if (s is null || s.Count < 2 || ActualWidth <= 0 || ActualHeight <= 0) return;
 
