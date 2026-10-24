@@ -102,6 +102,69 @@ public class OverlayHostTests
         }
     }
 
+    [Theory]
+    [InlineData(OverlayArrangement.Vertical, false)]
+    [InlineData(OverlayArrangement.Horizontal, false)]
+    [InlineData(OverlayArrangement.Compact, false)]
+    [InlineData(OverlayArrangement.Vertical, true)]
+    public void Cached_backdrop_shows_exactly_the_pixels_of_drawing_it(OverlayArrangement arrangement, bool rich)
+    {
+        var cores = CoreLoads(8);
+        var hub = new FakeHub([FpsSensor, CpuTemp, GpuTemp, HotSpot, Vram, .. cores]);
+        var layout = new OverlayLayout { Enabled = true, Style = new OverlayStyle { Arrangement = arrangement, TextShadow = rich } };
+        if (rich)
+        {
+            // two columns (dots between them), multi-value bars, shadowed text (no sparkline: each host's own refresh
+            // timer would add samples at its own moments)
+            layout.Cells =
+            [
+                new OverlayItem { SensorIds = [FpsSensor.Id], Row = 0, Column = 0 },
+                new OverlayItem { SensorIds = [CpuTemp.Id], Row = 0, Column = 1 },
+                new OverlayItem { SensorIds = [GpuTemp.Id], Row = 1, Column = 0 },
+                new OverlayItem { SensorIds = [HotSpot.Id], Row = 1, Column = 1 },
+                new OverlayItem { SensorIds = [.. cores.Select(c => c.Id)], Row = 2, Column = 0 },
+                new OverlayItem { SensorIds = [Vram.Id], Row = 3, Column = 0 },
+            ];
+        }
+        else
+        {
+            layout.Items = [Item(FpsSensor), Item(CpuTemp), Item(GpuTemp), Item(HotSpot), Item(Vram)];
+        }
+        layout.Normalize();
+
+        // two hosts, each with its own WARP device: one copies the cached backdrop, the other draws it every frame
+        using var cached = new OverlayHost(new OverlayHostOptions { NeverShow = true, PreferWarp = true });
+        using var drawn = new OverlayHost(new OverlayHostOptions { NeverShow = true, PreferWarp = true, CacheBackdrop = false });
+        void Step(int k)
+        {
+            hub.Set(FpsSensor, k == 2 ? 1440 : 120 + k); // 1440: the column grows, the backdrop is drawn again
+            hub.Set(CpuTemp, 60 + k);
+            hub.Set(GpuTemp, 70 - k);
+            hub.Set(HotSpot, k == 3 ? 104 : 88); // a threshold color
+            hub.Set(Vram, 9000 + 37 * k);
+            for (var i = 0; i < cores.Length; i++) hub.Set(cores[i], (k * 13 + i * 7) % 100);
+        }
+        Step(0);
+        foreach (var host in new[] { cached, drawn })
+        {
+            host.Start();
+            host.Apply(layout, OverlayTheme.Default, Ctx(hub));
+        }
+        for (var k = 0; k < 5; k++)
+        {
+            Step(k);
+            cached.RefreshNow();
+            drawn.RefreshNow();
+            var a = cached.ReadBack()!;
+            var b = drawn.ReadBack()!;
+            Assert.Equal((b.Width, b.Height), (a.Width, a.Height));
+            var differing = 0;
+            for (var i = 0; i < a.Pixels.Length; i++)
+                if (a.Pixels[i] != b.Pixels[i]) differing++;
+            Assert.True(differing == 0, $"step {k}: {differing} bytes differ");
+        }
+    }
+
     [Fact]
     public void Refresh_redraws_only_on_change()
     {

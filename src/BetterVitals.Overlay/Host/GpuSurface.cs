@@ -134,7 +134,7 @@ internal sealed unsafe class GpuDevice : IDisposable
 /// alpha, flip sequential, 2 buffers) of exactly the window's size → a DirectComposition visual on the HWND. Overlay
 /// thread only.
 /// </summary>
-internal sealed unsafe class SwapSurface(GpuDevice device, nint hwnd) : IDisposable
+internal sealed unsafe class SwapSurface(GpuDevice device, nint hwnd, bool cacheBackdrop = true) : IDisposable
 {
     private void* _swap;
     private void* _target;
@@ -219,7 +219,7 @@ internal sealed unsafe class SwapSurface(GpuDevice device, nint hwnd) : IDisposa
         if (!Ready || device.Resources is not { } res) return -1;
         var dc = device.Dc;
         var hr = 0;
-        var backdrop = alpha >= 1 ? Backdrop(scene, res, out hr) : null;
+        var backdrop = cacheBackdrop && alpha >= 1 ? Backdrop(scene, res, out hr) : null;
         if (hr < 0) return hr;
         if (backdrop != null)
         {

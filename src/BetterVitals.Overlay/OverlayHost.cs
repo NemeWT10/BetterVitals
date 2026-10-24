@@ -808,7 +808,7 @@ public sealed unsafe partial class OverlayHost : IDisposable
                     continue;
                 }
                 b.TooBig = false;
-                b.Surface ??= new SwapSurface(_device, b.Hwnd);
+                b.Surface ??= new SwapSurface(_device, b.Hwnd, _options.CacheBackdrop);
                 if (!b.Surface.Ready)
                 {
                     b.Surface.Create(w, h);
@@ -1431,6 +1431,9 @@ internal sealed record OverlayHostOptions
     /// BETTERVITALS_OVERLAY_GPU=1 switches the default to the GPU (troubleshooting).
     /// </summary>
     public bool PreferWarp { get; init; } = Environment.GetEnvironmentVariable("BETTERVITALS_OVERLAY_GPU") != "1";
+
+    /// <summary>Copy the static backdrop from a cached bitmap (default); false draws it every frame (tests compare the two).</summary>
+    public bool CacheBackdrop { get; init; } = true;
 }
 
 /// <summary>Snapshot of the host state for tests: the main window and the shared state, every window in <see cref="Windows"/>.</summary>
