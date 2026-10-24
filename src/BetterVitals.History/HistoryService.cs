@@ -20,6 +20,8 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     internal const double DefaultBytesPerValue = 0.6;
 
     private const int MaxRetentionDays = 36_500; // 100 years
+    private const long MegaByte = 1_000_000; // the size limit and the UI use decimal units
+    private const int MaxMegabytes = 100_000_000; // 100 TB
 
     private const string RecordConsumer = "history";
     private const string WatchConsumer = "history-live";
@@ -37,6 +39,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     private bool _enabled;
     private long _step = 2 * TimeGrid.Second;
     private int _rawDays = 7, _minuteDays = 365, _hourDays;
+    private long _maxBytes = 1000 * MegaByte;
     private HashSet<string> _recordIds = new(StringComparer.Ordinal);
     private IDemand? _recordDemand;
     private IDemand? _watchDemand;
@@ -44,7 +47,7 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     private long _recordDemandStep;
     private string[] _watchDemandIds = [];
     private ITimer? _timer;
-    private long _lastRetentionDay = long.MinValue;
+    private long _lastRetentionHour = long.MinValue;
     private readonly long _wallStart;
     private readonly long _stampStart;
     private volatile bool _disposed;
@@ -102,8 +105,9 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
             var ids = new HashSet<string>(settings.SensorIds, StringComparer.Ordinal);
             // bounded: days x ticks per day would wrap around for a silly value and delete everything
             _rawDays = Math.Clamp(settings.RawRetentionDays, 1, MaxRetentionDays);
-            _minuteDays = Math.Clamp(settings.MinuteRetentionDays, 1, MaxRetentionDays);
+            _minuteDays = Math.Clamp(settings.MinuteRetentionDays, 0, MaxRetentionDays);
             _hourDays = Math.Clamp(settings.HourRetentionDays, 0, MaxRetentionDays);
+            _maxBytes = settings.MaxHistoryMegabytes <= 0 ? 0 : Math.Min(settings.MaxHistoryMegabytes, MaxMegabytes) * MegaByte;
             turnedOn = settings.Enabled && !_enabled;
             turnedOff = !settings.Enabled && _enabled;
             var changed = turnedOn || turnedOff || step != _step || !ids.SetEquals(_recordIds);
@@ -342,19 +346,23 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
         }
     }
 
-    /// <summary>Under the store gate: retention at start and then once per UTC day (only while recording).</summary>
+    /// <summary>
+    /// Under the store gate: retention and the size limit at start and then once an hour (only while recording) — a
+    /// folder listing, so a changed setting takes effect within the hour.
+    /// </summary>
     private void RetentionIfDue(bool force)
     {
         int raw, minute, hour;
+        long maxBytes;
         lock (_config)
         {
             if (!_enabled) return;
-            (raw, minute, hour) = (_rawDays, _minuteDays, _hourDays);
+            (raw, minute, hour, maxBytes) = (_rawDays, _minuteDays, _hourDays, _maxBytes);
         }
-        var day = _o.Time.GetUtcNow().UtcTicks / TimeGrid.Day;
-        if (!force && day == _lastRetentionDay) return;
-        _lastRetentionDay = day;
-        _store.RunRetention(raw, minute, hour, RetentionNow());
+        var slot = _o.Time.GetUtcNow().UtcTicks / TimeGrid.Hour;
+        if (!force && slot == _lastRetentionHour) return;
+        _lastRetentionHour = slot;
+        _store.RunRetention(raw, minute, hour, maxBytes, RetentionNow());
     }
 
     /// <summary>
@@ -363,13 +371,13 @@ public sealed class HistoryService : IHistoryQuery, IDisposable
     /// </summary>
     private long RetentionNow() => Math.Min(_o.Time.GetUtcNow().UtcTicks, _wallStart + _o.Time.GetElapsedTime(_stampStart).Ticks);
 
-    /// <summary>Test hook: retention now with the configured limits.</summary>
-    internal int RunRetentionNow()
+    /// <summary>Test hook: retention now with the configured limits (<paramref name="maxBytes"/> overrides the size limit).</summary>
+    internal int RunRetentionNow(long? maxBytes = null)
     {
         lock (_store.Gate)
         {
             lock (_config)
-                return _store.RunRetention(_rawDays, _minuteDays, _hourDays, RetentionNow());
+                return _store.RunRetention(_rawDays, _minuteDays, _hourDays, maxBytes ?? _maxBytes, RetentionNow());
         }
     }
 

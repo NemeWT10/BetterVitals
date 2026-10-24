@@ -69,6 +69,55 @@ public sealed class SettingsSectionTests
     });
 
     [Fact]
+    public void Retention_offers_forever_summaries_a_space_limit_and_size_estimates() => Sta.Run(() =>
+    {
+        using var env = new TestEnv();
+        env.Store.Mutate("recording", s => s.Recording.SensorIds.UnionWith(["a", "b", "c"]));
+        var view = new RecordingSection(env.Host.Context(history: new FakeHistory()));
+        view.AttachForTests();
+        var r = env.Store.Current.Recording;
+        Assert.Equal(1000, view.Limit.Value);
+        Assert.StartsWith("about ", view.SizeTexts.Raw);
+        Assert.StartsWith("about ", view.SizeTexts.Minute);
+        Assert.EndsWith(" a year", view.SizeTexts.Hour); // hour summaries are kept forever by default
+        Assert.StartsWith("In total with these settings: about ", view.SizeTexts.Total);
+        Assert.Contains(" more each year", view.SizeTexts.Total);
+
+        // minute summaries kept forever take the hour ones along; a shorter hour retention pulls both back
+        view.Hour.Pick(730);
+        view.Minute.Pick(0);
+        Assert.Equal(0, r.MinuteRetentionDays);
+        Assert.Equal(0, r.HourRetentionDays);
+        Assert.EndsWith(" a year", view.SizeTexts.Minute);
+        view.Raw.Pick(365);
+        Assert.Equal(365, r.RawRetentionDays);
+        view.Hour.Pick(90);
+        Assert.Equal((90, 90, 90), (r.RawRetentionDays, r.MinuteRetentionDays, r.HourRetentionDays));
+        Assert.DoesNotContain(" more each year", view.SizeTexts.Total);
+
+        view.Limit.Pick(0);
+        Assert.Equal(0, r.MaxHistoryMegabytes);
+        Assert.Equal("No limit", RecordingSection.LimitLabel(0));
+        Assert.Equal("250 MB", RecordingSection.LimitLabel(250));
+        Assert.Equal("2 GB", RecordingSection.LimitLabel(2000));
+
+        // a limit under the estimate says the oldest data goes sooner
+        env.Store.Mutate("recording", s =>
+        {
+            s.Recording.SensorIds.UnionWith(Enumerable.Range(0, 400).Select(i => "s" + i));
+            s.Recording.IntervalSeconds = 1;
+            s.Recording.MaxHistoryMegabytes = 100;
+        });
+        Assert.Equal(100, view.Limit.Value);
+        Assert.EndsWith(Loc.T("settings.rec.total.capped"), view.SizeTexts.Total);
+
+        // live only: nothing to estimate
+        env.Store.Mutate("recording", s => s.Recording.Enabled = false);
+        Assert.False(view.SizesVisible);
+        view.DetachForTests();
+    });
+
+    [Fact]
     public void Recording_summary_usage_and_clear() => Sta.Run(() =>
     {
         using var env = new TestEnv();

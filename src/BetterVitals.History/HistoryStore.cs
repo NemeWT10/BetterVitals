@@ -311,30 +311,62 @@ internal sealed partial class HistoryStore
         }
     }
 
-    /// <summary>Deletes whole files older than the retention. Hour retention 0 = forever.</summary>
-    public int RunRetention(int rawDays, int minuteDays, int hourDays, long now)
+    /// <summary>
+    /// Deletes whole files older than the retention (minute / hour 0 days = forever), then, while the folder is over
+    /// <paramref name="maxBytes"/> (0 = no limit), the oldest files: detail first, then minute and hour summaries.
+    /// A file whose period has not ended (still written to) is never deleted for the limit.
+    /// </summary>
+    public int RunRetention(int rawDays, int minuteDays, int hourDays, long maxBytes, long now)
     {
         var deleted = 0;
+        var kept = new List<HistFile>();
         foreach (var f in HistoryFiles.List(Dir))
         {
             var days = f.Level switch
             {
                 Level.Raw => Math.Max(1, rawDays),
-                Level.Minute => Math.Max(1, minuteDays),
+                Level.Minute => minuteDays,
                 _ => hourDays,
             };
-            if (days <= 0 || f.End > now - days * TimeGrid.Day) continue;
-            try
-            {
-                File.Delete(f.Path);
-                deleted++;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                WarnOnce("ret" + f.Path, $"history: cannot delete {Path.GetFileName(f.Path)}: {ex.Message}");
-            }
+            if (days > 0 && f.End <= now - days * TimeGrid.Day && TryDelete(f.Path)) deleted++;
+            else kept.Add(f);
+        }
+        if (maxBytes <= 0) return deleted;
+
+        var total = 0L;
+        foreach (var f in kept) total += f.Length;
+        try
+        {
+            var catalog = new FileInfo(Path.Combine(Dir, Catalog.FileName));
+            if (catalog.Exists) total += catalog.Length;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // best effort
+        }
+        // listed by level (detail, minute, hour), oldest first within a level
+        foreach (var f in kept)
+        {
+            if (total <= maxBytes) break;
+            if (f.End > now || !TryDelete(f.Path)) continue;
+            deleted++;
+            total -= f.Length;
         }
         return deleted;
+    }
+
+    private bool TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            WarnOnce("ret" + path, $"history: cannot delete {Path.GetFileName(path)}: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>Deletes every history file and everything not written yet.</summary>

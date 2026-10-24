@@ -246,6 +246,40 @@ public class ServiceTests
     }
 
     [Fact]
+    public async Task Space_limit_deletes_the_oldest_detail_first_then_summaries_never_the_current_files()
+    {
+        using var rig = new Rig("limit", T0);
+        var a = rig.Hub.Add("A", SensorKind.Load);
+        var svc = rig.Open();
+        var settings = Rig.Settings(true, 10, [a]);
+        settings.RawRetentionDays = 365;
+        settings.MinuteRetentionDays = 0; // forever
+        settings.HourRetentionDays = 0;
+        svc.Configure(settings);
+        var start = new DateTime(2026, 8, 30, 22, 0, 0, DateTimeKind.Utc);
+        foreach (var day in new[] { 0, 1, 20, 40, 52, 53 })
+            rig.Feed(start.AddDays(day), 7200, 10, (_, _) => 42, interval: 10);
+        svc.Suspend();
+        rig.Time.Ticks = start.AddDays(53).AddHours(1).Ticks; // 2026-10-22 23:00, inside the newest files' periods
+        long Folder() => Directory.GetFiles(rig.Dir.Path).Sum(f => new FileInfo(f).Length);
+
+        Assert.Equal(0, svc.RunRetentionNow()); // under the default limit, nothing is old enough
+        Assert.Equal(0, svc.RunRetentionNow(Folder()));
+        Assert.Equal(1, svc.RunRetentionNow(Folder() - 1));
+        var after = rig.Dir.Files();
+        Assert.DoesNotContain("raw-20260830.bvr", after); // the oldest detail goes first
+        Assert.Contains("raw-20260831.bvr", after);
+        Assert.Contains("min-202608.bvm", after);
+
+        svc.RunRetentionNow(1); // far too small: everything but the files still being written
+        Assert.Equal(["catalog.bvc", "hour-2026.bvh", "min-202610.bvm", "raw-20261022.bvr"], rig.Dir.Files().Order(StringComparer.Ordinal));
+
+        // the old days are still answered from the hour summaries
+        var stats = await svc.GetStatsAsync(a.Id, start, start.AddHours(2));
+        Assert.Equal(42f, stats!.Value.Max);
+    }
+
+    [Fact]
     public async Task Low_disk_stops_writing_and_resumes()
     {
         using var rig = new Rig("lowdisk", T0);

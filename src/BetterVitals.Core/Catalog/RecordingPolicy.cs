@@ -38,4 +38,25 @@ public static class RecordingPolicy
     /// </summary>
     public static long EstimateBytesPerDay(int sensors, int intervalSeconds, double? bytesPerSample = null)
         => intervalSeconds <= 0 ? 0 : (long)(sensors * (86_400.0 / intervalSeconds) * (bytesPerSample ?? 0.4) + sensors * 1440 * 2.0);
+
+    /// <summary>Bytes one recorded sensor adds per day as minute summaries (min / max / sum / count, ~3 B a minute).</summary>
+    public const double MinuteBytesPerSensorDay = 4_500;
+
+    /// <summary>Bytes one recorded sensor adds per day as hour summaries (~8 B an hour with the block overhead).</summary>
+    public const double HourBytesPerSensorDay = 200;
+
+    /// <summary>
+    /// What each level takes once its retention is full: detail (samples × measured bytes per sample, else ~0.6 B),
+    /// minute and hour summaries. A level kept forever counts one year — it grows by that much every year.
+    /// </summary>
+    public static (long Raw, long Minute, long Hour) EstimateRetainedBytes(RecordingSettings recording, int sensors, double? bytesPerSample = null)
+    {
+        static int Days(int days) => days <= 0 ? 365 : Math.Min(days, 36_500);
+        var interval = Math.Clamp(recording.IntervalSeconds, 1, 60);
+        var rawPerDay = Math.Max(0, sensors) * (86_400.0 / interval) * (bytesPerSample ?? 0.6);
+        return (
+            (long)(rawPerDay * Math.Clamp(recording.RawRetentionDays, 1, 36_500)),
+            (long)(Math.Max(0, sensors) * MinuteBytesPerSensorDay * Days(recording.MinuteRetentionDays)),
+            (long)(Math.Max(0, sensors) * HourBytesPerSensorDay * Days(recording.HourRetentionDays)));
+    }
 }

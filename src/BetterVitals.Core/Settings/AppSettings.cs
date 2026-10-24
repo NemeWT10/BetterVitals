@@ -71,11 +71,17 @@ public sealed class RecordingSettings
     /// <summary>Detailed samples kept this many days (default 7, user decision).</summary>
     public int RawRetentionDays { get; set; } = 7;
 
-    /// <summary>1-minute min/avg/max kept this many days.</summary>
+    /// <summary>1-minute min/avg/max kept this many days; 0 = forever.</summary>
     public int MinuteRetentionDays { get; set; } = 365;
 
     /// <summary>1-hour min/avg/max kept this many days; 0 = forever.</summary>
     public int HourRetentionDays { get; set; }
+
+    /// <summary>
+    /// Most the history folder may take, in MB (10^6 bytes); past it the oldest detail goes first, then the oldest
+    /// summaries. 0 = no limit.
+    /// </summary>
+    public int MaxHistoryMegabytes { get; set; } = 1000;
 
     /// <summary>Sensor ids being recorded. Filled with the "Key" preset on first run.</summary>
     public HashSet<string> SensorIds { get; set; } = new(StringComparer.Ordinal);

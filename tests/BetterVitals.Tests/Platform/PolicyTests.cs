@@ -87,4 +87,22 @@ public sealed class PolicyTests
         Assert.InRange(RecordingPolicy.EstimateBytesPerDay(30, 2), 400_000, 2_000_000);
         Assert.Equal(rec.SensorIds.Count, RecordingPolicy.CountPresent(rec, engine));
     }
+
+    [Fact]
+    public void Retained_size_per_level_matches_the_measured_rates()
+    {
+        // tests/output/history/bench-size.txt: 60 sensors at 1 s for a day = detail 2.9 MB, minute 278 KB, hour 4.4 KB
+        var day = new RecordingSettings { IntervalSeconds = 1, RawRetentionDays = 1, MinuteRetentionDays = 1, HourRetentionDays = 1 };
+        var (raw, minute, hour) = RecordingPolicy.EstimateRetainedBytes(day, 60, 0.57);
+        Assert.InRange(raw, 2_700_000, 3_100_000);
+        Assert.InRange(minute, 150_000, 400_000);
+        Assert.InRange(hour, 4_000, 20_000);
+
+        // forever counts one year; nothing recorded takes nothing
+        var forever = new RecordingSettings { MinuteRetentionDays = 0, HourRetentionDays = 0 };
+        var perYear = RecordingPolicy.EstimateRetainedBytes(forever, 60);
+        Assert.InRange(perYear.Minute, 365 * minute - 1000, 365 * minute + 1000);
+        Assert.InRange(perYear.Hour, 365 * hour - 1000, 365 * hour + 1000);
+        Assert.Equal((0L, 0L, 0L), RecordingPolicy.EstimateRetainedBytes(forever, 0));
+    }
 }
