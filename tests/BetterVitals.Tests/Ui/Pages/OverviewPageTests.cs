@@ -166,7 +166,7 @@ public sealed class OverviewPageTests
     });
 
     [Fact]
-    public void Expanded_cards_refresh_the_rows_on_screen_and_fill_rows_as_they_scroll_in() => Sta.Run(() =>
+    public void Expanded_cards_build_and_refresh_the_rows_near_the_screen_and_fill_rows_as_they_scroll_in() => Sta.Run(() =>
     {
         using var env = new PageEnv();
         using var pc = new FakePc();
@@ -201,12 +201,12 @@ public sealed class OverviewPageTests
         var rows = Rows();
         var height = scroll.ActualHeight;
         var onScreen = rows.Where(r => r.Bottom > 0 && r.Top < height).ToList();
-        var farBelow = rows.Where(r => r.Top > height * 2).ToList();
         Assert.NotEmpty(onScreen);
-        Assert.True(farBelow.Count > 20, $"only {farBelow.Count} rows far below the screen");
         Assert.All(onScreen, r => Assert.Equal(Expected(r.Model), Shown(r.Model)));
-        // rows far off screen were not refreshed (their values are from when they appeared)
-        Assert.Contains(farBelow, r => !Expected(r.Model).SequenceEqual(Shown(r.Model)));
+        // rows far below the screen have no view yet (only a slot of their height)
+        Assert.True(page.Cards.Sum(c => c.WaitingRows) > 20, "rows far below the screen were built");
+        Assert.All(rows, r => Assert.True(r.Top < height * 2.5, "a row far below the screen was built"));
+        var extent = scroll.ExtentHeight;
 
         // scrolling to the end fills what comes into view before it is drawn
         scroll.ScrollToEnd();
@@ -214,6 +214,8 @@ public sealed class OverviewPageTests
         var nowOnScreen = rows.Where(r => r.Bottom > 0 && r.Top < height).ToList();
         Assert.NotEmpty(nowOnScreen);
         Assert.All(nowOnScreen, r => Assert.Equal(Expected(r.Model), Shown(r.Model)));
+        // a slot is exactly as tall as its row: building rows never moves anything
+        Assert.Equal(extent, scroll.ExtentHeight, 3);
         page.OnNavigatedFrom();
     });
 }

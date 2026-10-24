@@ -144,7 +144,7 @@ public sealed class OverviewPage : UserControl, IPage, IDisposable
         var items = FriendlyCatalog.Resolve(_hub.Hardware, _hub.Sensors);
         foreach (var g in groups)
         {
-            var card = new HardwareCard(g, KeyValuePicker.Pick(g, items), _actions, _expanded.Contains(g.Id), Toggle) { RowShown = OnRowShown };
+            var card = new HardwareCard(g, KeyValuePicker.Pick(g, items), _actions, _expanded.Contains(g.Id), Toggle) { RowShown = OnRowShown, RowValues = () => (_hub.Latest, _hub.Stats, Unit) };
             _cards.Add(card);
             _grid.Children.Add(card);
         }

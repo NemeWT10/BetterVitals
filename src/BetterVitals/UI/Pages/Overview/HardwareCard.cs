@@ -189,6 +189,7 @@ internal sealed class HardwareCard : Border
     private StackPanel? _details;
     private List<SensorRowModel>? _rows;
     private readonly List<SensorRowView> _rowViews = [];
+    private readonly List<(FrameworkElement Slot, SensorRowModel Model)> _slots = [];
     private readonly List<(TextBlock Label, KindGroup Group, int Count)> _groupLabels = [];
 
     public HardwareCard(HardwareGroup group, IReadOnlyList<KeyValue> keys, SensorActions actions, bool expanded, Action<HardwareCard> toggled)
@@ -259,6 +260,10 @@ internal sealed class HardwareCard : Border
         }
 
         Child = _body;
+        IsKeyboardFocusWithinChanged += (_, e) =>
+        {
+            if (e.NewValue is true) RealizeAll();
+        };
         Relabel();
         SetExpanded(expanded, animate: false);
     }
@@ -289,6 +294,7 @@ internal sealed class HardwareCard : Border
         {
             _details ??= BuildDetails();
             if (!_body.Children.Contains(_details)) _body.Children.Add(_details);
+            if (IsKeyboardFocusWithin) RealizeAll(); // expanded from the keyboard: Tab goes through the rows next
             if (animate) Motion.Appear(_details, rise: 6, fromScale: 1, ms: 240);
         }
         else if (_details is not null)
@@ -319,11 +325,13 @@ internal sealed class HardwareCard : Border
             head.Children.Add(label);
             _groupLabels.Add((label, g, rows.Count));
             details.Children.Add(head);
+            // a row's view is built when it first comes near the screen (RefreshRows) or keyboard focus enters the card:
+            // until then an empty slot of the row's fixed height holds its place
             foreach (var r in rows)
             {
-                var view = new SensorRowView(SensorRowLayout.Stats) { DataContext = r };
-                _rowViews.Add(view);
-                details.Children.Add(view);
+                var slot = new FrameworkElement { Height = RowColumns.RowHeight };
+                _slots.Add((slot, r));
+                details.Children.Add(slot);
             }
         }
         RelabelGroups();
@@ -381,6 +389,7 @@ internal sealed class HardwareCard : Border
                 if (r.IsShown) r.Refresh(frame, stats, unit);
             return;
         }
+        if (_details.ActualHeight <= 0) return; // not laid out yet: the scroll change after layout comes back here
         double top;
         try
         {
@@ -391,6 +400,12 @@ internal sealed class HardwareCard : Border
             return; // not in that tree (closing)
         }
         if (top > vp.Bottom || top + _details.ActualHeight < vp.Top) return;
+        for (var i = _slots.Count - 1; i >= 0; i--)
+        {
+            var (slot, model) = _slots[i];
+            var y = top + VisualTreeHelper.GetOffset(slot).Y;
+            if (y + slot.ActualHeight >= vp.Top && y <= vp.Bottom) Realize(i, frame, stats, unit);
+        }
         foreach (var view in _rowViews)
         {
             if (view.Model is not { IsShown: true } m) continue;
@@ -398,6 +413,34 @@ internal sealed class HardwareCard : Border
             if (y + view.ActualHeight >= vp.Top && y <= vp.Bottom) m.Refresh(frame, stats, unit);
         }
     }
+
+    /// <summary>Builds the view of a waiting row in its slot, with the row's values already in it (never a blank frame).</summary>
+    private void Realize(int slotIndex, SensorFrame frame, SessionStats stats, TemperatureUnit unit)
+    {
+        var (slot, model) = _slots[slotIndex];
+        _slots.RemoveAt(slotIndex);
+        model.Refresh(frame, stats, unit);
+        var view = new SensorRowView(SensorRowLayout.Stats) { DataContext = model };
+        _rowViews.Add(view);
+        var at = _details!.Children.IndexOf(slot);
+        if (at < 0) return;
+        _details.Children.RemoveAt(at);
+        _details.Children.Insert(at, view);
+    }
+
+    /// <summary>Every waiting row (keyboard focus entered the card: Tab must reach every row in order).</summary>
+    private void RealizeAll()
+    {
+        if (_slots.Count == 0 || RowValues is not { } values) return;
+        var (frame, stats, unit) = values();
+        for (var i = _slots.Count - 1; i >= 0; i--) Realize(i, frame, stats, unit);
+    }
+
+    /// <summary>The latest values for rows built outside a refresh (set by the page).</summary>
+    internal Func<(SensorFrame Frame, SessionStats Stats, TemperatureUnit Unit)>? RowValues { get; set; }
+
+    /// <summary>Rows whose view is not built yet (tests).</summary>
+    internal int WaitingRows => _slots.Count;
 
     /// <summary>"uśpiona" (the card), "uśpiony" (the drive), "w uśpieniu" (anything else).</summary>
     public static string AsleepKey(HardwareKind kind) => kind switch
